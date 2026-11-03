@@ -12,6 +12,7 @@ The order of work is the checklist in issue #1. Issue #2 has the stack and layou
 - `make lint` runs golangci-lint (configured in `.golangci.yml`), shellcheck and prettier. Run it before committing Go, shell or web changes.
 - `make types` regenerates `web/src/lib/api/types.ts` from `internal/api/types.go` with tygo. Never edit the generated file by hand.
 - The web app uses Bun as its package manager (`cd web && bun add ...`).
+- `make site` runs the landing page on <http://127.0.0.1:4701>. It's a static page in `site/`, separate from the dashboard, built with Vite and Tailwind (`cd site && bun run build`, into `site/build`). The dashboards in it are illustrations in `site/src/mock`, generated once from the Paper file, so nothing in them is live. Their `data-part` attributes are hooks for `site/src/motion.ts`, which plays each section from the scroll, so regenerating a mockup means putting them back. `site/src/stage.ts` works out where each scene falls. `make site-demo` builds the clickable demo that replaces the first one (see `docs/demo.md`): the real web app with a recording of `bield serve --demo`, in `site/public/demo`, which isn't committed. `.github/workflows/pages.yml` publishes it all to GitHub Pages from `main`. The app has to keep working under a path (`BIELD_BASE`): link with `resolve()`, and go by `page.route.id` rather than `page.url.pathname`.
 
 ## Tests and CI
 

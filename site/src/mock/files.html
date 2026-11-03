@@ -1,0 +1,117 @@
+<!-- From the Landing artboard in Paper. Only an illustration: nothing in it is live. -->
+<div class="flex w-245.5 h-124.5">
+	<div class="flex flex-col w-44 shrink-0 py-3 px-2 gap-0.5 border-r border-r-line">
+		<div data-part="place" class="pb-1.5 px-2">
+			<div class="text-[12px] leading-4 text-fg-faint">Places</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">Home</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 rounded-[5px] shrink-0 bg-hover">
+			<div class="text-[13px] leading-5 text-fg">/srv/compose</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">/srv/media</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">/etc</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">/var/log</div>
+		</div>
+		<div data-part="place" class="pt-3.5 pb-1.5 px-2">
+			<div class="text-[12px] leading-4 text-fg-faint">Docker volumes</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">jellyfin_config</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">immich_upload</div>
+		</div>
+		<div data-part="place" class="h-7 flex items-center px-2 shrink-0">
+			<div class="text-[13px] leading-5 text-fg-muted">paperless_data</div>
+		</div>
+	</div>
+	<div class="flex flex-col min-w-0 flex-1">
+		<div data-part="file" class="flex items-center h-7.5 shrink-0 px-4">
+			<div class="flex-1 text-[12px] leading-4 text-fg-faint">Name</div>
+			<div class="w-17.5 text-right text-[12px] leading-4 shrink-0 text-fg-faint">Size</div>
+			<div class="w-21 text-right text-[12px] leading-4 shrink-0 text-fg-faint">Modified</div>
+		</div>
+		<div data-part="file" class="flex items-center h-9 px-4 gap-2.5 shrink-0 border-t border-t-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" fill="var(--color-track)" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 text-fg">config</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">—</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">2d ago</div>
+		</div>
+		<div data-part="file" class="flex items-center h-9 px-4 gap-2.5 shrink-0 border-t border-t-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" fill="var(--color-track)" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 text-fg">logs</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">—</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">1h ago</div>
+		</div>
+		<div data-part="file" data-selected class="flex items-center h-9 px-4 gap-2.5 shrink-0 bg-raised border-t border-t-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" fill="none" stroke="var(--color-fg-muted)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+				<path d="M14 2v4a2 2 0 0 0 2 2h4" fill="none" stroke="var(--color-fg-muted)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 font-[500] text-fg">compose.yaml</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-muted">612 B</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-muted">12d ago</div>
+		</div>
+		<div data-part="file" class="flex items-center h-9 px-4 gap-2.5 shrink-0 border-t border-t-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+				<path d="M14 2v4a2 2 0 0 0 2 2h4" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 text-fg">.env</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">148 B</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">12d ago</div>
+		</div>
+		<div data-part="file" class="flex items-center h-9 px-4 gap-2.5 shrink-0 border-t border-t-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+				<path d="M14 2v4a2 2 0 0 0 2 2h4" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 text-fg">backup.sh</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">1.1 KB</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">31d ago</div>
+		</div>
+		<div data-part="file" class="flex items-center h-9 px-4 gap-2.5 shrink-0 border-t border-b border-y-line">
+			<svg width="15" height="15" viewBox="0 0 24 24" class="inline-block shrink-0">
+				<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+				<path d="M14 2v4a2 2 0 0 0 2 2h4" fill="none" stroke="var(--color-fg-faint)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+			</svg>
+			<div class="flex-1 text-[13px] leading-5 text-fg">README.md</div>
+			<div class="w-17.5 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">2.4 KB</div>
+			<div class="w-21 text-right font-mono text-[12px] leading-5 shrink-0 text-fg-faint">84d ago</div>
+		</div>
+	</div>
+	<div data-part="preview" class="flex flex-col w-110 shrink-0 border-l border-l-line">
+		<div class="flex items-center justify-between h-13 shrink-0 px-4 border-b border-b-line">
+			<div class="flex flex-col">
+				<div class="text-[13px] leading-4.5 font-[500] text-fg">compose.yaml</div>
+				<div class="text-[12px] leading-4 text-fg-faint">YAML, 612 B, modified 12d ago</div>
+			</div>
+			<div class="flex gap-1.5">
+				<div class="h-7 flex items-center px-2.5 rounded-[5px] bg-fg">
+					<div class="text-[12px] leading-4 font-[500] text-ground">Edit</div>
+				</div>
+				<div class="h-7 flex items-center px-2.5 rounded-[5px] border border-line-strong">
+					<div class="text-[12px] leading-4 text-fg">Download</div>
+				</div>
+			</div>
+		</div>
+		<div class="flex min-h-0 flex-1 py-3.5 px-4 overflow-clip gap-4 bg-ground">
+			<div data-part="code" class="self-start w-max shrink-0 text-right font-mono text-[12px] leading-5 whitespace-pre text-track">1<br />2<br />3<br />4<br />5<br />6<br />7<br />8<br />9<br />10<br />11<br />12<br />13<br />14<br />15<br />16<br />17<br />18</div>
+			<div data-part="code" class="self-start font-mono text-[12px] leading-5 flex-1 w-max whitespace-pre-wrap text-fg-muted"><span class="text-fg">services:</span><br />  <span class="text-fg">jellyfin:</span><br />    image: <span class="text-blue">jellyfin/jellyfin:10.10</span><br />    restart: <span class="text-blue">unless-stopped</span><br />    ports:<br />      - <span class="text-blue">"8096:8096"</span><br />    volumes:<br />      - <span class="text-blue">jellyfin_config:/config</span><br />      - <span class="text-blue">/srv/media:/media:ro</span><br />  <span class="text-fg">qbittorrent:</span><br />    image: <span class="text-blue">lscr.io/linuxserver/qbittorrent:5.0</span><br />    restart: <span class="text-blue">unless-stopped</span><br />    ports:<br />      - <span class="text-blue">"8080:8080"</span><br />    volumes:<br />      - <span class="text-blue">/srv/media/downloads:/downloads</span><br /><span class="text-fg">volumes:</span><br />  <span class="text-fg">jellyfin_config:</span></div>
+		</div>
+	</div>
+</div>
+<div data-part="term" class="absolute left-47.5 top-68 w-85 py-3.5 px-4 rounded-[8px] [box-shadow:#00000080_0px_16px_40px] bg-ground border border-line-strong">
+	<div data-part="term-text" class="font-mono text-[12px] leading-5 w-max whitespace-pre text-fg-muted"><span class="text-fg-faint">alex@nas:~$</span> <span class="text-fg">tmux ls</span><br />main: 2 windows (created Mon 09:12)<br /><span class="text-fg-faint">alex@nas:~$</span> <span class="text-fg">zpool status -x</span><br />all pools are healthy<br /><span class="text-fg-faint">alex@nas:~$</span> <span class="animate-blink text-lamp">▮</span></div>
+</div>

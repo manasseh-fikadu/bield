@@ -1,0 +1,6 @@
+bun.lock
+/build/
+/public/demo/
+
+# Generated from the Landing artboard in Paper
+src/mock/

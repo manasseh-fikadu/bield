@@ -38,6 +38,12 @@ The demo answers to any host name, since there's no tailnet name to hold request
 
 The demo keeps its database in a temporary directory and deletes it when it stops, so it starts afresh each time. It ignores `--data-dir`. To run it for the public, put it behind a reverse proxy, and restart it now and then (a systemd timer or Docker's restart policy will do), so that what visitors changed goes away.
 
+## On the landing page
+
+The landing page's demo is the real dashboard with no server behind it, since GitHub Pages only serves files. `make site-demo` records what `bield serve --demo` answers (every request the dashboard can make, and a while of its event streams), and builds the app to run from a path, with a small stand-in for the hub that replays the recording with the times moved on to now. So the numbers move and every page opens, but nothing is really running. Alerts can be acknowledged and snoozed in that browser tab, and anything else that would change something says it can't.
+
+The recording is made fresh for each build, and the build fails if the demo stops answering a request it needs, so it follows changes to the API.
+
 ## Development
 
 `make demo` runs the demo with Vite, as `make dev` does for a real tailnet. `make build && make e2e` runs the Playwright smoke test against the built binary, which is what CI does: it visits every page on a desktop and on a phone, and checks that none of them logs an error.

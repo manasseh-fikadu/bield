@@ -8,7 +8,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build web dev dev-api dev-web demo demo-api test e2e screenshots bench load lint types clean
+.PHONY: help build web dev dev-api dev-web demo demo-api site site-demo test e2e screenshots bench load lint types clean
 
 ## build: build ./bield with the web UI embedded
 build: web
@@ -35,11 +35,22 @@ demo: web/node_modules
 demo-api:
 	$(GO) run ./cmd/bield serve --demo --dev-ui http://127.0.0.1:$(VITE_PORT)
 
-## test: run the Go and web tests, and type-check the web app
-test: web/node_modules
+## site: run the landing page, on http://127.0.0.1:4701
+site: site/node_modules
+	cd site && $(BUN) run dev
+
+## site-demo: build the clickable demo into the landing page
+site-demo: web/node_modules site/node_modules
+	$(GO) build -o site/.bield-demo ./cmd/bield
+	cd site && BIELD_BIN=.bield-demo $(BUN) run demo
+
+## test: run the Go and web tests, and type-check the web app and the landing page
+test: web/node_modules site/node_modules
 	$(GO) test -race -shuffle=on ./...
 	cd web && $(BUN) run test
 	cd web && $(BUN) run check
+	cd site && $(BUN) run test
+	cd site && $(BUN) run check
 
 ## e2e: click through the demo in a browser (run make build first)
 e2e: web/node_modules
@@ -58,10 +69,11 @@ load:
 	BIELD_LOAD_DAYS=$${BIELD_LOAD_DAYS:-7} $(GO) test -tags load -run TestLoad -v -count=1 -timeout 40m ./cmd/bield
 
 ## lint: run golangci-lint, shellcheck and prettier
-lint: web/node_modules
+lint: web/node_modules site/node_modules
 	golangci-lint run ./...
 	shellcheck agent/*.sh install.sh .github/scripts/*.sh
 	cd web && $(BUN) run lint
+	cd site && $(BUN) run lint
 
 ## types: regenerate web/src/lib/api/types.ts from internal/api/types.go
 types:
@@ -69,10 +81,14 @@ types:
 
 ## clean: remove build output
 clean:
-	rm -rf bield web/build web/.svelte-kit
+	rm -rf bield web/build web/.svelte-kit site/build site/public/demo site/.bield-demo
 
 web/node_modules: web/package.json web/bun.lock
 	cd web && $(BUN) install --frozen-lockfile
+	@touch $@
+
+site/node_modules: site/package.json site/bun.lock
+	cd site && $(BUN) install --frozen-lockfile
 	@touch $@
 
 ## help: list these targets

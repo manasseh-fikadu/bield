@@ -1,0 +1,170 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/host-grotesk';
+@import '@fontsource/ibm-plex-mono/400.css';
+
+/*
+ * The same theme as the dashboard, under the names the Paper file gives it,
+ * since the mockups come straight from there. Color means something is wrong:
+ * healthy things are lit by the lamp, and only amber and red stand out.
+ */
+@theme {
+	--font-sans: 'Host Grotesk Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--color-ground: #0b0c0d;
+	--color-sheet: #101112;
+	--color-raised: #17181a;
+	--color-hover: #1e2022;
+	--color-line: #222427;
+	--color-line-strong: #303337;
+	--color-track: #4a4e54;
+	--color-track-dim: #35383d;
+
+	--color-fg: #ecedee;
+	--color-fg-muted: #a6a9ad;
+	--color-fg-faint: #7d8085;
+
+	--color-lamp: #dde7f3;
+	--color-amber: #f5b544;
+	--color-red: #f4615d;
+	--color-blue: #7fa9f5;
+
+	--ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+
+	--animate-rise: rise 480ms var(--ease-entrance) both;
+	--animate-appear: appear 480ms var(--ease-entrance) both;
+	--animate-lift: lift 1100ms var(--ease-entrance) both;
+	--animate-kindle: kindle 900ms ease-out both;
+	--animate-blink: blink 1.1s steps(1) infinite;
+	--animate-ripple: ripple 800ms var(--ease-entrance) both;
+
+	/* A ring goes out from a stop, as the line reaches it. */
+	@keyframes ripple {
+		from {
+			opacity: 0.8;
+			scale: 1;
+		}
+		to {
+			opacity: 0;
+			scale: 5;
+		}
+	}
+
+	@keyframes lift {
+		from {
+			opacity: 0;
+			translate: 0 56px;
+		}
+		to {
+			opacity: 1;
+			translate: 0 0;
+		}
+	}
+	/* The amber full stop comes on like a lamp, brighter for a moment. */
+	@keyframes kindle {
+		from {
+			opacity: 0;
+			scale: 0.2;
+			box-shadow: 0 0 0 0 rgb(245 181 68 / 0);
+		}
+		55% {
+			opacity: 1;
+			scale: 1.2;
+			box-shadow: 0 0 0.5em 0.14em rgb(245 181 68 / 0.75);
+		}
+		to {
+			opacity: 1;
+			scale: 1;
+			box-shadow: 0 0 0.28em 0.02em rgb(245 181 68 / 0.28);
+		}
+	}
+	@keyframes blink {
+		0%,
+		60% {
+			opacity: 1;
+		}
+		61%,
+		100% {
+			opacity: 0;
+		}
+	}
+	@keyframes rise {
+		from {
+			transform: translateY(105%);
+		}
+		to {
+			transform: translateY(0);
+		}
+	}
+	@keyframes appear {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+}
+
+@layer base {
+	html {
+		color-scheme: dark;
+		background: var(--color-ground);
+		scroll-behavior: smooth;
+	}
+	body {
+		@apply bg-ground font-sans text-fg antialiased;
+		font-size: 16px;
+		line-height: 1.5;
+		text-rendering: optimizeLegibility;
+	}
+	::selection {
+		background: rgb(127 169 245 / 0.35);
+	}
+	:focus-visible {
+		outline: 2px solid rgb(127 169 245 / 0.7);
+		outline-offset: 2px;
+		border-radius: 4px;
+	}
+	button {
+		cursor: pointer;
+	}
+}
+
+/* A dashboard mockup, drawn at its own size and scaled to fit. Without the script, it scrolls. */
+@utility mock {
+	overflow: auto hidden;
+	scrollbar-width: none;
+}
+
+/* Buttons press down a pixel while held. */
+@utility press {
+	transition-property: color, background-color, border-color, translate;
+	transition-duration: 120ms;
+	&:active {
+		translate: 0 1px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+	/* The line is simply lit. */
+	[data-beam] {
+		position: static;
+		height: 100%;
+		margin-top: 0;
+	}
+	[data-line-head] {
+		display: none;
+	}
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		animation-delay: 0ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.001ms !important;
+	}
+}

@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Bield: your whole tailnet, on one page</title>
+		<meta
+			name="description"
+			content="Bield is one binary that joins your Tailscale or Headscale network and shows every machine: how it’s doing, what’s wrong with it, what runs on it."
+		/>
+		<link rel="icon" href="/favicon.svg" />
+		<script type="module" src="/src/main.ts"></script>
+	</head>
+	<body>
+		<div class="mx-auto max-w-[1600px] overflow-clip">
+			<header class="px-5 lg:px-20">
+				<nav class="flex h-19 animate-appear items-center justify-between" aria-label="Main">
+					<a href="./" class="flex items-center gap-2.5">
+						<svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true">
+							<path
+								d="M2.5 10.5 10 3l7.5 7.5"
+								fill="none"
+								stroke="var(--color-fg)"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							/>
+							<circle cx="10" cy="13.5" r="3" fill="var(--color-amber)" />
+						</svg>
+						<span class="text-[17px] leading-5.5 font-semibold tracking-[-0.015em] text-fg"
+							>Bield</span
+						>
+					</a>
+					<div class="flex items-center gap-7 text-[14px] leading-5 text-fg-muted">
+						<a
+							href="https://github.com/manasseh-fikadu/bield/tree/main/docs"
+							class="transition-colors hover:text-fg"
+							>Docs</a
+						>
+						<a
+							href="https://github.com/manasseh-fikadu/bield"
+							class="flex items-center gap-2 transition-colors hover:text-fg"
+						>
+							<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+								<use href="#github" />
+							</svg>
+							GitHub
+						</a>
+					</div>
+				</nav>
+
+				<div
+					class="flex flex-col gap-8 pt-10 pb-12 xl:flex-row xl:items-end xl:justify-between xl:gap-12 xl:pt-16 xl:pb-22"
+				>
+					<h1
+						class="text-[clamp(2.75rem,12vw,8rem)] leading-[0.953] font-medium tracking-[-0.05em] text-fg lg:text-[clamp(5.5rem,calc((100vw-10rem)/7.5),8rem)] xl:text-[clamp(5.5rem,calc((100vw-600px)/7.5),8rem)]"
+					>
+						<span class="-mb-[0.14em] block overflow-hidden pb-[0.14em]">
+							<span class="block animate-rise">Your whole tailnet,</span>
+						</span>
+						<span class="-mb-[0.14em] block overflow-hidden pb-[0.14em]">
+							<span class="block animate-rise [animation-delay:80ms]"
+								>on one page<span
+									class="ml-[0.03em] inline-block size-[0.15em] animate-kindle rounded-full bg-amber [animation-delay:560ms]"
+									aria-hidden="true"
+								></span
+							></span>
+						</span>
+					</h1>
+					<div
+						class="flex animate-appear flex-col gap-5.5 [animation-delay:240ms] xl:w-98 xl:shrink-0 xl:pb-3"
+					>
+						<p class="text-[18px] leading-7 text-fg-muted">
+							Bield is one binary that joins your Tailscale or Headscale network and shows every
+							machine: how it’s doing, what’s wrong with it, what runs on it. Open a shell or
+							restart a container from the same page.
+						</p>
+						<div class="flex flex-wrap items-center gap-2">
+							<a
+								href="#install"
+								class="flex h-10 press items-center rounded-[8px] bg-fg px-4 text-[14px] leading-5 font-medium text-ground hover:bg-fg/85"
+								>Install Bield</a
+							>
+							<a
+								href="https://github.com/manasseh-fikadu/bield"
+								class="flex h-10 press items-center gap-2 rounded-[8px] border border-line-strong px-3.5 text-[14px] leading-5 text-fg hover:border-track hover:bg-hover"
+							>
+								<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+									<use href="#github" />
+								</svg>
+								View on GitHub
+							</a>
+						</div>
+					</div>
+				</div>
+
+				<div
+					class="flex animate-appear flex-wrap items-center justify-between gap-x-6 gap-y-1 pb-2 text-[13px] leading-5 [animation-delay:320ms]"
+				>
+					<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+						<span class="text-fg-faint">Works with</span>
+						<a
+							href="https://github.com/manasseh-fikadu/bield/blob/main/docs/tailscale.md"
+							class="flex items-center gap-2 text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+						>
+							<svg
+								class="h-4.5 w-4.5 shrink-0"
+								viewBox="0 0 21.54 21.54"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<circle opacity="0.2" cx="2.692" cy="2.692" r="2.692" />
+								<circle opacity="0.2" cx="10.768" cy="2.692" r="2.692" />
+								<circle opacity="0.2" cx="18.843" cy="2.692" r="2.692" />
+								<circle cx="2.692" cy="10.768" r="2.692" />
+								<circle cx="10.768" cy="10.768" r="2.692" />
+								<circle cx="18.843" cy="10.768" r="2.692" />
+								<circle opacity="0.2" cx="2.692" cy="18.843" r="2.692" />
+								<circle cx="10.768" cy="18.843" r="2.692" />
+								<circle opacity="0.2" cx="18.843" cy="18.843" r="2.692" />
+							</svg>
+							Tailscale
+						</a>
+						<a
+							href="https://github.com/manasseh-fikadu/bield/blob/main/docs/headscale.md"
+							class="flex items-center gap-2 text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+						>
+							<svg
+								class="h-4.5 w-auto shrink-0"
+								viewBox="30 120 1220 400"
+								fill="currentColor"
+								aria-hidden="true"
+							>
+								<circle cx="150.7" cy="325.4" r="117.5" />
+								<g opacity="0.6">
+									<circle cx="355" cy="268.3" r="33.5" />
+									<circle cx="355" cy="384.2" r="33.5" />
+									<circle cx="506.6" cy="384.2" r="33.5" />
+									<circle cx="507" cy="268.3" r="33.5" />
+									<circle cx="802.4" cy="326.7" r="117.2" />
+									<circle cx="1054.7" cy="326.7" r="117.2" />
+								</g>
+								<g opacity="0.4">
+									<path
+										d="M680.282 124.808h-68.093v390.325h68.081v-28.23H640V153.228h40.282v-28.42Z"
+									/>
+									<path
+										d="M680.282 124.808h-68.093v390.325h68.081v-28.23H640V153.228h40.282v-28.42Z"
+										transform="matrix(-1 0 0 1 1857.19 0)"
+									/>
+								</g>
+							</svg>
+							Headscale
+						</a>
+					</div>
+					<a
+						href="https://github.com/manasseh-fikadu/bield#try-the-demo"
+						class="text-fg-muted transition-colors hover:text-fg"
+						data-when="still"
+						>Run the demo yourself ↗</a
+					>
+					<a
+						href="demo/"
+						target="_blank"
+						class="text-fg-muted transition-colors hover:text-fg"
+						data-when="live"
+						hidden
+						>Open full screen ↗</a
+					>
+				</div>
+				<figure
+					class="origin-top animate-lift mock rounded-[12px] border border-line-strong bg-ground [animation-delay:380ms]"
+					data-mock="overview"
+					data-demo
+					data-start="220"
+					data-width="1438"
+					data-height="878"
+					role="img"
+					aria-label="Bield's Overview: 10 of 12 machines online and 4 things need you. A map shows the internet and the home relay above the hub, and the other machines below it, nearest first."
+				>
+					<div class="relative">
+						<!-- What shows until the app has loaded, and if it can't. -->
+						<div data-poster aria-hidden="true"><!-- @mock overview --></div>
+					</div>
+				</figure>
+			</header>
+
+			<div class="relative">
+				<!--
+					The line down the page, and the light at its end. The light stays at one height in the
+					window because it's sticky, so the browser keeps it there as the page scrolls: a script
+					would always be a frame behind, and it would shake. The filled part hangs above it, clipped
+					to the line, and hidden above the line's start until the page gets there.
+				-->
+				<div
+					class="absolute top-0 bottom-14 left-[91px] hidden w-0.5 bg-track-dim [--tip:62vh] lg:block"
+					data-line
+					aria-hidden="true"
+				>
+					<div class="absolute inset-0 overflow-clip">
+						<div
+							class="sticky top-[calc(var(--tip)-100vh)] -mt-[100vh] h-screen bg-lamp"
+							data-beam
+						></div>
+					</div>
+					<div class="absolute inset-0">
+						<div
+							class="pointer-events-none sticky top-(--tip) z-10 ml-px size-0 opacity-0 transition-opacity duration-200"
+							data-line-head
+						>
+							<div
+								class="absolute h-190 w-310 -translate-1/2 bg-[radial-gradient(closest-side,rgb(221_231_243/0.09),transparent)]"
+							></div>
+							<div
+								class="absolute size-1.5 -translate-1/2 rounded-full bg-lamp shadow-[0_0_14px_4px_rgb(221_231_243/0.75)]"
+							></div>
+						</div>
+					</div>
+				</div>
+
+				<main>
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="history" data-pin>
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-19 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-34"
+								data-stop
+							></span>
+						</div>
+						<div
+							class="flex min-w-0 flex-1 flex-col gap-8 pt-16 min-[1400px]:flex-row min-[1400px]:gap-8 xl:pt-30"
+						>
+							<div class="flex max-w-2xl shrink-0 flex-col gap-4.5 min-[1400px]:w-105">
+								<h2
+									id="history"
+									class="text-[32px] leading-9 font-medium tracking-[-0.035em] text-fg xl:text-[44px] xl:leading-12"
+								>
+									See what was running when it spiked.
+								</h2>
+								<p class="text-[17px] leading-6.75 text-fg-muted">
+									CPU, memory, disk and network for every machine, with up to 90 days of history.
+									Click a point on a chart and Bield shows what was busy at that moment.
+								</p>
+								<p class="text-[14px] leading-5.5 text-fg-faint">
+									Metrics come from a small bash agent under the MIT license, so you can read it
+									before you run it.
+								</p>
+							</div>
+							<figure
+								class="w-full max-w-231 min-w-0 mock rounded-[10px] border border-line bg-sheet min-[1400px]:flex-1"
+								data-mock="history"
+								data-width="922"
+								data-height="342"
+								role="img"
+								aria-label="A week of CPU and memory on a machine. Pointing at a spike says what was running then: jellyfin at 52%, immich-server at 14% and smbd.service at 7%."
+							>
+								<div class="relative" aria-hidden="true"><!-- @mock history --></div>
+							</figure>
+						</div>
+					</section>
+
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="docker" data-pin>
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-19 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-34"
+								data-stop
+							></span>
+						</div>
+						<div class="flex min-w-0 flex-1 flex-col gap-6 pt-16 xl:gap-9 xl:pt-30">
+							<div
+								class="flex flex-col gap-4.5 xl:flex-row xl:items-end xl:justify-between xl:gap-13"
+							>
+								<h2
+									id="docker"
+									class="text-[32px] leading-9 font-medium tracking-[-0.035em] text-fg xl:max-w-195 xl:min-w-0 xl:flex-1 xl:text-[44px] xl:leading-12"
+								>
+									Restart the container from the page that said it broke.
+								</h2>
+								<p class="text-[17px] leading-6.75 text-fg-muted xl:w-110 xl:shrink-0">
+									Logs, live stats and images for every machine Bield can reach. It can start, stop
+									and restart. It can’t create, exec or prune, and that’s on purpose.
+								</p>
+							</div>
+							<figure
+								class="mock rounded-[10px] border border-line bg-sheet"
+								data-mock="docker"
+								data-width="1374"
+								data-height="648"
+								role="img"
+								aria-label="Bield's Docker page: 6 of 7 containers running, 1 unhealthy and 1 crashed. The unhealthy one is open beside the list, with its logs and buttons to restart and stop it."
+							>
+								<div class="relative" aria-hidden="true"><!-- @mock docker --></div>
+							</figure>
+						</div>
+					</section>
+
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="shell" data-pin>
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-19 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-34"
+								data-stop
+							></span>
+						</div>
+						<div
+							class="flex min-w-0 flex-1 flex-col gap-8 pt-16 min-[1400px]:flex-row min-[1400px]:gap-13 xl:pt-30"
+						>
+							<div class="flex max-w-2xl shrink-0 flex-col gap-4.5 min-[1400px]:w-85">
+								<h2
+									id="shell"
+									class="text-[32px] leading-9 font-medium tracking-[-0.035em] text-fg xl:text-[44px] xl:leading-12"
+								>
+									A shell that’s still there tomorrow.
+								</h2>
+								<p class="text-[17px] leading-6.75 text-fg-muted">
+									Terminals run in tmux, so closing the tab doesn’t end the session. The file
+									manager edits and previews on any machine with SSH access.
+								</p>
+							</div>
+							<figure
+								class="w-full max-w-246 min-w-0 mock rounded-[10px] border border-line bg-sheet min-[1400px]:flex-1"
+								data-mock="files"
+								data-width="982"
+								data-height="498"
+								role="img"
+								aria-label="Bield's file manager with a compose file open beside the list, and a terminal in a tmux session over it."
+							>
+								<div class="relative" aria-hidden="true"><!-- @mock files --></div>
+							</figure>
+						</div>
+					</section>
+
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="alerts" data-pin>
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-19 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-34"
+								data-stop
+							></span>
+						</div>
+						<div
+							class="flex min-w-0 flex-1 flex-col gap-8 pt-16 xl:flex-row xl:justify-between xl:gap-13 xl:pt-30"
+						>
+							<div class="flex shrink-0 flex-col gap-4.5 xl:w-105">
+								<h2
+									id="alerts"
+									class="text-[32px] leading-9 font-medium tracking-[-0.035em] text-fg xl:text-[44px] xl:leading-12"
+								>
+									Alerts that find you.
+								</h2>
+								<p class="text-[17px] leading-6.75 text-fg-muted">
+									Offline machines, full disks, expiring Tailscale keys, failing checks, crashed
+									containers and failed services. Acknowledge them, snooze them, or leave a note for
+									later.
+								</p>
+							</div>
+							<div class="flex shrink-0 flex-col gap-2.5">
+								<p class="text-[14px] leading-5.5 text-fg-faint">They reach your phone through</p>
+								<ul
+									class="text-[28px] leading-10 font-medium tracking-[-0.025em] text-fg xl:text-[36px] xl:leading-12.5"
+								>
+									<li>ntfy</li>
+									<li>Telegram</li>
+									<li>Email</li>
+									<li>Discord</li>
+									<li>Slack</li>
+									<li>Any webhook</li>
+								</ul>
+							</div>
+							<figure
+								class="w-full max-w-72.5 shrink-0 mock rounded-[10px] border border-line bg-sheet"
+								data-mock="alerts"
+								data-width="288"
+								data-height="414"
+								role="img"
+								aria-label="Bield's list of what needs you: a failed backup with buttons to acknowledge and snooze it, a machine that's offline, a failing check and a key about to expire."
+							>
+								<div class="relative" aria-hidden="true"><!-- @mock alerts --></div>
+							</figure>
+						</div>
+					</section>
+
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="login">
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-26 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-44"
+								data-stop
+							></span>
+						</div>
+						<div class="flex min-w-0 flex-1 flex-col gap-8 pt-20 xl:gap-12 xl:pt-35">
+							<h2
+								id="login"
+								class="text-[clamp(2.5rem,6vw,6rem)] leading-none font-medium tracking-[-0.045em] text-fg"
+							>
+								Your tailnet is the login.
+							</h2>
+							<div
+								class="grid gap-10 xl:grid-cols-[minmax(0,37.5rem)_minmax(0,37.5rem)] xl:justify-between xl:gap-20"
+							>
+								<div class="flex min-w-0 flex-col gap-5.5">
+									<p class="text-[17px] leading-6.75 text-fg-muted">
+										There’s no password and no account to make. For each connection, Bield asks
+										Tailscale which device it comes from and who owns that device. Nothing in a
+										request can claim to be someone else.
+									</p>
+									<dl
+										class="flex flex-col gap-1.5 rounded-[10px] border border-line bg-sheet px-4.5 py-4 font-mono text-[13px] leading-5.5"
+									>
+										<div class="flex flex-col sm:flex-row">
+											<dt class="shrink-0 text-fg-faint sm:w-44">connection from</dt>
+											<dd class="text-fg">100.101.0.9</dd>
+										</div>
+										<div class="flex flex-col sm:flex-row">
+											<dt class="shrink-0 text-fg-faint sm:w-44">tailscale says</dt>
+											<dd class="text-fg">alex@example.com, MacBook Pro</dd>
+										</div>
+										<div class="flex flex-col sm:flex-row">
+											<dt class="shrink-0 text-fg-faint sm:w-44">role</dt>
+											<dd class="text-lamp">admin</dd>
+										</div>
+									</dl>
+								</div>
+								<ul class="flex min-w-0 flex-col text-[16px] leading-6.25 text-fg">
+									<li class="pb-3.25">Only your tailnet can reach it.</li>
+									<li class="border-t border-line py-3.25">
+										Admins and read-only viewers, decided by tailnet identity.
+									</li>
+									<li class="border-t border-line py-3.25">
+										An agent can report metrics and do nothing else.
+									</li>
+									<li class="border-t border-line py-3.25">
+										Every terminal, file change and restart goes in the activity log.
+									</li>
+									<li class="border-t border-line pt-3.25 text-[14px] leading-5.5 text-fg-faint">
+										Bield hasn’t had an outside review yet.
+										<a
+											href="https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md"
+											class="underline decoration-track underline-offset-2 transition-colors hover:text-fg-muted"
+											>SECURITY.md</a
+										>
+										has the full threat model.
+									</li>
+								</ul>
+							</div>
+						</div>
+					</section>
+
+					<section class="flex gap-10 px-5 lg:px-20" aria-labelledby="install">
+						<div class="hidden w-6 shrink-0 flex-col items-center lg:flex" aria-hidden="true">
+							<span
+								class="relative mt-23 size-3 rounded-full border-2 border-track bg-ground transition-[background-color,border-color,box-shadow] duration-200 data-lit:border-lamp data-lit:bg-lamp data-lit:shadow-[0_0_16px_2px_rgb(221_231_243/0.5)] xl:mt-44"
+								data-stop
+							></span>
+						</div>
+						<div
+							class="flex min-w-0 flex-1 scroll-mt-10 flex-col gap-8 pt-20 xl:flex-row xl:justify-between xl:gap-16 xl:pt-40"
+						>
+							<div class="flex min-w-0 flex-col gap-5.5 xl:max-w-215 xl:flex-1">
+								<h2
+									id="install"
+									class="scroll-mt-10 text-[32px] leading-9 font-medium tracking-[-0.035em] text-fg xl:text-[44px] xl:leading-12"
+								>
+									Running in about two minutes.
+								</h2>
+								<div
+									class="flex min-w-0 flex-col rounded-[10px] border border-line bg-sheet"
+									data-install
+								>
+									<div class="flex h-11 shrink-0 items-center gap-5 border-b border-line px-4.5">
+										<div
+											class="flex min-w-0 [scrollbar-width:none] gap-5 overflow-x-auto"
+											role="tablist"
+											aria-label="Ways to install Bield"
+										>
+											<button
+												type="button"
+												id="tab-docker"
+												role="tab"
+												aria-selected="true"
+												aria-controls="how-docker"
+												class="shrink-0 text-[13px] leading-5 font-medium whitespace-nowrap text-fg transition-colors hover:text-fg"
+											>
+												Docker
+											</button>
+											<button
+												type="button"
+												id="tab-systemd"
+												role="tab"
+												aria-selected="false"
+												aria-controls="how-systemd"
+												tabindex="-1"
+												class="shrink-0 text-[13px] leading-5 whitespace-nowrap text-fg-muted transition-colors hover:text-fg"
+											>
+												Linux with systemd
+											</button>
+											<button
+												type="button"
+												id="tab-source"
+												role="tab"
+												aria-selected="false"
+												aria-controls="how-source"
+												tabindex="-1"
+												class="shrink-0 text-[13px] leading-5 whitespace-nowrap text-fg-muted transition-colors hover:text-fg"
+											>
+												From source
+											</button>
+										</div>
+										<button
+											type="button"
+											data-copy
+											class="ml-auto shrink-0 press text-[12px] leading-4 text-fg-muted hover:text-fg"
+										>
+											Copy
+										</button>
+									</div>
+									<div id="how-docker" role="tabpanel" aria-labelledby="tab-docker" class="p-4.5">
+										<pre
+											class="overflow-x-auto font-mono text-[13px] leading-6 text-fg"
+										><code class="block w-max min-w-full">curl -fsSLO https://raw.githubusercontent.com/manasseh-fikadu/bield/main/compose.yaml
+docker compose up -d
+docker compose logs bield   <span class="text-fg-faint"># open the link in it, to log Bield in to Tailscale</span></code></pre>
+									</div>
+									<div
+										id="how-systemd"
+										role="tabpanel"
+										aria-labelledby="tab-systemd"
+										class="p-4.5"
+										hidden
+									>
+										<pre
+											class="overflow-x-auto font-mono text-[13px] leading-6 text-fg"
+										><code class="block w-max min-w-full">curl -fsSL https://raw.githubusercontent.com/manasseh-fikadu/bield/main/install.sh | sudo bash
+<span class="text-fg-faint"># then open http://127.0.0.1:4700 on that machine, to log Bield in to Tailscale</span></code></pre>
+									</div>
+									<div
+										id="how-source"
+										role="tabpanel"
+										aria-labelledby="tab-source"
+										class="p-4.5"
+										hidden
+									>
+										<pre
+											class="overflow-x-auto font-mono text-[13px] leading-6 text-fg"
+										><code class="block w-max min-w-full">git clone https://github.com/manasseh-fikadu/bield
+cd bield
+make build      <span class="text-fg-faint"># needs Go 1.27.3, Node 22.17 and Bun</span>
+./bield serve   <span class="text-fg-faint"># then open http://127.0.0.1:4700, to log Bield in to Tailscale</span></code></pre>
+									</div>
+								</div>
+								<p class="text-[14px] leading-5.5 text-fg-faint">
+									Bield is close to v0.1. Until it’s tagged, build it from source or
+									<a
+										href="https://github.com/manasseh-fikadu/bield#try-the-demo"
+										class="underline decoration-track underline-offset-2 transition-colors hover:text-fg-muted"
+										>try the demo</a
+									>.
+								</p>
+							</div>
+							<div class="flex flex-col xl:w-110 xl:shrink-0 xl:pt-17.5">
+								<p class="pb-3.25 text-[14px] leading-5.5 text-fg-faint">Then</p>
+								<ul class="text-[16px] leading-6.25 text-fg">
+									<li class="border-t border-line py-3.25">
+										Install the agent, for its CPU, memory and disk.
+									</li>
+									<li class="border-t border-line py-3.25">
+										Set up SSH, for the terminal, the files and Docker.
+									</li>
+									<li class="border-t border-line py-3.25">
+										Add a notification channel, so alerts find you.
+									</li>
+								</ul>
+							</div>
+						</div>
+					</section>
+				</main>
+
+				<footer class="flex gap-10 px-5 pb-12 lg:px-20">
+					<div
+						class="hidden w-6 shrink-0 flex-col items-center justify-end lg:flex"
+						aria-hidden="true"
+					>
+						<span class="relative size-4 shrink-0 rounded-full bg-amber" data-end></span>
+					</div>
+					<div
+						class="flex min-w-0 flex-1 flex-wrap justify-between gap-x-7 gap-y-3 self-start border-t border-line pt-4.5 text-[14px] leading-5 max-lg:mt-16 lg:mt-19"
+					>
+						<nav class="flex gap-7 text-fg-muted" aria-label="Footer">
+							<a
+								href="https://github.com/manasseh-fikadu/bield"
+								class="transition-colors hover:text-fg"
+								>GitHub</a
+							>
+							<a
+								href="https://github.com/manasseh-fikadu/bield/tree/main/docs"
+								class="transition-colors hover:text-fg"
+								>Docs</a
+							>
+							<a
+								href="https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md"
+								class="transition-colors hover:text-fg"
+								>Security</a
+							>
+						</nav>
+						<p class="text-fg-faint">
+							AGPL-3.0. The agent is MIT. Not affiliated with Tailscale Inc. or the Headscale
+							project.
+						</p>
+					</div>
+				</footer>
+			</div>
+		</div>
+
+		<svg class="hidden" aria-hidden="true">
+			<symbol id="github" viewBox="0 0 16 16">
+				<path
+					fill="currentColor"
+					d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+				/>
+			</symbol>
+		</svg>
+	</body>
+</html>
