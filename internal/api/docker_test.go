@@ -702,13 +702,26 @@ func TestDocker_stats(t *testing.T) {
 		if err := json.Unmarshal([]byte(got[0].data), &backlog); err != nil || backlog == nil {
 			t.Errorf("backlog = %q, %v, want a list", got[0].data, err)
 		}
-		var first, second api.DockerStats
-		if err := json.Unmarshal([]byte(got[1].data), &first); err != nil {
-			t.Fatal(err)
+		// Docker's first sample comes the moment the stream opens. Whether the viewer
+		// has joined by then, and so reads it live, or the feed got there first and it
+		// sits in the backlog, depends on which goroutine runs first. Either way it's
+		// the first sample the viewer gets, so read the backlog and the live samples as
+		// one series.
+		series := backlog
+		for _, ev := range got[1:] {
+			if ev.name != "sample" {
+				continue
+			}
+			var st api.DockerStats
+			if err := json.Unmarshal([]byte(ev.data), &st); err != nil {
+				t.Fatal(err)
+			}
+			series = append(series, st)
 		}
-		if err := json.Unmarshal([]byte(got[2].data), &second); err != nil {
-			t.Fatal(err)
+		if len(series) < 3 {
+			t.Fatalf("got %d samples, want one a second for 3 seconds", len(series))
 		}
+		first, second := series[0], series[1]
 		if first.CPU != nil || second.CPU == nil || *second.CPU < 24.9 || *second.CPU > 25.1 || second.TS-first.TS != 1000 ||
 			second.MemUsed == nil || *second.MemUsed != 800 {
 			t.Errorf("samples = %+v and %+v, want 25%% CPU in the second", first, second)

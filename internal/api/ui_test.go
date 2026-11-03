@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -83,6 +85,73 @@ func TestUI(t *testing.T) {
 			t.Errorf("Allow = %q, want %q", allow, "GET, HEAD")
 		}
 	})
+}
+
+// TestUI_traversal checks that no request reaches a file outside the UI's
+// directory. The production UI is an embed.FS, which can't hold such a file. So
+// this serves a real directory, a weaker setup, with a secret next to it.
+func TestUI_traversal(t *testing.T) {
+	t.Parallel()
+	const (
+		app    = "<!doctype html><title>app</title>"
+		secret = "outside the UI root"
+	)
+	dir := t.TempDir()
+	root := filepath.Join(dir, "ui")
+	if err := os.Mkdir(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string]string{
+		filepath.Join(dir, "secret.txt"): secret,
+		filepath.Join(root, "200.html"):  app,
+	} {
+		if err := os.WriteFile(name, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := api.New(withTailnet(t, testTailnet(), api.Options{UI: os.DirFS(root)}))
+
+	tests := []struct {
+		name     string
+		target   string
+		wantCode int
+		// wantLocation is where a redirect goes, which is inside the UI root.
+		wantLocation string
+	}{
+		{"parent of the root", "/../secret.txt", http.StatusTemporaryRedirect, "/secret.txt"},
+		{"parent through a build directory", "/_app/../../secret.txt", http.StatusTemporaryRedirect, "/secret.txt"},
+		{"doubled slash", "//../secret.txt", http.StatusTemporaryRedirect, "/secret.txt"},
+		{"encoded dots", "/%2e%2e/secret.txt", http.StatusBadRequest, ""},
+		{"encoded slash", "/..%2fsecret.txt", http.StatusBadRequest, ""},
+		{"encoded dots through a build directory", "/_app/%2e%2e/%2e%2e/secret.txt", http.StatusBadRequest, ""},
+		{"backslash", `/..\secret.txt`, http.StatusBadRequest, ""},
+		{"encoded dots and backslash", "/%2e%2e%5csecret.txt", http.StatusBadRequest, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := serve(h, newRequest(t, http.MethodGet, tt.target, strangerIP))
+
+			if rec.Code != tt.wantCode {
+				t.Fatalf("status = %d, want %d", rec.Code, tt.wantCode)
+			}
+			if got := rec.Header().Get("Location"); got != tt.wantLocation {
+				t.Errorf("Location = %q, want %q", got, tt.wantLocation)
+			}
+			if strings.Contains(rec.Body.String(), secret) {
+				t.Errorf("body = %q, which has the file from outside the UI root", rec.Body)
+			}
+			if tt.wantLocation == "" {
+				return
+			}
+			// A client that follows the redirect gets the app, since the UI root has
+			// no such file.
+			rec = serve(h, newRequest(t, http.MethodGet, tt.wantLocation, strangerIP))
+			if rec.Code != http.StatusOK || rec.Body.String() != app {
+				t.Errorf("GET %s = %d %q, want the app", tt.wantLocation, rec.Code, rec.Body)
+			}
+		})
+	}
 }
 
 func TestUI_notBuilt(t *testing.T) {
