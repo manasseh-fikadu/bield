@@ -29,7 +29,7 @@
 		attention: TriangleAlert
 	};
 	const tones: Partial<Record<Status, string>> = {
-		online: 'text-green-fg',
+		online: 'text-fg-muted',
 		attention: 'text-amber-fg'
 	};
 </script>
@@ -39,7 +39,7 @@
 	description={snapshot
 		? attention === 0
 			? 'Everything Bield needs is there. These update on their own.'
-			: 'A few things need a look. These update on their own, so fix one and watch it turn green.'
+			: 'A few things need a look. These update on their own, so fix one and watch its lamp light.'
 		: 'Asking the hub…'}
 >
 	{#if !snapshot}

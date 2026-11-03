@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import type { Device, Path, Status, Uplink } from './api/types.js';
-import { derpStatus, pathLabel, slowLink, tailnetIP, uplinkStatus } from './tailnet.js';
+import {
+	derpStatus,
+	nearestFirst,
+	routeLabel,
+	routeName,
+	slowLink,
+	tailnetIP,
+	uplinkStatus
+} from './tailnet.js';
 
 function device(path: Path, online = true, ips = ['100.64.0.2', 'fd7a:115c:a1e0::2']): Device {
 	return {
@@ -22,25 +30,46 @@ function device(path: Path, online = true, ips = ['100.64.0.2', 'fd7a:115c:a1e0:
 	};
 }
 
-describe('pathLabel', () => {
-	test.each<{ name: string; path: Path; want: string }>([
-		{ name: 'the hub', path: { kind: 'self' }, want: 'this hub' },
+describe('routeLabel and routeName', () => {
+	test.each<{ name: string; path: Path; label: string; route: string }>([
+		{ name: 'the hub', path: { kind: 'self' }, label: 'this hub', route: 'This hub' },
 		{
 			name: 'direct with a round trip',
 			path: { kind: 'direct', rttMs: 5.24 },
-			want: 'direct · 5.2 ms'
+			label: 'direct · 5.2 ms',
+			route: 'Direct'
 		},
+		{ name: 'direct with none', path: { kind: 'direct' }, label: 'direct', route: 'Direct' },
 		{
-			name: 'through DERP',
-			path: { kind: 'derp', derp: 'fra', rttMs: 80 },
-			want: 'DERP fra · 80 ms'
+			name: 'through a relay',
+			path: { kind: 'derp', derp: 'fra', rttMs: 41 },
+			label: 'via fra · 41 ms',
+			route: 'Relay fra'
 		},
-		{ name: 'DERP without a region', path: { kind: 'derp' }, want: 'DERP' },
-		{ name: 'through a peer relay', path: { kind: 'peer-relay' }, want: 'peer relay' },
-		{ name: 'offline', path: { kind: 'offline' }, want: 'not observed' }
-	])('$name', ({ path, want }) => {
-		expect(pathLabel(device(path))).toBe(want);
+		{ name: 'an unnamed relay', path: { kind: 'derp' }, label: 'via relay', route: 'Relay' },
+		{
+			name: 'through a peer',
+			path: { kind: 'peer-relay', rttMs: 12 },
+			label: 'via peer · 12 ms',
+			route: 'Peer relay'
+		},
+		{ name: 'offline', path: { kind: 'offline' }, label: 'not observed', route: 'Not observed' }
+	])('$name', ({ path, label, route }) => {
+		expect(routeLabel(device(path))).toBe(label);
+		expect(routeName(device(path))).toBe(route);
 	});
+});
+
+test('nearestFirst puts the shortest trip first, then no trip yet, then offline', () => {
+	const named = (id: string, path: Path, online = true) => ({ ...device(path, online), id });
+	const got = nearestFirst([
+		named('off', { kind: 'offline' }, false),
+		named('none', { kind: 'direct' }),
+		named('far', { kind: 'derp', rttMs: 90 }),
+		named('off2', { kind: 'offline', rttMs: 1 }, false),
+		named('near', { kind: 'direct', rttMs: 3 })
+	]);
+	expect(got.map((d) => d.id)).toEqual(['near', 'far', 'none', 'off', 'off2']);
 });
 
 describe('slowLink', () => {

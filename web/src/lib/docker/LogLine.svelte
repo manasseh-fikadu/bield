@@ -13,9 +13,11 @@
 		wrap: boolean;
 		timestamps: boolean;
 		search?: Search;
+		/** Draws the line's number before it. */
+		numbered?: boolean;
 	}
 
-	let { entry, wrap, timestamps, search = noSearch }: Props = $props();
+	let { entry, wrap, timestamps, search = noSearch, numbered = true }: Props = $props();
 
 	const pieces: Piece[] = $derived.by(() => {
 		// Text with no escape codes is one piece, and needs no parsing.
@@ -29,16 +31,19 @@
 
 <div
 	class={[
-		'flex border-l-2 pr-3 leading-[18px] hover:bg-white/[0.03]',
+		'flex pr-3 leading-[18px] hover:bg-white/[0.03]',
 		wrap ? 'min-h-[18px]' : 'h-[18px]',
-		entry.s === 2 ? 'border-red bg-red/[0.06] text-red-fg' : 'border-transparent text-fg'
+		!numbered && 'pl-4',
+		entry.s === 2 ? 'text-red-fg' : 'text-fg-muted'
 	]}
 >
-	<span
-		class="w-14 shrink-0 pr-3 text-right text-fg-faint select-none before:content-[attr(data-n)]"
-		data-n={entry.n}
-		aria-hidden="true"
-	></span>
+	{#if numbered}
+		<span
+			class="w-14 shrink-0 pr-3 text-right text-fg-faint select-none before:content-[attr(data-n)]"
+			data-n={entry.n}
+			aria-hidden="true"
+		></span>
+	{/if}
 	{#if timestamps}
 		<span class="shrink-0 pr-3 text-fg-faint" title={entry.t}>{logTime(entry.t)}</span>
 	{/if}

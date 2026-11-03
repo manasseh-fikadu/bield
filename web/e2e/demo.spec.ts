@@ -47,14 +47,15 @@ for (const [path, heading] of [
 	['/devices', 'Devices'],
 	['/alerts', 'Alerts'],
 	['/checks', 'Checks'],
-	['/docker', 'Docker'],
+	['/docker', /^\d+ of \d+ running/],
 	['/activity', 'Activity'],
 	['/settings', 'Settings']
 ] as const) {
 	test(`${path} loads without errors`, async ({ page }) => {
 		const problems = await visit(page, path);
 
-		await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
+		const named = typeof heading === 'string' ? { name: heading, exact: true } : { name: heading };
+		await expect(page.getByRole('heading', named).first()).toBeVisible();
 		await expect(page.getByText(loadError)).toHaveCount(0);
 		expect(problems).toEqual([]);
 	});
@@ -94,9 +95,11 @@ test('the Docker page lists containers, and its actions are off', async ({ page 
 	await deviceLink(page, 'NAS').click();
 	await page.getByRole('main').getByRole('link', { name: 'Docker' }).first().click();
 
-	await expect(shown(page, 'jellyfin', true)).toBeVisible();
-	await page.getByRole('button', { name: 'Actions for jellyfin' }).click();
-	await expect(page.getByRole('menuitem', { name: /Restart/ })).toBeDisabled();
+	// A wide screen opens it beside the list, and a phone on a page of its own.
+	await shown(page, 'jellyfin', true).click();
+	await expect(
+		page.getByRole('button', { name: /Restart/ }).locator('visible=true')
+	).toBeDisabled();
 });
 
 for (const [path, what] of [

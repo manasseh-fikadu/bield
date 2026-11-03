@@ -1,27 +1,31 @@
 <!-- Whether the stream from the hub is live, and when the latest data came. -->
 <script lang="ts">
-	import { clock } from '#lib/format.js';
+	import { timeOfDay } from '#lib/format.js';
 	import { live } from '#lib/live.svelte.js';
-	import StatusDot from '#lib/ui/StatusDot.svelte';
 
-	const labels = { live: 'Live telemetry', connecting: 'Connecting', reconnecting: 'Reconnecting' };
-	const isLive = $derived(live.connection === 'live');
+	const labels = { live: 'Live', connecting: 'Connecting', reconnecting: 'Reconnecting' };
 </script>
 
-<!-- On a phone only the dot shows, with the state as its tooltip. -->
+<!-- On a phone only the lamp shows, with the state as its tooltip. -->
 <div
-	class="flex items-center gap-2 font-mono text-[11.5px] text-fg-subtle"
+	class="flex items-center gap-2 text-[12px] leading-4 text-fg-faint"
 	title={labels[live.connection]}
 >
-	<StatusDot
-		status={isLive ? 'online' : live.connection === 'connecting' ? 'unknown' : 'attention'}
-		pulse={isLive}
-	/>
+	<span
+		class={[
+			'size-1.5 shrink-0 rounded-[3px]',
+			live.connection === 'live'
+				? 'bg-lamp'
+				: live.connection === 'reconnecting'
+					? 'bg-amber'
+					: 'border border-fg-faint'
+		]}
+		aria-hidden="true"
+	></span>
 	<!-- Only the state is announced: the time next to it changes with every snapshot. -->
-	<span class={['hidden md:inline', isLive ? 'text-fg-muted' : 'text-amber-fg']} role="status"
-		>{labels[live.connection]}</span
-	>
-	{#if live.receivedAt > 0}
-		<span class="hidden text-fg-faint md:inline">Updated {clock(live.receivedAt)}</span>
-	{/if}
+	<span class="hidden md:inline">
+		<span class={[live.connection === 'reconnecting' && 'text-amber']} role="status"
+			>{labels[live.connection]}</span
+		>{#if live.receivedAt > 0}, updated {timeOfDay(live.receivedAt)}{/if}
+	</span>
 </div>

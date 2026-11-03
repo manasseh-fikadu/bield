@@ -55,6 +55,39 @@ export function activeAlerts(alerts: Alert[]): Alert[] {
 	return alerts.filter((a) => a.state === 'open' || a.state === 'acknowledged');
 }
 
+/** The alerts nobody has acknowledged or snoozed yet: the things that need someone. */
+export function openAlerts(alerts: Alert[]): Alert[] {
+	return alerts.filter((a) => a.state === 'open');
+}
+
+/** The IDs of the devices with an alert that hasn't resolved. */
+export function alertedDevices(alerts: Alert[]): Set<string> {
+	return new Set(alerts.flatMap((a) => (a.deviceId && a.state !== 'resolved' ? [a.deviceId] : [])));
+}
+
+/**
+ * Whether a device is off and nobody needs to know, such as a tablet in a
+ * drawer. Its lamp is a grey ring instead of a red one.
+ */
+export function quietlyOffline(d: Device, alerted: Set<string>): boolean {
+	return !d.online && !alerted.has(d.id);
+}
+
+/**
+ * Devices with what needs someone first: offline with an alert, then needing
+ * attention, then the healthy ones, and last the ones that are quietly off.
+ * Devices that tie stay in the order they came.
+ */
+export function troubleFirst(devices: Device[], alerted: Set<string>): Device[] {
+	const rank = (d: Device) => {
+		if (quietlyOffline(d, alerted)) {
+			return 4;
+		}
+		return { offline: 0, attention: 1, online: 2, unknown: 3 }[d.status];
+	};
+	return devices.toSorted((a, b) => rank(a) - rank(b));
+}
+
 /** The tabs of the Alerts page. */
 export type AlertTab = 'open' | 'snoozed' | 'resolved';
 
@@ -169,7 +202,7 @@ export const adminEventKinds: EventKind[] = ['access', 'ssh', 'terminal', 'files
 /** The text class of an event's level. */
 export const eventLevelText: Record<EventLevel, string> = {
 	info: 'text-fg-subtle',
-	success: 'text-green-fg',
+	success: 'text-fg-muted',
 	warning: 'text-amber-fg',
 	error: 'text-red-fg'
 };
@@ -190,78 +223,4 @@ export const eventLevelStatus: Record<EventLevel, Status> = {
 export function mergeById<T extends { id: number }>(loaded: T[], fresh: T[]): T[] {
 	const ids = new Set(fresh.map((x) => x.id));
 	return [...fresh, ...loaded.filter((x) => !ids.has(x.id))].sort((a, b) => b.id - a.id);
-}
-
-/** A service on the network map: a compose project, a container in none, or a systemd unit. */
-export interface MapService {
-	id: string;
-	kind: 'compose' | 'container' | 'unit';
-	name: string;
-	status: Status;
-	subtitle: string;
-	/** Host ports its containers publish. */
-	ports: number[];
-	/** The memory a unit uses, in bytes. */
-	memory?: number;
-}
-
-/**
- * Sums up statuses: online if all are, offline if all are, unknown if none
- * says, and otherwise attention.
- */
-function overall(statuses: Status[]): Status {
-	const known = statuses.filter((s) => s !== 'unknown');
-	if (known.length === 0) {
-		return 'unknown';
-	}
-	if (known.every((s) => s === known[0]) && known[0] !== 'attention') {
-		return known[0];
-	}
-	return 'attention';
-}
-
-/**
- * The services on the hub, for the network map: each compose project, each
- * container in none, and each systemd unit Bield watches or that failed.
- * One whose check fails needs attention.
- */
-export function mapServices(
-	containers: Container[],
-	units: Unit[],
-	failingChecks: Set<string>
-): MapService[] {
-	const out: MapService[] = [];
-	for (const g of groupContainers(containers)) {
-		const members = g.project ? [g.containers] : g.containers.map((c) => [c]);
-		for (const cs of members) {
-			let status = overall(cs.map(containerStatus));
-			if (status === 'online' && cs.some((c) => c.checkIds.some((id) => failingChecks.has(id)))) {
-				status = 'attention';
-			}
-			const running = cs.filter((c) => c.state === 'running').length;
-			const one = cs[0];
-			out.push({
-				id: g.project ? `compose:${g.project}` : `container:${one.name}`,
-				kind: g.project ? 'compose' : 'container',
-				name: g.project ?? one.name,
-				status,
-				subtitle: g.project ? `${running}/${cs.length} running` : one.problem || one.status,
-				ports: [
-					...new Set(cs.flatMap((c) => c.ports.flatMap((p) => (p.public ? [p.public] : []))))
-				].sort((a, b) => a - b)
-			});
-		}
-	}
-	for (const u of units) {
-		out.push({
-			id: `unit:${u.scope}:${u.name}`,
-			kind: 'unit',
-			name: u.name,
-			status: unitStatus(u),
-			subtitle: `${u.active} · ${u.sub}`,
-			ports: [],
-			memory: u.memory
-		});
-	}
-	return out;
 }

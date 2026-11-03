@@ -5,6 +5,7 @@
 	are in the address, so a link or a reload comes back to the same place.
 -->
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { untrack } from 'svelte';
 	import AlertTriangle from '@lucide/svelte/icons/triangle-alert';
 	import ArrowUp from '@lucide/svelte/icons/arrow-up';
@@ -23,7 +24,6 @@
 	import Lock from '@lucide/svelte/icons/lock';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 	import Pencil from '@lucide/svelte/icons/pencil';
-	import Plus from '@lucide/svelte/icons/plus';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Search from '@lucide/svelte/icons/search';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
@@ -38,6 +38,8 @@
 	import { copyText } from '#lib/clipboard.js';
 	import { bytes, plural } from '#lib/format.js';
 	import { toast } from '#lib/toast.svelte.js';
+	import { getDockerVolumes } from '#lib/docker/api.js';
+	import { volumeName } from '#lib/docker/list.js';
 	import Button from '#lib/ui/Button.svelte';
 	import EmptyState from '#lib/ui/EmptyState.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
@@ -80,9 +82,33 @@
 		deviceId: string;
 		/** The device's OS, which decides the places it lists. */
 		os: string;
+		/** Whether Bield can read the device's Docker, whose volumes it lists too. */
+		docker?: boolean;
+		/** Something before the path, such as a picker for the device. */
+		leading?: Snippet;
 	}
 
-	let { deviceId, os }: Props = $props();
+	let { deviceId, os, docker = false, leading }: Props = $props();
+
+	let volumes = $state.raw<{ name: string; path: string }[]>([]);
+	$effect(() => {
+		if (!docker) {
+			return;
+		}
+		let current = true;
+		getDockerVolumes(deviceId)
+			.then((list) => {
+				if (current) {
+					volumes = list.map((v) => ({ name: volumeName(v.name), path: v.mountpoint }));
+				}
+			})
+			.catch(() => {
+				// The other places still work.
+			});
+		return () => {
+			current = false;
+		};
+	});
 
 	type DialogState =
 		| { kind: 'mkdir' }
@@ -703,6 +729,7 @@
 		bookmarks={bookmarkPref.value}
 		current={dir}
 		{home}
+		{volumes}
 		space={current?.space}
 		ongo={onpick}
 		onremovebookmark={(p) => (bookmarkPref.value = bookmarkPref.value.filter((x) => x !== p))}
@@ -779,20 +806,12 @@
 	{/if}
 {/snippet}
 
-<div class="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)]">
-	<aside class="hidden lg:block">
-		<div class="sticky top-20">{@render placesList(go)}</div>
-	</aside>
-
-	<section
-		class="relative min-w-0 self-start card"
-		ondragenter={onDragEnter}
-		ondragover={onDragOver}
-		ondragleave={onDragLeave}
-		ondrop={onDrop}
-		aria-label="File browser"
-	>
-		<div class="flex flex-wrap items-center gap-1.5 rounded-t-xl border-b border-line p-2">
+<div class="flex min-h-[calc(100dvh-4.25rem)] flex-col">
+	<div class="flex shrink-0 flex-col">
+		<div
+			class="flex min-h-12 flex-wrap items-center gap-x-1.5 gap-y-1 border-b border-line px-2 py-1 sm:px-4"
+		>
+			{#if leading}{@render leading()}{/if}
 			<div class="flex items-center">
 				<div class="lg:hidden">
 					<Menu bind:open={placesOpen} align="start">
@@ -853,27 +872,17 @@
 						<SquareTerminal class="size-4" />
 					</a>
 				{/if}
-				<span class="mx-1 hidden h-5 w-px bg-line-strong sm:block"></span>
+				<Button
+					size="xs"
+					disabled={!dir}
+					class="h-7! max-sm:hidden"
+					onclick={() => (dialog = { kind: 'mkdir' })}
+				>
+					New folder
+				</Button>
 				<Menu>
 					{#snippet trigger({ props })}
-						<Button size="sm" disabled={!dir} {...props} class="px-2 sm:px-3">
-							{#snippet icon()}<Plus class="size-3.5" />{/snippet}
-							<span class="hidden sm:inline">New</span>
-						</Button>
-					{/snippet}
-					<MenuItem icon={FolderPlus} onSelect={() => (dialog = { kind: 'mkdir' })}
-						>New folder</MenuItem
-					>
-					<MenuItem icon={FilePlus} onSelect={() => (dialog = { kind: 'newfile' })}>
-						New text file
-					</MenuItem>
-				</Menu>
-				<Menu>
-					{#snippet trigger({ props })}
-						<Button size="sm" variant="primary" disabled={!dir} {...props} class="px-2 sm:px-3">
-							{#snippet icon()}<Upload class="size-3.5" />{/snippet}
-							<span class="hidden sm:inline">Upload</span>
-						</Button>
+						<Button size="xs" disabled={!dir} {...props} class="ml-1 h-7!">Upload</Button>
 					{/snippet}
 					<MenuItem icon={Upload} onSelect={() => fileInput?.click()}>Upload files</MenuItem>
 					<MenuItem icon={FolderUp} onSelect={() => dirInput?.click()}>Upload a folder</MenuItem>
@@ -883,6 +892,13 @@
 					{#snippet trigger({ props })}
 						<IconButton label="More" {...props}><Ellipsis class="size-4" /></IconButton>
 					{/snippet}
+					<MenuItem icon={FolderPlus} disabled={!dir} onSelect={() => (dialog = { kind: 'mkdir' })}>
+						New folder
+					</MenuItem>
+					<MenuItem icon={FilePlus} disabled={!dir} onSelect={() => (dialog = { kind: 'newfile' })}>
+						New text file
+					</MenuItem>
+					<MenuSeparator />
 					<MenuItem
 						icon={Download}
 						onSelect={() => {
@@ -909,149 +925,179 @@
 				</Menu>
 			</div>
 		</div>
+	</div>
 
-		{#if searchOpen}
-			<form
-				class="flex items-center gap-2 border-b border-line px-3 py-2"
-				onsubmit={(e) => {
-					e.preventDefault();
-					void runSearch(searchText);
-				}}
-			>
-				<Search class="size-3.5 shrink-0 text-fg-faint" />
-				<input
-					bind:this={searchInput}
-					bind:value={searchText}
-					onkeydown={(e) => {
-						if (e.key === 'Escape') {
-							e.preventDefault();
-							closeSearch();
-						}
+	<div class="flex min-h-0 flex-1">
+		<aside class="hidden w-44 shrink-0 border-r border-line lg:block">
+			<div class="sticky top-15 px-2 py-3">{@render placesList(go)}</div>
+		</aside>
+		<section
+			class="@container relative min-w-0 flex-1"
+			ondragenter={onDragEnter}
+			ondragover={onDragOver}
+			ondragleave={onDragLeave}
+			ondrop={onDrop}
+			aria-label="File browser"
+		>
+			{#if searchOpen}
+				<form
+					class="flex items-center gap-2 border-b border-line px-3 py-2"
+					onsubmit={(e) => {
+						e.preventDefault();
+						void runSearch(searchText);
 					}}
-					placeholder="Search names in {dir ? tildify(dir, home) : 'this folder'} and below…"
-					spellcheck="false"
-					aria-label="Search names"
-					class="h-7 min-w-0 flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-faint focus:outline-none focus-visible:shadow-none"
-				/>
-				{#if searching}
-					<span class="size-3.5 animate-spin rounded-full border-2 border-fg-faint border-t-fg"
-					></span>
-				{/if}
-				<Button size="xs" type="submit" disabled={!searchText.trim()}>Search</Button>
-				<IconButton label="Close search" size="sm" onclick={closeSearch}>
-					<X class="size-3.5" />
-				</IconButton>
-			</form>
-		{/if}
-		{#if search?.result}
-			<div
-				class="flex items-center gap-2 border-b border-line bg-raised/60 px-3 py-1.5 text-[12px] text-fg-subtle"
-			>
-				<span class="min-w-0 flex-1 truncate">
-					{plural(search.result.entries.length, 'match', 'matches')} for “<span class="text-fg"
-						>{search.query}</span
-					>” in {tildify(search.root, home)}
-					{#if search.result.truncated}· showing the first ones{/if}
-				</span>
-				<button type="button" onclick={closeSearch} class="shrink-0 text-fg-muted hover:text-fg">
-					Back to folder
-				</button>
-			</div>
-		{/if}
-
-		{#if showError && error}
-			{@const denied = error.status === 403}
-			{@const missing = error.status === 404}
-			<EmptyState
-				icon={denied ? Lock : AlertTriangle}
-				title={denied
-					? 'No permission to open this folder'
-					: missing
-						? 'This folder doesn’t exist'
-						: 'Couldn’t open this folder'}
-			>
-				<p class="font-mono text-[12px] break-all text-fg-subtle">{error.message}</p>
-				<div class="mt-3 flex justify-center gap-2">
-					{#if parent}
-						<Button size="sm" onclick={() => go(parent)}>
-							{#snippet icon()}<ArrowUp class="size-3.5" />{/snippet}
-							Go up
-						</Button>
+				>
+					<Search class="size-3.5 shrink-0 text-fg-faint" />
+					<input
+						bind:this={searchInput}
+						bind:value={searchText}
+						onkeydown={(e) => {
+							if (e.key === 'Escape') {
+								e.preventDefault();
+								closeSearch();
+							}
+						}}
+						placeholder="Search names in {dir ? tildify(dir, home) : 'this folder'} and below…"
+						spellcheck="false"
+						aria-label="Search names"
+						class="h-7 min-w-0 flex-1 bg-transparent text-[13px] text-fg placeholder:text-fg-faint focus:outline-none focus-visible:shadow-none"
+					/>
+					{#if searching}
+						<span class="size-3.5 animate-spin rounded-full border-2 border-fg-faint border-t-fg"
+						></span>
 					{/if}
-					<Button size="sm" variant="ghost" onclick={() => go(home ?? '~')}>Home</Button>
-					{#if !denied && !missing}
-						<Button size="sm" variant="ghost" onclick={reload}>
-							{#snippet icon()}<RefreshCw class="size-3.5" />{/snippet}
-							Try again
-						</Button>
-					{/if}
+					<Button size="xs" type="submit" disabled={!searchText.trim()}>Search</Button>
+					<IconButton label="Close search" size="sm" onclick={closeSearch}>
+						<X class="size-3.5" />
+					</IconButton>
+				</form>
+			{/if}
+			{#if search?.result}
+				<div
+					class="flex items-center gap-2 border-b border-line bg-raised/60 px-3 py-1.5 text-[12px] text-fg-subtle"
+				>
+					<span class="min-w-0 flex-1 truncate">
+						{plural(search.result.entries.length, 'match', 'matches')} for “<span class="text-fg"
+							>{search.query}</span
+						>” in {tildify(search.root, home)}
+						{#if search.result.truncated}· showing the first ones{/if}
+					</span>
+					<button type="button" onclick={closeSearch} class="shrink-0 text-fg-muted hover:text-fg">
+						Back to folder
+					</button>
 				</div>
-			</EmptyState>
-		{:else if loadingFirst || searching}
-			<div>
-				{#each { length: 9 }, i (i)}
-					<div class="flex h-9 items-center gap-3 border-b border-line px-3 last:border-0">
-						<Skeleton class="size-4" />
-						<Skeleton class="h-3 {['w-40', 'w-56', 'w-32', 'w-64', 'w-48'][i % 5]}" />
-						<Skeleton class="ml-auto hidden h-3 w-16 sm:block" />
-						<Skeleton class="hidden h-3 w-20 sm:block" />
+			{/if}
+
+			{#if showError && error}
+				{@const denied = error.status === 403}
+				{@const missing = error.status === 404}
+				<EmptyState
+					icon={denied ? Lock : AlertTriangle}
+					title={denied
+						? 'No permission to open this folder'
+						: missing
+							? 'This folder doesn’t exist'
+							: 'Couldn’t open this folder'}
+				>
+					<p class="font-mono text-[12px] break-all text-fg-subtle">{error.message}</p>
+					<div class="mt-3 flex justify-center gap-2">
+						{#if parent}
+							<Button size="sm" onclick={() => go(parent)}>
+								{#snippet icon()}<ArrowUp class="size-3.5" />{/snippet}
+								Go up
+							</Button>
+						{/if}
+						<Button size="sm" variant="ghost" onclick={() => go(home ?? '~')}>Home</Button>
+						{#if !denied && !missing}
+							<Button size="sm" variant="ghost" onclick={reload}>
+								{#snippet icon()}<RefreshCw class="size-3.5" />{/snippet}
+								Try again
+							</Button>
+						{/if}
 					</div>
-				{/each}
-			</div>
-		{:else}
-			<Listing
-				entries={visible}
-				selected={sel.selected}
-				cursor={sel.cursor}
-				sort={sortPref.value}
-				{now}
-				searchRoot={search?.result ? search.root : null}
+				</EmptyState>
+			{:else if loadingFirst || searching}
+				<div>
+					{#each { length: 9 }, i (i)}
+						<div class="flex h-9 items-center gap-3 border-b border-line px-3 last:border-0">
+							<Skeleton class="size-4" />
+							<Skeleton class="h-3 {['w-40', 'w-56', 'w-32', 'w-64', 'w-48'][i % 5]}" />
+							<Skeleton class="ml-auto hidden h-3 w-16 sm:block" />
+							<Skeleton class="hidden h-3 w-20 sm:block" />
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<Listing
+					entries={visible}
+					selected={sel.selected}
+					cursor={sel.cursor}
+					opened={previewEntry?.path}
+					sort={sortPref.value}
+					{now}
+					searchRoot={search?.result ? search.root : null}
+					{home}
+					onsort={onSort}
+					onrowclick={onRowClick}
+					ontoggle={onToggle}
+					ontoggleall={() => (sel = toggleAll(sel, visible))}
+					onopen={open}
+					oncontextmenu={onContextMenu}
+					menu={rowMenu}
+					empty={emptyView}
+				/>
+			{/if}
+
+			{#if current && !showError}
+				<div
+					class="flex items-center gap-3 px-4 py-2 num text-[11.5px] whitespace-nowrap text-fg-faint"
+				>
+					<span>
+						{plural(stats.folders, 'folder')} · {plural(stats.files, 'file')} · {bytes(stats.size)}
+					</span>
+					{#if !search && hiddenCount > 0 && !showHidden.value}
+						<button
+							type="button"
+							onclick={() => (showHidden.value = true)}
+							class="hover:text-fg-muted pointer-coarse:-my-2 pointer-coarse:py-2"
+						>
+							{hiddenCount} hidden
+						</button>
+					{/if}
+					<span class="ml-auto hidden @3xl:inline">Drop files to upload · ↑↓ Enter Backspace</span>
+				</div>
+			{/if}
+
+			{#if dragging}
+				<div
+					class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-blue-fg bg-blue/[0.07] backdrop-blur-[1px]"
+				>
+					<div
+						class="rounded-lg border border-line-strong bg-surface px-4 py-3 text-center shadow-2xl"
+					>
+						<Upload class="mx-auto mb-1.5 size-5 text-blue-fg" />
+						<div class="text-[13px] font-medium text-fg">Drop to upload</div>
+						<div class="font-mono text-[11.5px] text-fg-subtle">
+							{dir ? tildify(dir, home) : ''}
+						</div>
+					</div>
+				</div>
+			{/if}
+		</section>
+
+		{#if previewEntry}
+			<Preview
+				device={deviceId}
+				entry={previewEntry}
+				{siblings}
 				{home}
-				onsort={onSort}
-				onrowclick={onRowClick}
-				ontoggle={onToggle}
-				ontoggleall={() => (sel = toggleAll(sel, visible))}
-				onopen={open}
-				oncontextmenu={onContextMenu}
-				menu={rowMenu}
-				empty={emptyView}
+				onnavigate={(e) =>
+					void goto(filesUrl(deviceId, pathParam, e.path), { replace: true, reset: false })}
+				onclose={closePreview}
+				onsaved={reload}
 			/>
 		{/if}
-
-		{#if current && !showError}
-			<div
-				class="flex items-center gap-3 rounded-b-xl border-t border-line px-3 py-2 num text-[11.5px] text-fg-faint"
-			>
-				<span>
-					{plural(stats.folders, 'folder')} · {plural(stats.files, 'file')} · {bytes(stats.size)}
-				</span>
-				{#if !search && hiddenCount > 0 && !showHidden.value}
-					<button
-						type="button"
-						onclick={() => (showHidden.value = true)}
-						class="hover:text-fg-muted pointer-coarse:-my-2 pointer-coarse:py-2"
-					>
-						{hiddenCount} hidden
-					</button>
-				{/if}
-				<span class="ml-auto hidden sm:inline">Drop files to upload · ↑↓ Enter Backspace</span>
-			</div>
-		{/if}
-
-		{#if dragging}
-			<div
-				class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-blue-fg bg-blue/[0.07] backdrop-blur-[1px]"
-			>
-				<div
-					class="rounded-lg border border-line-strong bg-surface px-4 py-3 text-center shadow-2xl"
-				>
-					<Upload class="mx-auto mb-1.5 size-5 text-blue-fg" />
-					<div class="text-[13px] font-medium text-fg">Drop to upload</div>
-					<div class="font-mono text-[11.5px] text-fg-subtle">{dir ? tildify(dir, home) : ''}</div>
-				</div>
-			</div>
-		{/if}
-	</section>
+	</div>
 
 	<input
 		bind:this={fileInput}
@@ -1136,19 +1182,6 @@
 				{@render rowMenu(ctx.entry)}
 			{/if}
 		</ContextMenu>
-	{/if}
-
-	{#if previewEntry}
-		<Preview
-			device={deviceId}
-			entry={previewEntry}
-			{siblings}
-			{home}
-			onnavigate={(e) =>
-				void goto(filesUrl(deviceId, pathParam, e.path), { replace: true, reset: false })}
-			onclose={closePreview}
-			onsaved={reload}
-		/>
 	{/if}
 
 	<NameDialog

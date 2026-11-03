@@ -1,13 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import {
 	activeAlerts,
+	alertedDevices,
 	containerStatus,
 	deviceIds,
 	groupContainers,
-	mapServices,
 	mergeById,
 	onDevice,
+	openAlerts,
 	parseAlertTab,
+	quietlyOffline,
+	troubleFirst,
 	unitStatus
 } from './alerts.js';
 import type { Alert, AlertState, Container, Device, Event, MeasuredBy, Unit } from './api/types.js';
@@ -177,33 +180,36 @@ test('mergeById keeps older alerts loaded, and takes the fresh one of an ID', ()
 	]);
 });
 
-test('mapServices sums up projects, loose containers and units', () => {
-	const unit: Unit = {
-		name: 'ssh.service',
-		scope: 'system',
-		description: '',
-		active: 'active',
-		sub: 'running',
-		watched: true,
-		deviceId: 'bield',
-		memory: 1024
-	};
-	const services = mapServices(
-		[
-			container('web-1', {
-				project: 'web',
-				checkIds: ['api'],
-				ports: [{ private: 80, public: 8080, type: 'tcp' }]
-			}),
-			container('web-2', { project: 'web', ports: [{ private: 443, type: 'tcp' }] }),
-			container('job', { state: 'exited', problem: 'crashed (exit 1)', status: 'Exited (1)' })
-		],
-		[unit],
-		new Set(['api'])
-	);
-	expect(services.map((s) => [s.id, s.status, s.subtitle, s.ports])).toEqual([
-		['compose:web', 'attention', '2/2 running', [8080]],
-		['container:job', 'offline', 'crashed (exit 1)', []],
-		['unit:system:ssh.service', 'online', 'active · running', []]
+test('openAlerts leaves out what someone has seen', () => {
+	const got = openAlerts([alert(1, 'open'), alert(2, 'acknowledged'), alert(3, 'snoozed')]);
+	expect(got.map((a) => a.id)).toEqual([1]);
+});
+
+test('alertedDevices has the devices with an alert that has not resolved', () => {
+	const got = alertedDevices([
+		alert(1, 'open', 'a'),
+		alert(2, 'snoozed', 'b'),
+		alert(3, 'resolved', 'c'),
+		alert(4, 'open')
 	]);
+	expect([...got].sort()).toEqual(['a', 'b']);
+});
+
+describe('troubleFirst', () => {
+	const off = (id: string): Device => ({ ...device(id), online: false, status: 'offline' });
+	const warn = (id: string): Device => ({ ...device(id), status: 'attention' });
+
+	test('sorts by what needs someone, keeping the order within each', () => {
+		const got = troubleFirst(
+			[off('tablet'), device('hub'), warn('nas'), off('pi'), device('vps')],
+			new Set(['pi'])
+		);
+		expect(got.map((d) => d.id)).toEqual(['pi', 'nas', 'hub', 'vps', 'tablet']);
+	});
+
+	test('a device that is off with no alert is quiet', () => {
+		expect(quietlyOffline(off('a'), new Set())).toBe(true);
+		expect(quietlyOffline(off('a'), new Set(['a']))).toBe(false);
+		expect(quietlyOffline(device('a'), new Set())).toBe(false);
+	});
 });

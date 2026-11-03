@@ -1,0 +1,15 @@
+{
+	"compilerOptions": {
+		"target": "es2023",
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"lib": ["es2023", "dom", "dom.iterable"],
+		"types": ["vite/client", "node", "bun"],
+		"strict": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"skipLibCheck": true,
+		"noEmit": true
+	},
+	"include": ["src", "demo", "vite.config.ts"]
+}

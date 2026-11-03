@@ -12,8 +12,8 @@ import type {
 	DockerStats,
 	DockerVolume
 } from '#lib/api/types.js';
-import { ago, dateTime } from '#lib/format.js';
-import { isUp, matchesFilter, portLabel } from './docker.js';
+import { ago, dateTime, plural } from '#lib/format.js';
+import { isUp, matchesFilter, portLabel, rowStatus } from './docker.js';
 
 /** The tabs of the Docker page. */
 export const tabs = ['containers', 'volumes', 'images', 'networks'] as const;
@@ -175,4 +175,50 @@ export function networkTotals(networks: DockerNetwork[]) {
 		count: networks.length,
 		inUse: networks.filter((n) => n.containers.length > 0).length
 	};
+}
+
+/** How a device's containers are doing, for the line at the top of the page. */
+export function containerCounts(rows: DockerContainerRow[]) {
+	return {
+		total: rows.length,
+		running: rows.filter((c) => c.state === 'running').length,
+		unhealthy: rows.filter((c) => c.state === 'running' && c.health === 'unhealthy').length,
+		crashed: rows.filter((c) => rowStatus(c) === 'offline').length
+	};
+}
+
+/** What's different about a container, next to its name, and how much it matters. */
+export interface RowNote {
+	text: string;
+	tone: 'amber' | 'red' | 'faint';
+}
+
+/** What a row says about a container that isn't simply up, or null if it is. */
+export function rowNote(c: DockerContainerRow, now: number): RowNote | null {
+	switch (c.state) {
+		case 'running':
+			return c.health === 'unhealthy' ? { text: 'Unhealthy', tone: 'amber' } : null;
+		case 'restarting':
+			return { text: 'Restarting', tone: 'amber' };
+		case 'paused':
+			return { text: 'Paused', tone: 'amber' };
+		case 'dead':
+			return { text: 'Dead', tone: 'red' };
+		case 'exited': {
+			if (rowStatus(c) !== 'offline') {
+				return { text: `Stopped ${ago(c.finishedAt, now)}`, tone: 'faint' };
+			}
+			const why = c.oomKilled ? 'Out of memory' : `Exited ${c.exitCode}`;
+			const again = c.restartCount > 0 ? `, restarted ${plural(c.restartCount, 'time')}` : '';
+			return { text: `${why}${again}`, tone: 'red' };
+		}
+		default:
+			return { text: c.status || c.state, tone: 'faint' };
+	}
+}
+
+/** The port to show for a container: the first it publishes, and how many more. */
+export function firstPort(ports: ContainerPort[]): { port: number; more: number } | null {
+	const published = [...new Set(ports.flatMap((p) => (p.public == null ? [] : [p.public])))];
+	return published.length ? { port: published[0], more: published.length - 1 } : null;
 }

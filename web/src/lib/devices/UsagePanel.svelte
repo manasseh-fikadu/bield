@@ -320,16 +320,10 @@
 					stale ? 'text-amber-fg' : 'text-fg-subtle'
 				]}
 			>
-				<span class="relative inline-flex size-2" aria-hidden="true">
-					{#if !stale}
-						<span
-							class="absolute inline-flex size-full animate-ping-slow rounded-full bg-green-fg opacity-60"
-						></span>
-					{/if}
-					<span
-						class={['relative inline-flex size-2 rounded-full', stale ? 'bg-amber' : 'bg-green-fg']}
-					></span>
-				</span>
+				<span
+					class={['inline-flex size-2 rounded-full', stale ? 'bg-amber' : 'bg-lamp']}
+					aria-hidden="true"
+				></span>
 				{stale ? `Last report ${ago(sampledAt, now)}` : `Live · ${ago(sampledAt, now)}`}
 			</span>
 		{/if}

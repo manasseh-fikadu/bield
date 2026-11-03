@@ -1,7 +1,7 @@
 <!--
-	A time-series chart of one or more lines, each with a fading area under it.
+	A time-series chart of one or more lines, each with a faint area under it.
 	Pointing at it, or focusing it and pressing the arrow keys, shows every
-	series' value at that time.
+	series' value at that time. The lines draw in from the left once.
 -->
 <script lang="ts" module>
 	import type { Point } from './path.js';
@@ -17,6 +17,7 @@
 </script>
 
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import {
 		areaPath,
 		linePath,
@@ -44,6 +45,12 @@
 		onSelect?: (ts: number) => void;
 		/** Areas under the lines. Turn them off when several series overlap. */
 		fill?: boolean;
+		/** Leaves out the axes, for a small chart next to another. */
+		compact?: boolean;
+		/** Draws the tooltip's body for a time, in place of each series' value. */
+		tooltip?: Snippet<[number]>;
+		/** Called with the time being pointed at, or null when it stops. */
+		onHover?: (ts: number | null) => void;
 	}
 
 	let {
@@ -55,15 +62,27 @@
 		from,
 		to,
 		onSelect,
-		fill = true
+		fill = true,
+		compact = false,
+		tooltip,
+		onHover
 	}: Props = $props();
 
-	const pad = { left: 56, right: 8, top: 8, bottom: 22 };
-	const gradient = $props.id();
+	const pad = $derived(
+		compact ? { left: 0, right: 0, top: 4, bottom: 1 } : { left: 40, right: 0, top: 6, bottom: 22 }
+	);
 
 	let width = $state(0);
 	/** The time being pointed at, or null. */
-	let hover: number | null = $state(null);
+	let hoverAt: number | null = $state(null);
+	const hover = $derived(hoverAt);
+
+	function setHover(ts: number | null) {
+		if (ts !== hoverAt) {
+			hoverAt = ts;
+			onHover?.(ts);
+		}
+	}
 
 	const all = $derived(series.flatMap((s) => s.points));
 	const t0 = $derived(
@@ -131,16 +150,16 @@
 		const i = hover === null ? times.length - 1 : nearest(times, hover);
 		switch (e.key) {
 			case 'ArrowLeft':
-				hover = times[Math.max(0, i - 1)];
+				setHover(times[Math.max(0, i - 1)]);
 				break;
 			case 'ArrowRight':
-				hover = times[Math.min(times.length - 1, i + 1)];
+				setHover(times[Math.min(times.length - 1, i + 1)]);
 				break;
 			case 'Home':
-				hover = times[0];
+				setHover(times[0]);
 				break;
 			case 'End':
-				hover = times[times.length - 1];
+				setHover(times[times.length - 1]);
 				break;
 			case 'Enter':
 			case ' ':
@@ -180,10 +199,10 @@
 			aria-valuemax={times[times.length - 1]}
 			aria-valuenow={hover ?? undefined}
 			aria-valuetext={valueText}
-			onpointermove={(e) => (hover = timeAt(e))}
-			onpointerleave={() => (hover = null)}
-			onfocus={() => (hover ??= times[times.length - 1] ?? null)}
-			onblur={() => (hover = null)}
+			onpointermove={(e) => setHover(timeAt(e))}
+			onpointerleave={() => setHover(null)}
+			onfocus={() => setHover(hoverAt ?? times[times.length - 1] ?? null)}
+			onblur={() => setHover(null)}
 			{onkeydown}
 			onclick={(e) => {
 				// From the click itself: on touch screens, pointerleave clears the
@@ -194,74 +213,66 @@
 				}
 			}}
 		>
-			<defs>
-				{#each series as s, i (s.key)}
-					<linearGradient id="{gradient}-{i}" x1="0" x2="0" y1="0" y2="1">
-						<stop offset="0%" stop-color={s.color} stop-opacity="0.2" />
-						<stop offset="100%" stop-color={s.color} stop-opacity="0" />
-					</linearGradient>
+			{#if !compact}
+				{#each yTicks as t, i (i)}
+					<line
+						x1={pad.left}
+						x2={width - pad.right}
+						y1={y(t)}
+						y2={y(t)}
+						stroke="var(--color-line)"
+					/>
+					<text x={0} y={y(t) + 4} class="fill-fg-faint font-mono text-[11px]">
+						{format(t)}
+					</text>
 				{/each}
-			</defs>
-			{#each yTicks as t, i (i)}
-				<line
-					x1={pad.left}
-					x2={width - pad.right}
-					y1={y(t)}
-					y2={y(t)}
-					stroke="var(--color-line)"
-					stroke-dasharray={t === 0 ? undefined : '3 3'}
-				/>
-				<text
-					x={pad.left - 8}
-					y={y(t) + 3}
-					text-anchor="end"
-					class="fill-fg-faint font-mono text-[10px]"
-				>
-					{format(t)}
-				</text>
-			{/each}
-			{#each xTicks as t, i (i)}
-				<text
-					x={x(t)}
-					y={height - 6}
-					text-anchor={xTicks.length === 1
-						? 'middle'
-						: i === 0
-							? 'start'
-							: i === xTicks.length - 1
-								? 'end'
-								: 'middle'}
-					class="fill-fg-faint font-mono text-[10px]"
-				>
-					{new Date(t).toLocaleString(undefined, tickFormat)}
-				</text>
-			{/each}
-			{#each series as s, i (s.key)}
-				{#each runs(s.points, x, y, step * 3) as run, j (j)}
-					{#if run.length === 1}
-						<!-- A point between two gaps has no line, so it gets a dot. -->
-						<circle cx={run[0][0]} cy={run[0][1]} r="2" fill={s.color} />
-					{:else}
-						{#if fill}
-							<path d={areaPath(run, baseline)} fill="url(#{gradient}-{i})" />
+				{#each xTicks as t, i (i)}
+					<text
+						x={x(t)}
+						y={height - 6}
+						text-anchor={xTicks.length === 1
+							? 'middle'
+							: i === 0
+								? 'start'
+								: i === xTicks.length - 1
+									? 'end'
+									: 'middle'}
+						class="fill-fg-faint font-mono text-[11px]"
+					>
+						{new Date(t).toLocaleString(undefined, tickFormat)}
+					</text>
+				{/each}
+			{:else}
+				<line x1={0} x2={width} y1={baseline} y2={baseline} stroke="var(--color-line)" />
+			{/if}
+			<g class="animate-wipe">
+				{#each series as s (s.key)}
+					{#each runs(s.points, x, y, step * 3) as run, j (j)}
+						{#if run.length === 1}
+							<!-- A point between two gaps has no line, so it gets a dot. -->
+							<circle cx={run[0][0]} cy={run[0][1]} r="2" fill={s.color} />
+						{:else}
+							{#if fill}
+								<path d={areaPath(run, baseline)} fill={s.color} fill-opacity="0.06" />
+							{/if}
+							<path
+								d={linePath(run)}
+								fill="none"
+								stroke={s.color}
+								stroke-width="1.5"
+								stroke-linejoin="round"
+							/>
 						{/if}
-						<path
-							d={linePath(run)}
-							fill="none"
-							stroke={s.color}
-							stroke-width="1.5"
-							stroke-linejoin="round"
-						/>
-					{/if}
+					{/each}
 				{/each}
-			{/each}
+			</g>
 			{#if hover !== null}
 				<line
 					x1={x(hover)}
 					x2={x(hover)}
 					y1={pad.top}
 					y2={baseline}
-					stroke="var(--color-line-heavy)"
+					stroke="var(--color-fg-faint)"
 				/>
 				{#each series as s (s.key)}
 					{@const v = valueAt(s, hover)}
@@ -271,8 +282,8 @@
 							cy={y(v)}
 							r="3"
 							fill={s.color}
-							stroke="var(--color-canvas)"
-							stroke-width="1.5"
+							stroke="var(--color-surface)"
+							stroke-width="2"
 						/>
 					{/if}
 				{/each}
@@ -280,22 +291,26 @@
 		</svg>
 		{#if hover !== null}
 			<div
-				class="pointer-events-none absolute top-1 z-10 min-w-36 rounded-md border border-line-strong bg-surface/95 px-2.5 py-2 shadow-xl backdrop-blur"
-				style:left={x(hover) <= width / 2 ? `${x(hover) + 10}px` : undefined}
-				style:right={x(hover) > width / 2 ? `${width - x(hover) + 10}px` : undefined}
+				class="pointer-events-none absolute -top-0.5 z-10 flex min-w-36 flex-col gap-1 rounded-lg border border-line-strong bg-raised p-3 shadow-popover"
+				style:left={x(hover) <= width / 2 ? `${x(hover) + 12}px` : undefined}
+				style:right={x(hover) > width / 2 ? `${width - x(hover) + 12}px` : undefined}
 				aria-hidden="true"
 			>
-				<div class="mb-1 font-mono text-[10.5px] text-fg-subtle">{when(hover)}</div>
-				{#each series as s (s.key)}
-					{@const v = valueAt(s, hover)}
-					<div class="flex items-center justify-between gap-4 text-[12px]">
-						<span class="flex items-center gap-1.5 text-fg-muted">
-							<span class="size-2 rounded-sm" style:background={s.color}></span>
-							{s.label}
-						</span>
-						<span class="num text-fg">{v === null ? '—' : format(v)}</span>
-					</div>
-				{/each}
+				{#if tooltip}
+					{@render tooltip(hover)}
+				{:else}
+					<div class="font-mono text-[11px] leading-4 text-fg-faint">{when(hover)}</div>
+					{#each series as s (s.key)}
+						{@const v = valueAt(s, hover)}
+						<div class="flex items-center justify-between gap-4 text-[12px] leading-4.25">
+							<span class="flex items-center gap-1.5 text-fg-muted">
+								<span class="h-0.5 w-3" style:background={s.color}></span>
+								{s.label}
+							</span>
+							<span class="font-mono text-fg">{v === null ? '—' : format(v)}</span>
+						</div>
+					{/each}
+				{/if}
 			</div>
 		{/if}
 	{/if}

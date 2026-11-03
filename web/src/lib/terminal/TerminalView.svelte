@@ -28,15 +28,15 @@
 
 	let { deviceId, session, cwd, active, onstatus, ontitle }: Props = $props();
 
-	const font = '"Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace';
+	const font = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
 	// Bield's palette, so the terminal looks like part of the page.
 	const theme = {
-		background: '#0a0a0a',
-		foreground: '#ededed',
-		cursor: '#ededed',
-		cursorAccent: '#0a0a0a',
-		selectionBackground: 'rgba(82, 168, 255, 0.35)',
+		background: '#0b0c0d',
+		foreground: '#ecedee',
+		cursor: '#ecedee',
+		cursorAccent: '#0b0c0d',
+		selectionBackground: 'rgba(127, 169, 245, 0.35)',
 		black: '#1f1f1f',
 		red: '#ff6166',
 		green: '#62c073',

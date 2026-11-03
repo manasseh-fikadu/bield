@@ -2,7 +2,7 @@
 
 Bield opens a shell, moves files and reads Docker on a machine by logging in to it over SSH. Nothing is installed on the machine for this, and only admins can use it. This page covers setting that access up, what Bield does with it, and what to watch for.
 
-A machine has SSH access when the **Status** row of the **SSH access** card on its page is green. Without it, [the agent](agent.md) still reports metrics, but **Terminal**, **Files** and the other machines' **Docker** pages have nothing to log in with.
+A machine has SSH access when the **Status** row of the **SSH access** card on its page says **Connected**. Without it, [the agent](agent.md) still reports metrics, but **Terminal**, **Files** and the other machines' **Docker** pages have nothing to log in with.
 
 ## Two ways to log in
 

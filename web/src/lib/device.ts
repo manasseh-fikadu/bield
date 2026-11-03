@@ -6,7 +6,7 @@ import Monitor from '@lucide/svelte/icons/monitor';
 import Server from '@lucide/svelte/icons/server';
 import Smartphone from '@lucide/svelte/icons/smartphone';
 import Tablet from '@lucide/svelte/icons/tablet';
-import type { Device, DeviceKind } from './api/types.js';
+import type { Device, DeviceKind, Thresholds } from './api/types.js';
 import type { Icon } from './icon.js';
 
 const kindIcons: Record<DeviceKind, Icon> = {
@@ -43,4 +43,36 @@ export function kindLabel(kind: DeviceKind): string {
 /** The first part of a device's DNS name, such as laptop for laptop.example.ts.net. */
 export function shortName(d: Device): string {
 	return d.dnsName.split('.')[0];
+}
+
+/** When a machine's numbers need attention, in percent. */
+export interface Limits {
+	cpu: number;
+	memory: number;
+	disk: number;
+	diskCritical: number;
+}
+
+/** A device's limits: its own, and where it has none, the hub's. */
+export function limitsOf(d: Device, t: Thresholds): Limits {
+	const own = d.settings.thresholds;
+	return {
+		cpu: own.cpuWarn ?? t.cpuWarn,
+		memory: own.memoryWarn ?? t.memoryWarn,
+		disk: own.diskWarn ?? t.diskWarn,
+		diskCritical: own.diskCritical ?? t.diskCritical
+	};
+}
+
+/** The text class of a percentage: amber from `warn`, red from `crit`, and otherwise `fine`. */
+export function levelText(
+	value: number | null | undefined,
+	warn: number,
+	crit = Infinity,
+	fine = 'text-fg'
+): string {
+	if (value == null) {
+		return 'text-fg-faint';
+	}
+	return value >= crit ? 'text-red-fg' : value >= warn ? 'text-amber' : fine;
 }

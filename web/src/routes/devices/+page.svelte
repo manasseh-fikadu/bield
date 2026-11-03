@@ -75,7 +75,13 @@
 			</div>
 		{/each}
 	{:else if shown.length}
-		<DevicesTable devices={shown} {now} detailed />
+		<DevicesTable
+			devices={shown}
+			{now}
+			thresholds={live.snapshot.hub.thresholds}
+			alerts={live.snapshot.alerts}
+			detailed
+		/>
 	{:else}
 		<EmptyState title="No devices here" icon={Monitor}>
 			{filter === 'all' ? 'Nothing is on the tailnet yet.' : 'No device has this status now.'}

@@ -28,13 +28,13 @@
 	bind:value={() => value, (v) => (value = v as T)}
 	orientation="horizontal"
 	aria-label={label}
-	class="inline-flex h-8 items-center rounded-md border border-line-strong bg-canvas p-0.5 pointer-coarse:h-10"
+	class="inline-flex h-7.5 items-center rounded-md border border-line-strong p-0.5 pointer-coarse:h-10"
 >
 	{#each options as o (o.value)}
 		<RadioGroup.Item
 			value={o.value}
 			aria-label={option ? o.label : undefined}
-			class="flex h-full items-center rounded-[5px] px-2.5 text-[13px] font-medium text-fg-subtle transition-colors hover:text-fg data-[state=checked]:bg-hover data-[state=checked]:text-fg data-[state=checked]:shadow-[inset_0_0_0_1px_var(--color-line-strong)]"
+			class="flex h-full items-center rounded-[4px] px-2.25 text-[12px] leading-4 text-fg-muted transition-colors hover:text-fg data-[state=checked]:bg-hover data-[state=checked]:font-medium data-[state=checked]:text-fg"
 		>
 			{#if option}
 				{@render option(o)}

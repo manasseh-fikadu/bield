@@ -13,6 +13,8 @@
 		children: Snippet;
 		/** Which edge of the trigger the menu lines up with. */
 		align?: 'start' | 'center' | 'end';
+		/** Which side of the trigger the menu opens on. */
+		side?: 'top' | 'bottom';
 		class?: string;
 	}
 
@@ -21,6 +23,7 @@
 		trigger,
 		children,
 		align = 'end',
+		side = 'bottom',
 		class: className
 	}: Props = $props();
 </script>
@@ -34,6 +37,7 @@
 	<DropdownMenu.Portal>
 		<DropdownMenu.Content
 			{align}
+			{side}
 			sideOffset={6}
 			class={[
 				'z-50 min-w-44 pop rounded-lg border border-line-strong bg-surface p-1 shadow-popover outline-none',

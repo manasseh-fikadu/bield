@@ -1,15 +1,18 @@
 // The listing's layout and the arithmetic of drawing only the rows on screen.
 
-/** The columns, narrowing with the screen: name only, then size and time, then all of them. */
+/**
+ * The columns, narrowing with the room the listing has, which the preview beside it takes
+ * some of: name only, then size and time, then all of them.
+ */
 export const gridClass =
-	'grid grid-cols-[32px_minmax(0,1fr)_36px] sm:grid-cols-[36px_minmax(0,1fr)_84px_116px_36px] lg:grid-cols-[36px_minmax(0,1fr)_88px_120px_104px_112px_40px]';
+	'grid grid-cols-[32px_minmax(0,1fr)_36px] @md:grid-cols-[36px_minmax(0,1fr)_70px_84px_36px] @3xl:grid-cols-[36px_minmax(0,1fr)_88px_104px_104px_112px_40px]';
 
 /** Rows have a fixed height, so the ones on screen are the only ones that need to exist. */
 export const ROW_MOBILE = 40;
 export const ROW_DESKTOP = 36;
 export const OVERSCAN = 15;
 /** The room at the top for the app's header and the listing's sticky column header. */
-export const STICKY_TOP = 56 + 36;
+export const STICKY_TOP = 60 + 30;
 /** The room at the bottom that the floating selection bar may cover. */
 export const BOTTOM_GAP = 72;
 

@@ -6,6 +6,7 @@
 <script lang="ts">
 	import Box from '@lucide/svelte/icons/box';
 	import type { DockerContainerDetail } from '#lib/api/types.js';
+	import { live } from '#lib/live.svelte.js';
 	import Badge from '#lib/ui/Badge.svelte';
 	import Button from '#lib/ui/Button.svelte';
 	import CopyButton from '#lib/ui/CopyButton.svelte';
@@ -62,6 +63,7 @@
 				{@const Icon = actionIcons[action]}
 				<Button
 					variant={action === 'start' ? 'primary' : 'secondary'}
+					disabled={live.demo}
 					onclick={() => onaction(action)}
 				>
 					{#snippet icon()}<Icon class="size-3.5" />{/snippet}

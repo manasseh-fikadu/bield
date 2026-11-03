@@ -95,7 +95,7 @@
 		{@render chart(
 			'Uptime',
 			`Uptime ${over}`,
-			{ key: 'uptime', label: 'Passed', color: 'var(--color-green-fg)', points: history.uptime },
+			{ key: 'uptime', label: 'Passed', color: 'var(--color-lamp)', points: history.uptime },
 			(v) => `${v.toFixed(0)}%`,
 			100
 		)}

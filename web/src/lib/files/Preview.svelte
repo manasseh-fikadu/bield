@@ -1,7 +1,8 @@
 <!--
-	A file opened over the whole window: images, video, PDFs, text with an
-	editor, Word documents and spreadsheets. Arrow keys move between the
-	folder's files, and Escape closes it.
+	A file opened beside the list on a wide screen, and over the whole window on
+	a narrower one: images, video, PDFs, text with an editor, Word documents and
+	spreadsheets. Arrow keys move between the folder's files, and Escape closes
+	it.
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -11,12 +12,12 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Info from '@lucide/svelte/icons/info';
 	import X from '@lucide/svelte/icons/x';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type { FileEntry } from '#lib/api/types.js';
 	import { ago, bytes, dateTime } from '#lib/format.js';
 	import CopyButton from '#lib/ui/CopyButton.svelte';
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import { mtimeOf, rawUrl, startDownload } from './api.js';
-	import FileIcon from './FileIcon.svelte';
 	import { canInline } from './kinds.js';
 	import { dirname, tildify } from './paths.js';
 	import Viewer from './Viewer.svelte';
@@ -74,8 +75,13 @@
 		e.preventDefault();
 	}
 
-	// The page behind doesn't scroll while the preview is open.
+	const docked = new MediaQuery('min-width: 1280px');
+
+	// Over the whole window, the page behind doesn't scroll while the preview is open.
 	$effect(() => {
+		if (docked.current) {
+			return;
+		}
 		const overflow = document.body.style.overflow;
 		document.body.style.overflow = 'hidden';
 		return () => {
@@ -97,31 +103,26 @@
 <svelte:window onkeydown={onKey} />
 
 <div
-	class="fixed inset-0 z-50 flex flex-col bg-canvas"
-	role="dialog"
-	aria-modal="true"
+	class="fixed inset-0 z-50 flex flex-col bg-canvas xl:sticky xl:top-15 xl:z-auto xl:h-[calc(100dvh-4.25rem)] xl:w-130 xl:shrink-0 xl:border-l xl:border-line xl:bg-surface"
+	role={docked.current ? 'region' : 'dialog'}
+	aria-modal={docked.current ? undefined : true}
 	aria-label="Preview of {current.name}"
 >
 	<header
-		class="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-canvas pr-1.5 pl-3 sm:gap-2 sm:px-3"
+		class="flex h-13 shrink-0 items-center gap-1 border-b border-line pr-1.5 pl-3 sm:gap-2 sm:pr-2 sm:pl-4"
 	>
-		<span
-			class="hidden size-8 shrink-0 items-center justify-center rounded-md border border-line bg-raised sm:flex"
-		>
-			<FileIcon entry={current} />
-		</span>
 		<div class="min-w-0 flex-1">
-			<div class="truncate text-[13.5px] font-medium text-fg" title={current.path}>
+			<div class="truncate text-[13px] leading-4.5 font-medium text-fg" title={current.path}>
 				{current.name}
 			</div>
-			<div class="truncate num text-[11px] text-fg-subtle">
-				{bytes(current.size)} ·
+			<div class="truncate text-[12px] leading-4 text-fg-faint">
+				{bytes(current.size)}, modified
 				<span title={dateTime(modified)}>{ago(modified, Math.max(Date.now(), modified))}</span>
-				<span class="hidden sm:inline">· {tildify(dirname(current.path), home)}</span>
+				<span class="hidden sm:inline xl:hidden">· {tildify(dirname(current.path), home)}</span>
 			</div>
 		</div>
 		{#if siblings.length > 1 && index >= 0}
-			<span class="hidden num text-[11.5px] text-fg-faint md:inline">
+			<span class="hidden num text-[11.5px] text-fg-faint md:inline xl:hidden">
 				{index + 1} / {siblings.length}
 			</span>
 		{/if}
@@ -172,7 +173,7 @@
 		</IconButton>
 	</header>
 	<div class="relative flex min-h-0 flex-1">
-		<main class="relative min-w-0 flex-1 bg-surface">
+		<div class="relative min-w-0 flex-1 bg-canvas">
 			{#key current.path}
 				<Viewer
 					{device}
@@ -184,7 +185,7 @@
 					}}
 				/>
 			{/key}
-		</main>
+		</div>
 		{#if info}
 			<aside
 				class="absolute inset-y-0 right-0 z-10 w-72 max-w-[85vw] overflow-y-auto border-l border-line bg-canvas shadow-[-12px_0_32px_rgba(0,0,0,0.5)] md:static md:shadow-none"

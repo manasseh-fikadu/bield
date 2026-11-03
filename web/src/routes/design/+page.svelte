@@ -7,7 +7,6 @@
 	import { mutate } from '#lib/api/client.js';
 	import type { CheckResult } from '#lib/api/types.js';
 	import AreaChart from '#lib/charts/AreaChart.svelte';
-	import HealthRing from '#lib/charts/HealthRing.svelte';
 	import Sparkline from '#lib/charts/Sparkline.svelte';
 	import UptimeBars from '#lib/charts/UptimeBars.svelte';
 	import type { Point } from '#lib/charts/path.js';
@@ -33,7 +32,6 @@
 	import Select from '#lib/ui/Select.svelte';
 	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import StatusDot from '#lib/ui/StatusDot.svelte';
-	import StatusPill from '#lib/ui/StatusPill.svelte';
 	import Switch from '#lib/ui/Switch.svelte';
 	import TabPanel from '#lib/ui/TabPanel.svelte';
 	import Tabs from '#lib/ui/Tabs.svelte';
@@ -128,21 +126,26 @@
 		</div>
 	</Card>
 
-	<Card title="Status" description="Dots, pills and badges.">
+	<Card title="Status" description="Lamps and badges.">
 		<div class="space-y-4 p-4">
 			<div class="flex flex-wrap items-center gap-4">
 				{#each statuses as s (s)}
 					<span class="inline-flex items-center gap-2 text-[13px]">
-						<StatusDot status={s} pulse />
+						<StatusDot status={s} />
 						{s}
 					</span>
 				{/each}
 			</div>
-			<div class="flex flex-wrap gap-2">
-				{#each statuses as s (s)}
-					<StatusPill status={s} />
-				{/each}
-				<StatusPill status="unknown" label="STOPPED" />
+			<div class="flex flex-wrap items-center gap-4 text-[13px]">
+				<span class="inline-flex items-center gap-2">
+					<StatusDot status="offline" quiet /> offline, quiet
+				</span>
+				<span class="inline-flex items-center gap-2">
+					<StatusDot status="attention" breathe /> breathing
+				</span>
+				<span class="inline-flex items-center gap-2">
+					<StatusDot status="offline" filled /> filled
+				</span>
 			</div>
 			<div class="flex flex-wrap gap-2">
 				{#each tones as tone (tone)}
@@ -264,12 +267,6 @@
 							/>
 							<UptimeBars results={results.slice(0, 20)} />
 							<UptimeBars {results} class="w-56" />
-						</div>
-						<div class="flex gap-3">
-							<HealthRing score={100} />
-							<HealthRing score={82} />
-							<HealthRing score={45} />
-							<HealthRing score={null} />
 						</div>
 					</div>
 				</TabPanel>

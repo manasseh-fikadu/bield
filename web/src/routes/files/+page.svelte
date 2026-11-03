@@ -9,10 +9,10 @@
 	import SetUpAccess from '#lib/devices/SetUpAccess.svelte';
 	import FileBrowser from '#lib/files/FileBrowser.svelte';
 	import { live } from '#lib/live.svelte.js';
+	import { crumb } from '#lib/shell/header.svelte.js';
 	import { canOpen, listedDeviceId, terminalDevices } from '#lib/terminal.js';
 	import Card from '#lib/ui/Card.svelte';
 	import EmptyState from '#lib/ui/EmptyState.svelte';
-	import PageHeader from '#lib/ui/PageHeader.svelte';
 	import Select from '#lib/ui/Select.svelte';
 	import Skeleton from '#lib/ui/Skeleton.svelte';
 
@@ -35,6 +35,9 @@
 	// browser gets only what it needs, which stays equal from one snapshot to the next.
 	const deviceId = $derived(device?.id);
 	const deviceOs = $derived(device?.os);
+	const deviceDocker = $derived(device?.docker ?? false);
+
+	crumb(() => device?.name);
 
 	function setDevice(id: string) {
 		// Another machine's folders aren't this one's, so the path and the file stay behind.
@@ -45,54 +48,58 @@
 	}
 </script>
 
-<AdminOnly>
-	<PageHeader title="Files" description="Browse, edit, upload and download files on your machines.">
-		{#snippet actions()}
-			{#if device && devices.length > 1}
-				<Select
-					value={device.id}
-					onchange={(e) => setDevice(e.currentTarget.value)}
-					class="h-8 w-52 text-[13px]"
-					aria-label="Device"
-				>
-					{#each devices as d (d.id)}
-						<option value={d.id}>{d.name}{d.online || d.ssh?.hub ? '' : ' (offline)'}</option>
-					{/each}
-				</Select>
-			{/if}
-		{/snippet}
-	</PageHeader>
+{#snippet picker()}
+	{#if device && devices.length > 1}
+		<Select
+			value={device.id}
+			onchange={(e) => setDevice(e.currentTarget.value)}
+			class="mr-1 h-7! w-auto min-w-24 rounded-[5px]! text-[12px]!"
+			aria-label="Device"
+		>
+			{#each devices as d (d.id)}
+				<option value={d.id}>{d.name}{d.online || d.ssh?.hub ? '' : ' (offline)'}</option>
+			{/each}
+		</Select>
+	{/if}
+{/snippet}
 
+<AdminOnly>
 	{#if !live.snapshot}
-		<Skeleton class="h-96 rounded-xl" />
+		<div class="p-4 sm:p-6"><Skeleton class="h-96 rounded-lg" /></div>
 	{:else if !device}
-		<Card>
-			<EmptyState title="No machine has SSH access yet" icon={FolderOpen}>
-				Bield needs SSH access to a machine first. On the machine it runs on, that takes one click.
-				<SetUpAccess devices={all} />
-			</EmptyState>
-		</Card>
+		<div class="p-4 sm:p-6">
+			<Card>
+				<EmptyState title="No machine has SSH access yet" icon={FolderOpen}>
+					Bield needs SSH access to a machine first. On the machine it runs on, that takes one
+					click.
+					<SetUpAccess devices={all} />
+				</EmptyState>
+			</Card>
+		</div>
 	{:else if !ready}
-		<Card>
-			<EmptyState
-				title={device.ssh?.state === 'host-key-changed'
-					? `${device.name}'s host key changed`
-					: `${device.name} is offline`}
-				icon={ShieldAlert}
-			>
-				{#if device.ssh?.state === 'host-key-changed'}
-					Bield won't log in until an admin trusts the new key, on <a
-						href="{resolve('/devices/[id]', { id: device.id })}#ssh"
-						class="text-fg underline underline-offset-4">its page</a
-					>.
-				{:else}
-					Files open again once it's back on the tailnet.
-				{/if}
-			</EmptyState>
-		</Card>
+		<div class="p-4 sm:p-6">
+			{@render picker()}
+			<Card class="mt-3">
+				<EmptyState
+					title={device.ssh?.state === 'host-key-changed'
+						? `${device.name}'s host key changed`
+						: `${device.name} is offline`}
+					icon={ShieldAlert}
+				>
+					{#if device.ssh?.state === 'host-key-changed'}
+						Bield won't log in until an admin trusts the new key, on <a
+							href="{resolve('/devices/[id]', { id: device.id })}#ssh"
+							class="text-fg underline underline-offset-4">its page</a
+						>.
+					{:else}
+						Files open again once it's back on the tailnet.
+					{/if}
+				</EmptyState>
+			</Card>
+		</div>
 	{:else}
 		{#key deviceId}
-			<FileBrowser deviceId={deviceId!} os={deviceOs!} />
+			<FileBrowser deviceId={deviceId!} os={deviceOs!} docker={deviceDocker} leading={picker} />
 		{/key}
 	{/if}
 </AdminOnly>

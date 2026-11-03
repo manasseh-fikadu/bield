@@ -66,7 +66,7 @@
 	class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 transition-colors hover:bg-hover/40"
 >
 	<button onclick={onopen} class="flex min-w-0 flex-1 basis-60 items-center gap-3 text-left">
-		<StatusDot status={checkStatus[check.state]} pulse={check.state === 'passing'} />
+		<StatusDot status={checkStatus[check.state]} />
 		<span class="min-w-0">
 			<span class="flex items-center gap-2">
 				<span

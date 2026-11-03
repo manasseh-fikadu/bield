@@ -1,94 +1,94 @@
-<!-- The sidebar: Bield's name, the pages the caller can open, and how the hub's collectors are doing. -->
+<!--
+	The sidebar: Bield's name and tailnet, the pages the caller can open with
+	how many devices and open alerts there are, and the signed-in user.
+-->
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { isAdmin } from '#lib/access.js';
+	import { openAlerts } from '#lib/alerts.js';
 	import { live } from '#lib/live.svelte.js';
-	import type { Status } from '#lib/status.js';
-	import StatusDot from '#lib/ui/StatusDot.svelte';
 	import Logo from './Logo.svelte';
-	import { navFor, navItemFor } from './nav.js';
+	import UserMenu from './UserMenu.svelte';
+	import { navFor, navItemFor, type NavItem } from './nav.js';
 
-	const sections = $derived.by(() => {
-		let n = 0;
-		return navFor(isAdmin(page.data.me)).map((s) => ({
-			...s,
-			items: s.items.map((item) => ({ ...item, number: String(++n).padStart(2, '0') }))
-		}));
-	});
-	const current = $derived(navItemFor(page.url.pathname));
+	interface Props {
+		/** Shows the list of keyboard shortcuts. */
+		onshortcuts: () => void;
+	}
 
-	const collectors = $derived(live.snapshot?.collectors ?? []);
-	const healthy = $derived(collectors.filter((c) => c.state === 'ok').length);
-	const collectorStatus: Status = $derived(
-		collectors.some((c) => c.state === 'failing')
-			? 'attention'
-			: collectors.length && healthy === collectors.length
-				? 'online'
-				: 'unknown'
-	);
+	let { onshortcuts }: Props = $props();
+
+	const sections = $derived(navFor(isAdmin(page.data.me)));
+	const current = $derived(navItemFor(page.route.id ?? ''));
+
+	/** The tailnet's DNS suffix, such as tail-demo.ts.net, from the hub's name on it. */
+	const domain = $derived(live.snapshot?.hub.dnsName.split('.').slice(1).join('.') ?? '');
+	const alerts = $derived(live.snapshot ? openAlerts(live.snapshot.alerts).length : 0);
+
+	/** The count after an item, and whether it needs someone. */
+	function count(item: NavItem): { n: number; warn: boolean } | null {
+		if (item.href === '/devices' && live.snapshot) {
+			return { n: live.snapshot.devices.length, warn: false };
+		}
+		if (item.href === '/alerts' && alerts > 0) {
+			return { n: alerts, warn: true };
+		}
+		return null;
+	}
 </script>
 
-<div class="flex h-full flex-col">
-	<a href={resolve('/')} class="flex h-14 shrink-0 items-center gap-2.5 px-4">
-		<span
-			class="flex size-7 items-center justify-center rounded-md border border-line-strong bg-raised text-fg"
-		>
-			<Logo class="size-4" />
-		</span>
+<div class="flex h-full flex-col px-3 py-4">
+	<a href={resolve('/')} class="flex h-10 shrink-0 items-center gap-2.5 rounded-md px-2.5">
+		<Logo class="size-5 shrink-0 text-fg" />
 		<span class="min-w-0">
-			<span class="block truncate text-[14px] leading-4 font-semibold tracking-[-0.01em]"
+			<span class="block truncate text-[14px] leading-4.5 font-semibold tracking-[-0.01em] text-fg"
 				>{live.name}</span
 			>
-			<span
-				class="block truncate font-mono text-[10px] leading-4 tracking-wider text-fg-faint uppercase"
-			>
-				Control plane
-			</span>
+			{#if domain}
+				<span class="block truncate font-mono text-[11px] leading-3.5 text-fg-faint">{domain}</span>
+			{/if}
 		</span>
 	</a>
-	<nav class="flex-1 overflow-y-auto px-2 pt-2 pb-4" aria-label="Pages">
+	<nav class="flex flex-1 flex-col gap-4.5 overflow-y-auto pt-5" aria-label="Pages">
 		{#each sections as section (section.label)}
-			<div class="mb-4">
-				<div class="px-2 pb-1.5 font-mono text-[10.5px] tracking-wider text-fg-faint uppercase">
-					{section.label}
-				</div>
+			<div class="flex flex-col gap-0.5" role="group" aria-label={section.label}>
 				{#each section.items as item (item.href)}
 					{@const active = item.href === current?.href}
+					{@const c = count(item)}
 					<a
 						href={resolve(item.href)}
 						aria-current={active ? 'page' : undefined}
 						class={[
-							'group flex h-8 items-center gap-2.5 rounded-md px-2 text-[14px] transition-colors',
-							active ? 'bg-hover text-fg' : 'text-fg-subtle hover:bg-hover/60 hover:text-fg'
+							'group flex h-8 shrink-0 items-center gap-2.5 rounded-md px-2.5 text-[13px] leading-5 transition-colors',
+							active
+								? 'bg-hover font-medium text-fg'
+								: 'text-fg-muted hover:bg-hover/60 hover:text-fg'
 						]}
 					>
-						<span class="w-4 num text-[10.5px] text-fg-faint" aria-hidden="true">{item.number}</span
-						>
 						<item.icon
 							class={[
-								'size-4 transition-colors',
+								'size-4 shrink-0 transition-colors',
 								active ? 'text-fg' : 'text-fg-faint group-hover:text-fg-muted'
 							]}
+							strokeWidth={1.75}
 						/>
 						<span class="flex-1 truncate">{item.label}</span>
+						{#if c}
+							<span
+								class={[
+									'num text-[12px] leading-4 font-normal',
+									c.warn ? 'text-amber' : 'text-fg-faint'
+								]}
+							>
+								{c.n}
+								{#if c.warn}<span class="sr-only">open</span>{/if}
+							</span>
+						{/if}
 					</a>
 				{/each}
 			</div>
 		{/each}
 	</nav>
-	<div class="border-t border-line p-3">
-		<a
-			href={resolve('/activity')}
-			class="block rounded-md px-2 py-1.5 transition-colors hover:bg-hover/60"
-		>
-			<span class="flex items-center gap-2 text-[12px] text-fg-muted">
-				<StatusDot status={collectorStatus} />
-				{collectors.length ? `${healthy}/${collectors.length} sources healthy` : 'Connecting…'}
-			</span>
-			<span class="mt-0.5 block truncate pl-4 font-mono text-[10.5px] text-fg-faint">
-				{live.snapshot?.hub.dnsName ?? ''}
-			</span>
-		</a>
-	</div>
+	<UserMenu {onshortcuts} />
 </div>

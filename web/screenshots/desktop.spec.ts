@@ -28,8 +28,8 @@ test('device', async ({ page }) => {
 
 test('container', async ({ page }) => {
 	await open(page, '/docker');
-	await link(page, '/docker/', 'caddy').click();
-	await page.waitForURL(/\/docker\/caddy/);
+	await page.goto((await link(page, '/docker/', 'caddy').getAttribute('href'))!);
+	await page.getByRole('note').filter({ hasText: 'made-up machines' }).waitFor();
 	await settle(page);
 	await page.screenshot({ path: `${out}/container.png` });
 });

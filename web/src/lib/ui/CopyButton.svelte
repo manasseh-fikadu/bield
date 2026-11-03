@@ -32,7 +32,7 @@
 
 <IconButton label={copied ? 'Copied' : label} size="sm" onclick={copy}>
 	{#if copied}
-		<Check class="size-3.5 text-green-fg" />
+		<Check class="size-3.5 text-fg" />
 	{:else}
 		<Copy class="size-3.5" />
 	{/if}

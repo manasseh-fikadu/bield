@@ -3,6 +3,10 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
+// The landing page's demo is this app, built to live under a path (site/demo/build.ts).
+const base = (process.env.BIELD_BASE ?? '') as '' | `/${string}`;
+const out = process.env.BIELD_OUT ?? 'build';
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
@@ -14,7 +18,8 @@ export default defineConfig({
 			},
 			// A single-page app that the Go binary embeds and serves. The Go side
 			// (internal/api/ui.go) serves 200.html for every path that isn't a file.
-			adapter: adapter({ fallback: '200.html' })
+			adapter: adapter({ pages: out, assets: out, fallback: '200.html' }),
+			paths: { base }
 		})
 	],
 	// `make dev` runs the Go server with --dev-ui, which proxies the web UI to

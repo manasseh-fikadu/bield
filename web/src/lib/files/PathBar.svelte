@@ -4,7 +4,6 @@
 -->
 <script lang="ts">
 	import { tick } from 'svelte';
-	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CornerDownLeft from '@lucide/svelte/icons/corner-down-left';
 	import House from '@lucide/svelte/icons/house';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -76,10 +75,7 @@
 
 {#if editing}
 	<form
-		class={[
-			'flex h-8 min-w-0 items-center rounded-md border border-fg-subtle bg-canvas',
-			className
-		]}
+		class={['flex h-8 min-w-0 items-center rounded-md border border-line-heavy', className]}
 		onsubmit={(e) => {
 			e.preventDefault();
 			submit();
@@ -111,12 +107,7 @@
 		</button>
 	</form>
 {:else}
-	<div
-		class={[
-			'group flex h-8 min-w-0 items-center rounded-md border border-line-strong bg-canvas transition-colors hover:border-line-heavy',
-			className
-		]}
-	>
+	<div class={['group flex h-8 min-w-0 items-center', className]}>
 		<!-- A click on the empty space opens the text field; the pencil does it for the keyboard. -->
 		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 		<div
@@ -129,15 +120,15 @@
 				{@const isHome = homeIdx >= 0 && i === 0}
 				<span class="flex shrink-0 items-center">
 					{#if i > 0 && c.path !== '/' && shown[i - 1].path !== '/'}
-						<ChevronRight class="size-3 shrink-0 text-fg-faint" />
+						<span class="px-0.5 font-mono text-[12px] text-fg-faint" aria-hidden="true">/</span>
 					{/if}
 					<button
 						type="button"
 						onclick={() => ongo(c.path)}
 						title={c.path}
 						class={[
-							'flex h-6 items-center gap-1 rounded px-1.5 font-mono text-[12.5px] whitespace-nowrap transition-colors pointer-coarse:h-8',
-							last ? 'text-fg' : 'text-fg-subtle hover:bg-hover hover:text-fg'
+							'flex h-6 items-center gap-1 rounded px-1 font-mono text-[12px] leading-4 whitespace-nowrap transition-colors pointer-coarse:h-8',
+							last ? 'text-fg' : 'text-fg-faint hover:bg-hover hover:text-fg'
 						]}
 					>
 						{#if isHome}
@@ -147,9 +138,6 @@
 							{c.name}
 						{/if}
 					</button>
-					{#if c.path === '/' && shown.length > 1}
-						<ChevronRight class="size-3 shrink-0 text-fg-faint" />
-					{/if}
 				</span>
 			{/each}
 			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
@@ -158,7 +146,7 @@
 		<button
 			type="button"
 			onclick={startEdit}
-			class="flex h-full shrink-0 items-center px-2 text-fg-faint transition-colors hover:text-fg pointer-coarse:px-3"
+			class="flex h-full shrink-0 items-center px-2 text-fg-faint opacity-0 transition group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 pointer-coarse:px-3 pointer-coarse:opacity-100"
 			aria-label="Edit path"
 			title="Type a path (Ctrl-L)"
 		>
