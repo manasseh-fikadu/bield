@@ -4,9 +4,6 @@ Bield is a self-hosted control plane for the machines on your tailnet. It's one 
 
 ![Bield's overview: a map of the tailnet, a health score and the open alerts](docs/images/overview.png)
 
-> [!NOTE]
-> Bield is close to its first release, v0.1. Until that's tagged, the install script, the Docker image and the release archives below don't exist yet, so [build it from source](#build-from-source) or try the [demo](#try-the-demo).
-
 ## What it does
 
 - **Devices.** Every machine on the tailnet, on a live map, with how traffic reaches it (direct, through a relay) and the round-trip time.
@@ -28,12 +25,20 @@ It works on a phone, and it's keyboard-friendly: `Ctrl+K` (`⌘K` on a Mac) sear
 
 The demo is a made-up tailnet with 12 machines and a week of history. It needs no Tailscale and touches nothing on your machine.
 
+Download the [release archive](https://github.com/manasseh-fikadu/bield/releases/latest) for your system (Linux or macOS, amd64 or arm64), unpack it and run it:
+
 ```sh
-make build            # or download a release archive, when there is one
+tar -xzf bield_*.tar.gz
 ./bield serve --demo  # then open http://127.0.0.1:4700
 ```
 
-See [Demo mode](docs/demo.md). Every screenshot here comes from it.
+Or run it in Docker, which leaves nothing behind:
+
+```sh
+docker run --rm -p 127.0.0.1:4700:4700 ghcr.io/manasseh-fikadu/bield serve --demo --demo-listen 0.0.0.0:4700
+```
+
+To build it yourself, `make build` makes `./bield`, as under [Build from source](#build-from-source). See [Demo mode](docs/demo.md). Every screenshot here comes from it.
 
 ## Quickstart
 
