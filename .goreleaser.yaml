@@ -82,12 +82,36 @@ changelog:
 release:
   # A tag like v0.1.0-rc.1 is a pre-release.
   prerelease: auto
+  # Written by hand for v0.1.0, and above the generated changelog. Rewrite the
+  # lists for the next release, since they say what was run for this one.
+  header: |
+    Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
+
+    This is the first release. It hasn't had an outside review, and it can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
+
+    ### What has been run
+
+    - `install.sh`, as `curl | sudo bash`, on clean virtual machines: Ubuntu 24.04 (amd64 and arm64), Ubuntu 25.10, Debian 12 and Fedora 43 (arm64).
+    - The Docker image on arm64: `compose.yaml` up to its login link, and `serve --demo`.
+    - The macOS arm64 archive, with `serve --demo`.
+    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo.
+
+    ### What has not been run
+
+    - A fresh install logging in to a real tailnet. The install tests stopped at the login link.
+    - Host mode (`compose.host.yaml`, `--tailscale host`) with a real Tailscale on the machine.
+    - Headscale against a real server.
+    - The agent on a Mac, and Bield on a Raspberry Pi or other real arm64 hardware.
+    - Fedora with SELinux enforcing.
+    - Upgrading from an earlier release.
+
+    Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |
     ## Install
 
     ```sh
     # On a Linux server with systemd
-    curl -fsSL https://raw.githubusercontent.com/manasseh-fikadu/bield/v{{ .Version }}/install.sh | sudo BIELD_VERSION=v{{ .Version }} bash
+    curl -fsSL https://raw.githubusercontent.com/manasseh-fikadu/bield/main/install.sh | sudo BIELD_VERSION=v{{ .Version }} bash
 
     # In Docker
     docker pull ghcr.io/manasseh-fikadu/bield:{{ .Version }}
