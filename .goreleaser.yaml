@@ -103,6 +103,7 @@ release:
     - Headscale against a real server.
     - The agent on a Mac, and Bield on a Raspberry Pi or other real arm64 hardware.
     - Fedora with SELinux enforcing.
+    - The systemd service with its sandbox in effect (`ProtectSystem=strict`, `ProtectHome=true` and the rest). The test machines ran under OrbStack, which doesn't apply it.
     - Upgrading from an earlier release.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
