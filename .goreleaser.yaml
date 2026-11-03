@@ -94,6 +94,7 @@ release:
     - `install.sh`, as `curl | sudo bash`, on clean virtual machines: Ubuntu 24.04 (amd64 and arm64), Ubuntu 25.10, Debian 12 and Fedora 43 (arm64).
     - The Docker image on arm64: `compose.yaml` up to its login link, and `serve --demo`.
     - The macOS arm64 archive, with `serve --demo`.
+    - The systemd service with its sandbox in effect (`ProtectSystem=strict`, `NoNewPrivileges` and the rest), on Debian 12 in a privileged container: it starts, writes its database and serves the setup page.
     - The agent script on macOS (bash 3.2): a full heartbeat, posted to a stand-in hub.
     - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo.
 
@@ -104,7 +105,7 @@ release:
     - Headscale against a real server.
     - The agent's installer and its LaunchAgent on a Mac, and Bield on a Raspberry Pi or other real arm64 hardware.
     - Fedora with SELinux enforcing.
-    - The systemd service with its sandbox in effect (`ProtectSystem=strict`, `ProtectHome=true` and the rest). The test machines ran under OrbStack, which doesn't apply it.
+    - Anything past the login (terminals, files, Docker) under that sandbox. The virtual machines above ran under OrbStack, which doesn't apply it.
     - Upgrading from an earlier release.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
