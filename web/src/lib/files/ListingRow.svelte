@@ -18,6 +18,8 @@
 		selected: boolean;
 		/** The keyboard is on this row. */
 		cursor: boolean;
+		/** It's the file open in the preview. */
+		opened?: boolean;
 		now: number;
 		/** A search result shows which folder each match is in. */
 		folder: string | null;
@@ -33,6 +35,7 @@
 		index,
 		selected,
 		cursor,
+		opened = false,
 		now: tick,
 		folder,
 		onrowclick,
@@ -62,6 +65,7 @@
 	class={[
 		gridClass,
 		'group relative h-10 items-center border-b border-line text-[13px] select-none sm:h-9',
+		opened && 'bg-raised',
 		selected ? 'bg-blue/[0.09]' : 'hover:bg-hover/50',
 		cursor && 'shadow-[inset_2px_0_0_var(--color-blue-fg)]'
 	]}
@@ -70,7 +74,9 @@
 		role="gridcell"
 		class={[
 			'h-full transition-opacity',
-			selected ? 'opacity-100' : 'opacity-60 group-hover:opacity-100'
+			selected
+				? 'opacity-100'
+				: 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100'
 		]}
 	>
 		<button
@@ -89,8 +95,8 @@
 				class={[
 					'flex size-4 items-center justify-center rounded border transition-colors',
 					selected
-						? 'border-blue-fg bg-blue text-white'
-						: 'border-line-heavy bg-canvas group-hover:border-fg-faint'
+						? 'border-blue-fg bg-blue text-canvas'
+						: 'border-line-heavy group-hover:border-fg-faint'
 				]}
 			>
 				{#if selected}<Check class="size-3" strokeWidth={3} />{/if}
@@ -114,7 +120,8 @@
 					ondblclick={(e) => e.stopPropagation()}
 					class={[
 						"relative min-w-0 truncate text-left hover:underline hover:decoration-fg-faint hover:underline-offset-2 pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-2 pointer-coarse:after:content-['']",
-						broken ? 'text-fg-subtle line-through decoration-red-fg/60' : 'text-fg'
+						broken ? 'text-fg-subtle line-through decoration-red-fg/60' : 'text-fg',
+						opened && 'font-medium'
 					]}
 					title={entry.name}
 				>
@@ -132,28 +139,28 @@
 			{#if folder != null}
 				<div class="truncate font-mono text-[10.5px] text-fg-faint">{folder}</div>
 			{:else}
-				<div class="truncate num text-[10.5px] text-fg-faint sm:hidden">
+				<div class="truncate num text-[10.5px] text-fg-faint @md:hidden">
 					{dir ? 'Folder' : bytes(entry.size)} · {ago(modified, now)}
 				</div>
 			{/if}
 		</div>
 	</div>
-	<div role="gridcell" class="hidden pr-3 text-right num text-[12px] text-fg-muted sm:block">
+	<div role="gridcell" class="hidden text-right num text-[12px] text-fg-faint @md:block">
 		{#if dir}<span class="text-fg-faint">—</span>{:else}{bytes(entry.size)}{/if}
 	</div>
 	<div
 		role="gridcell"
-		class="hidden truncate pr-3 num text-[12px] text-fg-subtle sm:block"
+		class="hidden truncate text-right num text-[12px] text-fg-faint @md:block"
 		title={dateTime(modified)}
 	>
 		{ago(modified, now)}
 	</div>
-	<div role="gridcell" class="hidden font-mono text-[11.5px] text-fg-subtle lg:block">
+	<div role="gridcell" class="hidden pl-3 font-mono text-[11.5px] text-fg-faint @3xl:block">
 		{entry.mode}
 	</div>
 	<div
 		role="gridcell"
-		class="hidden truncate pr-3 text-[12px] text-fg-subtle lg:block"
+		class="hidden truncate pr-3 text-[12px] text-fg-faint @3xl:block"
 		title="{entry.owner}:{entry.group}"
 	>
 		{entry.owner}
@@ -175,7 +182,7 @@
 					class={[
 						'transition-opacity',
 						props['aria-expanded'] !== 'true' &&
-							'sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100'
+							'@md:opacity-0 @md:group-hover:opacity-100 @md:focus:opacity-100'
 					]}
 				>
 					<Ellipsis class="size-4" />

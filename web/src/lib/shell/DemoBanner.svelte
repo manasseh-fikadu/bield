@@ -8,7 +8,7 @@
 
 <p
 	role="note"
-	class="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-blue/25 bg-blue/5 px-4 py-2 text-[13px] text-blue-fg sm:px-6"
+	class="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-line bg-raised px-4 py-2 text-[12px] leading-4 text-fg-muted sm:px-6 lg:border-x"
 >
 	<FlaskConical class="size-3.5 shrink-0" aria-hidden="true" />
 	<span>
@@ -16,7 +16,7 @@
 	</span>
 	<a
 		href="https://github.com/manasseh-fikadu/bield"
-		class="underline underline-offset-2 hover:text-fg"
+		class="text-fg underline decoration-line-heavy underline-offset-2 hover:decoration-fg"
 		target="_blank"
 		rel="noreferrer">Run Bield on your own tailnet</a
 	>

@@ -1,6 +1,6 @@
 <!--
 	A status page's bars: one for each of a check's latest results, oldest on
-	the left, green if it passed and red if it failed. Pointing at a bar says
+	the left, grey if it passed and red if it failed. Pointing at a bar says
 	when it ran and what happened.
 -->
 <script lang="ts">
@@ -41,7 +41,6 @@
 		<span class="flex-1 rounded-[1px] bg-line"></span>
 	{/each}
 	{#each shown as r (r.at)}
-		<span title={title(r)} class={['flex-1 rounded-[1px]', r.ok ? 'bg-green-fg/80' : 'bg-red-fg']}
-		></span>
+		<span title={title(r)} class={['flex-1 rounded-[1px]', r.ok ? 'bg-track' : 'bg-red-fg']}></span>
 	{/each}
 </div>

@@ -21,16 +21,16 @@
 				? 'bg-red-fg'
 				: pct >= warn
 					? 'bg-amber'
-					: 'bg-fg'
+					: 'bg-fg-faint'
 	);
 </script>
 
 <span
-	class={['block h-1 w-full overflow-hidden rounded-full bg-line-strong/70', className]}
+	class={['block h-0.5 w-full overflow-hidden rounded-[1px] bg-line-strong', className]}
 	aria-hidden="true"
 >
 	<span
-		class={['block h-full rounded-full transition-[width] duration-500', color]}
+		class={['block h-full rounded-[1px] transition-[width] duration-500', color]}
 		style:width="{pct}%"
 	></span>
 </span>

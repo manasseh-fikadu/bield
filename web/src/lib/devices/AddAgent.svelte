@@ -147,7 +147,7 @@
 					{ran && !ran.ok ? 'Try again' : 'Install over SSH'}
 				</Button>
 				{#if ran}
-					<p class={['text-[13px]', ran.ok ? 'text-green-fg' : 'text-red-fg']} role="status">
+					<p class={['text-[13px]', ran.ok ? 'text-fg' : 'text-red-fg']} role="status">
 						{ran.ok ? 'The install ran.' : 'The install failed.'}
 					</p>
 					{#if ran.output}
@@ -168,7 +168,7 @@
 		</p>
 		<div class="mt-4 flex items-center gap-2 text-[13px]" role="status">
 			{#if enrolled && reporting}
-				<CircleCheck class="size-4 text-green-fg" />
+				<CircleCheck class="size-4 text-lamp" />
 				<span class="text-fg">
 					<a
 						href={resolve('/devices/[id]', { id: enrolled.id })}

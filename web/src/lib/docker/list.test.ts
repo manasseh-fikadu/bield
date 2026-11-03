@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type {
+	ContainerPort,
 	DockerContainerRow,
 	DockerDisk,
 	DockerImage,
@@ -8,7 +9,10 @@ import type {
 	DockerVolume
 } from '#lib/api/types.js';
 import {
+	containerCounts,
 	cpuMeter,
+	firstPort,
+	rowNote,
 	cpuShare,
 	imageTotals,
 	memShare,
@@ -268,5 +272,69 @@ describe('volumes, images and networks', () => {
 	test('networkTotals', () => {
 		const net = (n: number) => ({ containers: new Array(n).fill({}) }) as DockerNetwork;
 		expect(networkTotals([net(2), net(0), net(1)])).toEqual({ count: 3, inUse: 2 });
+	});
+});
+
+describe('containerCounts', () => {
+	test('counts what runs, what is unhealthy and what crashed', () => {
+		const rows = [
+			{ state: 'running' },
+			{ state: 'running', health: 'unhealthy' },
+			{ state: 'exited', exitCode: 1 },
+			{ state: 'exited', exitCode: 0 },
+			{ state: 'dead' }
+		] as DockerContainerRow[];
+		expect(containerCounts(rows)).toEqual({ total: 5, running: 2, unhealthy: 1, crashed: 2 });
+	});
+});
+
+describe('rowNote', () => {
+	const now = Date.parse('2026-11-03T12:00:00Z');
+	test.each([
+		['a healthy one', { state: 'running', health: 'healthy' }, null],
+		['an unhealthy one', { state: 'running', health: 'unhealthy' }, 'Unhealthy'],
+		[
+			'one that crashed and came back',
+			{ state: 'exited', exitCode: 1, restartCount: 3 },
+			'Exited 1, restarted 3 times'
+		],
+		[
+			'one out of memory',
+			{ state: 'exited', exitCode: 137, oomKilled: true, restartCount: 0 },
+			'Out of memory'
+		],
+		[
+			'one that stopped cleanly',
+			{ state: 'exited', exitCode: 0, finishedAt: '2026-11-03T09:00:00Z' },
+			'Stopped 3h ago'
+		],
+		['one being restarted', { state: 'restarting' }, 'Restarting']
+	])('says what is up with %s', (_name, row, want) => {
+		expect(rowNote(row as DockerContainerRow, now)?.text ?? null).toBe(want);
+	});
+
+	test('colors a crash red, and a clean stop faint', () => {
+		const crash = { state: 'exited', exitCode: 1, restartCount: 0 } as DockerContainerRow;
+		const stop = { state: 'exited', exitCode: 0 } as DockerContainerRow;
+		expect(rowNote(crash, now)?.tone).toBe('red');
+		expect(rowNote(stop, now)?.tone).toBe('faint');
+	});
+});
+
+describe('firstPort', () => {
+	test.each([
+		['none', [], null],
+		['only private ones', [{ private: 80, type: 'tcp' }], null],
+		[
+			'the first it publishes, and how many more, once each',
+			[
+				{ private: 80, public: 8080, type: 'tcp' },
+				{ private: 80, public: 8080, type: 'udp' },
+				{ private: 443, public: 8443, type: 'tcp' }
+			],
+			{ port: 8080, more: 1 }
+		]
+	])('with %s', (_name, ports, want) => {
+		expect(firstPort(ports as ContainerPort[])).toEqual(want);
 	});
 });

@@ -5,11 +5,6 @@
 	agent are for admins, and so is the SSH state they depend on.
 -->
 <script lang="ts">
-	import Bot from '@lucide/svelte/icons/bot';
-	import Container from '@lucide/svelte/icons/container';
-	import FolderOpen from '@lucide/svelte/icons/folder-open';
-	import KeyRound from '@lucide/svelte/icons/key-round';
-	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { isAdmin } from '#lib/access.js';
@@ -48,31 +43,23 @@
 
 {#if any}
 	<div
-		class="mb-4 flex flex-wrap items-center gap-2"
+		class="flex flex-wrap items-center gap-1.5"
 		role="group"
 		aria-label="Actions for {device.name}"
 	>
 		{#if open}
-			<a href="{resolve('/terminal')}{query}" class={buttonClass('secondary', 'sm')}>
-				<SquareTerminal class="size-3.5" /> Terminal
-			</a>
-			<a href="{resolve('/files')}{query}" class={buttonClass('secondary', 'sm')}>
-				<FolderOpen class="size-3.5" /> Files
-			</a>
+			<a href="{resolve('/terminal')}{query}" class={buttonClass('secondary', 'sm')}>Terminal</a>
+			<a href="{resolve('/files')}{query}" class={buttonClass('secondary', 'sm')}>Files</a>
 		{:else if needsSSH}
 			<a href="#ssh" class={buttonClass('secondary', 'sm')}>
-				<KeyRound class="size-3.5" />
 				{ssh?.state === 'host-key-changed' ? 'Fix SSH' : 'Set up SSH'}
 			</a>
 		{/if}
 		{#if device.docker}
-			<a href="{resolve('/docker')}{query}" class={buttonClass('secondary', 'sm')}>
-				<Container class="size-3.5" /> Docker
-			</a>
+			<a href="{resolve('/docker')}{query}" class={buttonClass('secondary', 'sm')}>Docker</a>
 		{/if}
 		{#if agent}
-			{#snippet botIcon()}<Bot class="size-3.5" />{/snippet}
-			<AddAgent {device} label={agent} icon={botIcon} />
+			<AddAgent {device} label={agent} />
 		{/if}
 	</div>
 {/if}

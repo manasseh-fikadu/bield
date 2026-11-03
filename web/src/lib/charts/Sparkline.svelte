@@ -8,8 +8,10 @@
 		height?: number;
 		/** A CSS color. */
 		color?: string;
-		/** A fading area under the line. */
+		/** A faint area under the line. */
 		fill?: boolean;
+		/** How thick the line is, in pixels. */
+		stroke?: number;
 		/** The value at the bottom. The smallest value if it's not given. */
 		min?: number;
 		/** The value at the top. The largest value if it's not given. */
@@ -22,12 +24,12 @@
 		height = 28,
 		color = 'var(--color-fg)',
 		fill = true,
+		stroke = 1.25,
 		min,
 		max,
 		class: className
 	}: Props = $props();
 
-	const gradient = $props.id();
 	let width = $state(0);
 
 	const lines = $derived.by(() => {
@@ -53,26 +55,20 @@
 	aria-hidden="true"
 >
 	{#if width > 0}
-		<svg {width} {height} class="block overflow-visible">
-			<defs>
-				<linearGradient id={gradient} x1="0" x2="0" y1="0" y2="1">
-					<stop offset="0%" stop-color={color} stop-opacity="0.22" />
-					<stop offset="100%" stop-color={color} stop-opacity="0" />
-				</linearGradient>
-			</defs>
+		<svg {width} {height} class="block animate-wipe overflow-visible">
 			{#each lines as run, i (i)}
 				{#if run.length === 1}
 					<!-- A value between two gaps has no line, so it gets a dot. -->
 					<circle cx={run[0][0]} cy={run[0][1]} r="1.5" fill={color} />
 				{:else}
 					{#if fill}
-						<path d={areaPath(run, height)} fill="url(#{gradient})" />
+						<path d={areaPath(run, height)} fill={color} fill-opacity="0.05" />
 					{/if}
 					<path
 						d={linePath(run)}
 						fill="none"
 						stroke={color}
-						stroke-width="1.25"
+						stroke-width={stroke}
 						stroke-linejoin="round"
 						stroke-linecap="round"
 					/>

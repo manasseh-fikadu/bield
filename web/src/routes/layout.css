@@ -1,60 +1,67 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/geist';
-@import '@fontsource-variable/geist-mono';
+@import '@fontsource-variable/host-grotesk';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
 
 /*
- * Bield's dark theme: the old dashboard's palette, after the Geist design
- * system. Surfaces get lighter as they rise (canvas, surface, raised, hover),
- * lines get stronger as they matter more, and text fades from fg to faint.
- * Each status color has a fill and a lighter -fg for text on dark.
+ * Bield's dark theme, from the Paper redesign ("signal box"). Surfaces get
+ * lighter as they rise (canvas, surface, raised, hover), lines get stronger
+ * as they matter more, and text fades from fg to faint. Colour means
+ * something is wrong: healthy things are lit by the lamp, a pale blue-white,
+ * and only amber and red stand out. Mono type is for data.
  */
 @theme {
-	--font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
-	--font-mono: 'Geist Mono Variable', ui-monospace, SFMono-Regular, Menlo, monospace;
+	--font-sans: 'Host Grotesk Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-	--color-canvas: #000000;
-	--color-surface: #0a0a0a;
-	--color-raised: #111111;
-	--color-hover: #1a1a1a;
-	--color-line: #1f1f1f;
-	--color-line-strong: #2e2e2e;
-	--color-line-heavy: #454545;
+	/* The page behind the sidebar and the sheet. */
+	--color-canvas: #0b0c0d;
+	/* The sheet every page sits on, and cards on it. */
+	--color-surface: #101112;
+	--color-raised: #17181a;
+	--color-hover: #1e2022;
+	--color-line: #222427;
+	--color-line-strong: #303337;
+	--color-line-heavy: #4a4e54;
+	/* The lines of the network map, and the unfilled part of meters. */
+	--color-track: #4a4e54;
+	--color-track-dim: #35383d;
 
-	--color-fg: #ededed;
-	--color-fg-muted: #a1a1a1;
-	--color-fg-subtle: #8f8f8f;
-	--color-fg-faint: #5c5c5c;
+	--color-fg: #ecedee;
+	--color-fg-muted: #a6a9ad;
+	--color-fg-subtle: #919499;
+	--color-fg-faint: #7d8085;
 
-	--color-green: #45a557;
-	--color-green-fg: #62c073;
-	--color-amber: #ffb224;
-	--color-amber-fg: #f1a10d;
-	--color-red: #e5484d;
-	--color-red-fg: #ff6166;
-	--color-blue: #0070f3;
-	--color-blue-fg: #52a8ff;
+	/* What healthy things are lit with. */
+	--color-lamp: #dde7f3;
+	--color-amber: #f5b544;
+	--color-amber-fg: #f5b544;
+	--color-red: #f4615d;
+	--color-red-fg: #f4615d;
+	--color-blue: #7fa9f5;
+	--color-blue-fg: #7fa9f5;
+	/* For data that isn't a status, such as a container's download traffic. */
+	--color-green: #4f9f62;
+	--color-green-fg: #6cbf7e;
 	--color-purple-fg: #bf7af0;
 
-	--shadow-popover: 0 8px 30px rgb(0 0 0 / 0.6);
+	--shadow-popover: 0 16px 40px rgb(0 0 0 / 0.5);
 
-	--animate-ping-slow: ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+	/* Things that come in ease out with this. */
+	--ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+
 	--animate-shimmer: shimmer 1.6s ease-in-out infinite;
-	/* Dashes moving along a live line on the network map. */
-	--animate-flow: flow 1.6s linear infinite;
+	/* An amber or red lamp of an alert nobody acknowledged yet. */
+	--animate-breathe: breathe 2.4s ease-in-out infinite;
+	/* A short bright pulse along a live line, on a path with pathLength="1". */
+	--animate-signal: signal 2.4s linear both;
+	/* The network map's lines drawing down from the top. */
+	--animate-reveal: reveal 900ms var(--ease-entrance) both;
+	/* A map card's lamp lighting as its line reaches it. */
+	--animate-light: light 300ms ease-out both;
+	/* A chart's lines drawing left to right. */
+	--animate-wipe: wipe 600ms var(--ease-entrance) both;
 
-	@keyframes flow {
-		to {
-			stroke-dashoffset: -24;
-		}
-	}
-
-	@keyframes ping-slow {
-		75%,
-		100% {
-			transform: scale(2.4);
-			opacity: 0;
-		}
-	}
 	@keyframes shimmer {
 		0%,
 		100% {
@@ -62,6 +69,52 @@
 		}
 		50% {
 			opacity: 0.9;
+		}
+	}
+	@keyframes breathe {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.7;
+		}
+	}
+	@keyframes signal {
+		from {
+			stroke-dashoffset: 0.06;
+			opacity: 1;
+		}
+		95% {
+			opacity: 1;
+		}
+		to {
+			stroke-dashoffset: -1;
+			opacity: 0;
+		}
+	}
+	@keyframes reveal {
+		from {
+			clip-path: inset(0 0 100% 0);
+		}
+		to {
+			clip-path: inset(0);
+		}
+	}
+	@keyframes light {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+	@keyframes wipe {
+		from {
+			clip-path: inset(0 100% 0 0);
+		}
+		to {
+			clip-path: inset(0);
 		}
 	}
 }
@@ -75,17 +128,16 @@
 		@apply bg-canvas font-sans text-fg antialiased;
 		font-size: 14px;
 		line-height: 1.5;
-		font-feature-settings: 'ss01', 'cv11';
 		text-rendering: optimizeLegibility;
 	}
 	::selection {
-		background: rgb(82 168 255 / 0.35);
+		background: rgb(127 169 245 / 0.35);
 	}
 	:focus-visible {
 		outline: none;
 		box-shadow:
 			0 0 0 1px var(--color-canvas),
-			0 0 0 3px rgb(82 168 255 / 0.7);
+			0 0 0 3px rgb(127 169 245 / 0.7);
 		border-radius: 6px;
 	}
 	* {
@@ -108,12 +160,6 @@
 	border-radius: 12px;
 	border: 1px solid var(--color-line);
 	background: var(--color-surface);
-}
-
-/* The faint dot grid behind the network map. */
-@utility map-grid {
-	background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 0.055) 1px, transparent 0);
-	background-size: 20px 20px;
 }
 
 /*

@@ -13,7 +13,6 @@
 	import { basicSetup, EditorView } from 'codemirror';
 	import { Compartment, EditorState, type Extension, type Text as Doc } from '@codemirror/state';
 	import { keymap } from '@codemirror/view';
-	import { oneDark } from '@codemirror/theme-one-dark';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import Save from '@lucide/svelte/icons/save';
@@ -27,7 +26,7 @@
 	import IconButton from '#lib/ui/IconButton.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 	import { errorOf, filesApi, mtimeOf, rawUrl } from './api.js';
-	import { codeTheme } from './codeTheme.js';
+	import { codeHighlight, codeTheme, yamlValues } from './codeTheme.js';
 	import { TEXT_PARTIAL, previewKind } from './kinds.js';
 	import { findLanguage, wrapsByDefault } from './language.js';
 	import Markdown from './Markdown.svelte';
@@ -114,7 +113,7 @@
 			parent: host,
 			extensions: [
 				codeTheme,
-				oneDark,
+				codeHighlight,
 				basicSetup,
 				syntax.of([]),
 				wrapping.of(wrap ? EditorView.lineWrapping : []),
@@ -150,7 +149,13 @@
 		if (language && first.text.length < highlightLimit) {
 			language
 				.load()
-				.then((support) => live && v.dispatch({ effects: syntax.reconfigure(support) }))
+				.then(
+					(support) =>
+						live &&
+						v.dispatch({
+							effects: syntax.reconfigure([support, language.name === 'YAML' ? yamlValues : []])
+						})
+				)
 				.catch(() => {});
 		}
 		return () => {

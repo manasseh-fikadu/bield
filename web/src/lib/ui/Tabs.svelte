@@ -18,26 +18,43 @@
 		tabs: Tab[];
 		/** The <TabPanel>s. */
 		children: Snippet;
+		/** Something at the end of the row, such as a filter. */
+		trailing?: Snippet;
+		/** Classes for the row of tabs, such as how far it's indented. */
+		listClass?: string;
 		class?: string;
 	}
 
-	let { value = $bindable(), tabs, children, class: className }: Props = $props();
+	let {
+		value = $bindable(),
+		tabs,
+		children,
+		trailing,
+		listClass,
+		class: className
+	}: Props = $props();
 </script>
 
 <Tabs.Root bind:value class={className}>
-	<Tabs.List class="flex gap-1 overflow-x-auto border-b border-line">
-		{#each tabs as tab (tab.value)}
-			<Tabs.Trigger
-				value={tab.value}
-				class="-mb-px flex h-10 shrink-0 items-center gap-2 border-b-2 border-transparent px-3 text-[14px] text-fg-subtle transition-colors hover:text-fg data-[state=active]:border-fg data-[state=active]:text-fg"
-			>
-				{tab.label}
-				{#if tab.count !== undefined}
-					<span class="rounded-full bg-hover px-1.5 num text-[11px] text-fg-muted">{tab.count}</span
-					>
-				{/if}
-			</Tabs.Trigger>
-		{/each}
-	</Tabs.List>
+	<div class={['flex h-10 items-center gap-5 border-b border-line', listClass]}>
+		<Tabs.List
+			class="flex h-full min-w-0 [scrollbar-width:none] items-center gap-5 overflow-x-auto"
+		>
+			{#each tabs as tab (tab.value)}
+				<Tabs.Trigger
+					value={tab.value}
+					class="flex h-full shrink-0 items-center gap-1.5 text-[13px] leading-5 text-fg-muted transition-colors hover:text-fg data-[state=active]:font-medium data-[state=active]:text-fg"
+				>
+					{tab.label}
+					{#if tab.count !== undefined}
+						<span class="font-mono text-[11px] font-normal text-fg-faint">{tab.count}</span>
+					{/if}
+				</Tabs.Trigger>
+			{/each}
+		</Tabs.List>
+		{#if trailing}
+			<div class="ml-auto flex shrink-0 items-center gap-3">{@render trailing()}</div>
+		{/if}
+	</div>
 	{@render children()}
 </Tabs.Root>

@@ -4,12 +4,12 @@
 
 import Activity from '@lucide/svelte/icons/activity';
 import Bell from '@lucide/svelte/icons/bell';
-import Container from '@lucide/svelte/icons/container';
-import FolderOpen from '@lucide/svelte/icons/folder-open';
-import HeartPulse from '@lucide/svelte/icons/heart-pulse';
-import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+import Box from '@lucide/svelte/icons/box';
+import CircleCheck from '@lucide/svelte/icons/circle-check';
+import Folder from '@lucide/svelte/icons/folder';
 import Monitor from '@lucide/svelte/icons/monitor';
-import Settings from '@lucide/svelte/icons/settings';
+import Route from '@lucide/svelte/icons/route';
+import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 import type { Icon } from '#lib/icon.js';
 
@@ -40,25 +40,25 @@ export const nav: NavSection[] = [
 	{
 		label: 'Monitor',
 		items: [
-			{ href: '/', label: 'Overview', icon: LayoutGrid },
+			{ href: '/', label: 'Overview', icon: Route },
 			{ href: '/devices', label: 'Devices', icon: Monitor },
 			{ href: '/alerts', label: 'Alerts', icon: Bell },
-			{ href: '/checks', label: 'Checks', icon: HeartPulse }
+			{ href: '/checks', label: 'Checks', icon: CircleCheck }
 		]
 	},
-	{ label: 'Services', items: [{ href: '/docker', label: 'Docker', icon: Container }] },
+	{ label: 'Services', items: [{ href: '/docker', label: 'Docker', icon: Box }] },
 	{
 		label: 'Access',
 		items: [
 			{ href: '/terminal', label: 'Terminal', icon: SquareTerminal, adminOnly: true },
-			{ href: '/files', label: 'Files', icon: FolderOpen, adminOnly: true }
+			{ href: '/files', label: 'Files', icon: Folder, adminOnly: true }
 		]
 	},
 	{
 		label: 'System',
 		items: [
 			{ href: '/activity', label: 'Activity', icon: Activity },
-			{ href: '/settings', label: 'Settings', icon: Settings, adminOnly: true }
+			{ href: '/settings', label: 'Settings', icon: SlidersHorizontal, adminOnly: true }
 		]
 	}
 ];
@@ -70,19 +70,17 @@ export function navFor(admin: boolean): NavSection[] {
 		.filter((s) => s.items.length > 0);
 }
 
-/** The pages a caller sees in the order of the sidebar, so the nth is the one numbered n in it. */
+/** The pages a caller sees in the order of the sidebar, for `g` and a number. */
 export function pagesFor(admin: boolean): NavItem[] {
 	return navFor(admin).flatMap((s) => s.items);
 }
 
-/** The sidebar item a path belongs to, such as Devices for /devices/abc. */
-export function navItemFor(pathname: string): NavItem | undefined {
+/** The sidebar item a route belongs to, such as Devices for /devices/[id]. */
+export function navItemFor(route: string): NavItem | undefined {
 	let best: NavItem | undefined;
 	for (const item of nav.flatMap((s) => s.items)) {
 		const matches =
-			item.href === '/'
-				? pathname === '/'
-				: pathname === item.href || pathname.startsWith(`${item.href}/`);
+			item.href === '/' ? route === '/' : route === item.href || route.startsWith(`${item.href}/`);
 		if (matches && (!best || item.href.length > best.href.length)) {
 			best = item;
 		}

@@ -98,8 +98,32 @@ export function duration(seconds: number | null | undefined): string {
 	return m ? `${m}m` : `${s}s`;
 }
 
+/** A length of time in its largest unit, such as 38d, 3h, 26m or 45s. */
+export function shortDuration(seconds: number | null | undefined): string {
+	if (!finite(seconds)) {
+		return none;
+	}
+	const s = Math.max(0, Math.round(seconds));
+	if (s >= 86_400) {
+		return `${Math.floor(s / 86_400)}d`;
+	}
+	if (s >= 3600) {
+		return `${Math.floor(s / 3600)}h`;
+	}
+	return s >= 60 ? `${Math.floor(s / 60)}m` : `${s}s`;
+}
+
 /** A time in Unix milliseconds, or as an RFC 3339 string. */
 type Time = number | string;
+
+/** How long since a time, in its largest unit, such as 3h. */
+export function since(t: Time | null | undefined, now = Date.now()): string {
+	if (t == null) {
+		return none;
+	}
+	const ms = millis(t);
+	return Number.isFinite(ms) ? shortDuration((now - ms) / 1000) : none;
+}
 
 function millis(t: Time): number {
 	return typeof t === 'string' ? Date.parse(t) : t;

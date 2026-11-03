@@ -1,39 +1,8 @@
-// Where the network map puts its cards and the lines between them. Rows of
-// cards are centered, and wrap when they don't fit. Every line starts at the
-// hub: up to the row above it, down to the row below, or around the side,
-// outside the rows in between, to a row further away, so that lines never
-// cross a card.
-
-import type { Status } from '../api/types.js';
-
-/** How a line looks: live lines flow, and down or idle ones are dashed. */
-export type EdgeState = 'live' | 'warn' | 'down' | 'idle';
-
-/** A card on the map, h pixels tall. Its width comes from the layout. */
-export interface MapNode {
-	id: string;
-	h: number;
-}
-
-/** The line from the hub to a node, and the label on it. */
-export interface MapEdge {
-	to: string;
-	label: string;
-	state: EdgeState;
-}
-
-/** How a row of nodes joins the hub. The hub's own row has no link. */
-export type Link = 'up' | 'down' | 'side-left' | 'side-right' | null;
-
-/** A row of nodes, which wraps into several if it doesn't fit. */
-export interface Group {
-	id: string;
-	nodes: MapNode[];
-	link: Link;
-	edges: MapEdge[];
-	/** A label on the line the group's nodes hang from, such as "tailnet". */
-	busLabel?: string;
-}
+// Where the network map puts its cards and the lines between them: a tree
+// from the top down, with the internet and the home relay over the hub, and
+// the machines under it in rows, nearest first. The grid has two halves, and
+// one trunk runs down the gutter between them. Each row hangs from a bus off
+// the trunk, so no line crosses a card.
 
 export interface Box {
 	x: number;
@@ -42,181 +11,158 @@ export interface Box {
 	h: number;
 }
 
-/** The line from the hub to one node, as SVG paths. */
-export interface MapPath {
-	key: string;
-	/** From the hub to the bus over the node's row. Nodes in a row share it. */
-	trunk: string;
-	/** From the bus to the node. */
-	branch: string;
-	state: EdgeState;
-	label: string;
-	/** Where the label goes. */
+/** The line from a row's bus down to one card. */
+export interface Drop {
+	id: string;
+	/** From the bus to the card, with the bus's rounded corner at the ends of a row. */
+	d: string;
+	/** From the hub, down the trunk and along the bus to the card, for when it's lit. */
+	lit: string;
+	/** Where the line's label starts, beside the line, and its top. */
 	lx: number;
 	ly: number;
 }
 
-export interface BusLabel {
-	key: string;
-	x: number;
-	y: number;
-	text: string;
-	anchor: 'start' | 'end';
-}
-
 export interface Layout {
-	boxes: Map<string, Box>;
+	width: number;
 	height: number;
-	paths: MapPath[];
-	busLabels: BusLabel[];
+	/** How many cards a row has: always even, so the trunk runs between two. */
+	cols: number;
+	/** The x of the trunk, in the middle. */
+	trunk: number;
+	internet: Box;
+	relay: Box;
+	hub: Box;
+	cards: Map<string, Box>;
+	/** The slot after the last machine, for what the lines mean. */
+	legend: Box;
+	/** The lines every card shares: the trunk, and each row's bus. */
+	shared: string;
+	/** The lines from the internet and the relay down to where they meet over the hub. */
+	internetLine: string;
+	relayLine: string;
+	/** Where the labels of those two lines start. */
+	internetLabel: { x: number; y: number };
+	relayLabel: { x: number; y: number };
+	drops: Drop[];
 }
 
-/** Room at each side for lines that go around rows. */
-export const gutter = 30;
-/** Between cards in a row. */
+export const cardH = 92;
+export const minCard = 196;
+export const maxCard = 240;
+/** Between cards in a half of the grid. */
 export const gap = 14;
-/** Between rows, where the lines and their labels go. */
-export const rowGap = 58;
-export const minWidth = 196;
-export const maxWidth = 250;
-/** Above the first row and below the last. */
-const pad = 18;
+/** Between the two halves, where the trunk runs. */
+export const gutter = 30;
+export const hubW = 438;
+export const hubH = 92;
+const upstreamH = 64;
+/** The room the title needs beside the upstream cards, and its height above them. */
+const titleW = 218;
+const titleH = 44;
+/** From a card's bottom to the bus of the row under it, and from the bus to that row. */
+const underCard = 16;
+const overCard = 26;
+/** The radius of the corners where a bus turns down. */
+const corner = 6;
 
-/** How a line to something in a state looks. */
-export function edgeState(status: Status): EdgeState {
-	switch (status) {
-		case 'online':
-			return 'live';
-		case 'attention':
-			return 'warn';
-		case 'offline':
-			return 'down';
-		case 'unknown':
-			return 'idle';
+/** How many columns fit in a map width pixels wide, or 0 if even two don't. */
+export function columns(width: number): number {
+	for (const cols of [6, 4, 2]) {
+		if (cols * minCard + (cols - 2) * gap + gutter <= width) {
+			return cols;
+		}
 	}
+	return 0;
 }
 
-interface Row {
-	group: Group;
-	/** Which row of its group this is, from 0. */
-	index: number;
-	nodes: MapNode[];
-	top: number;
-	minX: number;
-	maxX: number;
-}
-
-/** Lays the groups out, top to bottom, in a map width pixels wide. */
-export function layoutMap(width: number, groups: Group[], hubId: string): Layout {
-	const usable = Math.max(minWidth, width - gutter * 2);
-	const perRow = Math.max(1, Math.floor((usable + gap) / (minWidth + gap)));
-	const boxes = new Map<string, Box>();
-	const rows: Row[] = [];
-	let y = pad;
-	for (const group of groups) {
-		if (!group.nodes.length) {
-			continue;
-		}
-		const cols = Math.min(perRow, group.nodes.length);
-		const w = Math.min(maxWidth, (usable - gap * (cols - 1)) / cols);
-		for (let i = 0; i < group.nodes.length; i += cols) {
-			const nodes = group.nodes.slice(i, i + cols);
-			const total = nodes.length * w + (nodes.length - 1) * gap;
-			const minX = (width - total) / 2;
-			const h = Math.max(...nodes.map((n) => n.h));
-			nodes.forEach((n, j) => boxes.set(n.id, { x: minX + j * (w + gap), y, w, h }));
-			rows.push({ group, index: i / cols, nodes, top: y, minX, maxX: minX + total });
-			y += h + rowGap;
-		}
+/** Lays out the map for machines in the order of `ids`, or returns null if it's too narrow. */
+export function layoutMap(width: number, ids: string[]): Layout | null {
+	const cols = columns(width);
+	if (!cols) {
+		return null;
 	}
-	const height = rows.length ? y - rowGap + pad : 0;
-	const paths: MapPath[] = [];
-	const busLabels: BusLabel[] = [];
-	const hub = boxes.get(hubId);
-	if (!hub) {
-		return { boxes, height, paths, busLabels };
-	}
+	const half = cols / 2;
+	const w = Math.min(maxCard, (width - (cols - 2) * gap - gutter) / cols);
+	const grid = cols * w + (cols - 2) * gap + gutter;
+	const x0 = (width - grid) / 2;
+	const trunk = width / 2;
+	const colX = (i: number) => x0 + i * (w + gap) + (i >= half ? gutter - gap : 0);
 
-	const hx = hub.x + hub.w / 2;
-	const hubRow = rows.findIndex((r) => r.nodes.some((n) => n.id === hubId));
-	rows.forEach((row, i) => {
-		const { group } = row;
-		if (!group.link) {
-			return;
-		}
-		// Only the first row right under the hub hangs straight from it.
-		let route: 'up' | 'down' | 'left' | 'right';
-		if (group.link === 'up') {
-			route = 'up';
-		} else if (group.link === 'down' && row.index === 0 && i === hubRow + 1) {
-			route = 'down';
-		} else if (group.link === 'side-left') {
-			route = 'left';
-		} else {
-			route = 'right';
-		}
+	const titleBeside = trunk - gutter / 2 - w >= titleW;
+	const top = (titleBeside ? 0 : titleH) + 6;
+	const internet = { x: trunk - gutter / 2 - w, y: top, w, h: upstreamH };
+	const relay = { x: trunk + gutter / 2, y: top, w, h: upstreamH };
+	const upBottom = top + upstreamH;
+	const join = upBottom + 22;
+	const hw = Math.min(hubW, grid);
+	const hub = { x: trunk - hw / 2, y: join + 18, w: hw, h: hubH };
+	const hubBottom = hub.y + hub.h;
 
-		// Lines around the side pass outside every row between the hub and this one.
-		const between = rows.slice(Math.min(i, hubRow), Math.max(i, hubRow) + 1);
-		const left = Math.max(6, Math.min(...between.map((r) => r.minX)) - gutter / 2);
-		const right = Math.min(width - 6, Math.max(...between.map((r) => r.maxX)) + gutter / 2);
+	const ix = internet.x + w / 2;
+	const rx = relay.x + w / 2;
+	const internetLine = `M${ix} ${upBottom}V${join - corner}Q${ix} ${join} ${ix + corner} ${join}H${trunk}`;
+	const relayLine = `M${trunk} ${join}H${rx - corner}Q${rx} ${join} ${rx} ${join - corner}V${upBottom}`;
+	let shared = `M${trunk} ${join}V${hub.y}`;
 
-		const edges = new Map(group.edges.map((e) => [e.to, e]));
-		for (const n of row.nodes) {
-			const b = boxes.get(n.id);
-			const e = edges.get(n.id);
-			if (!b || !e) {
-				continue;
-			}
-			const cx = b.x + b.w / 2;
-			let trunk: string;
-			let branch: string;
-			let ly: number;
-			if (route === 'up') {
-				const bus = hub.y - rowGap / 2;
-				trunk = `M${hx},${hub.y}V${bus}H${cx}`;
-				branch = `M${cx},${bus}V${b.y + b.h}`;
-				ly = (bus + b.y + b.h) / 2;
-			} else {
-				const bus = b.y - rowGap / 2;
-				if (route === 'down') {
-					trunk = `M${hx},${hub.y + hub.h}V${bus}H${cx}`;
-				} else if (route === 'left') {
-					trunk = `M${hub.x},${hub.y + hub.h / 2}H${left}V${bus}H${cx}`;
-				} else {
-					trunk = `M${hub.x + hub.w},${hub.y + hub.h / 2}H${right}V${bus}H${cx}`;
-				}
-				branch = `M${cx},${bus}V${b.y}`;
-				ly = (bus + b.y) / 2;
-			}
-			paths.push({
-				key: `${group.id}:${n.id}`,
-				trunk,
-				branch,
-				state: e.state,
-				label: e.label,
-				lx: cx,
-				ly
+	const cards = new Map<string, Box>();
+	const drops: Drop[] = [];
+	let cardTop = hubBottom + 20 + overCard;
+	let lastBus = 0;
+	for (let r = 0; r * cols < ids.length; r++) {
+		const row = ids.slice(r * cols, (r + 1) * cols);
+		const bus = cardTop - overCard;
+		lastBus = bus;
+		const centers = row.map((_, i) => colX(i) + w / 2);
+		const first = centers[0];
+		const last = centers[centers.length - 1];
+		const start = first < trunk ? first + corner : trunk;
+		const end = last > trunk ? last - corner : trunk;
+		shared += `M${start} ${bus}H${end}`;
+		row.forEach((id, i) => {
+			const cx = centers[i];
+			cards.set(id, { x: colX(i), y: cardTop, w, h: cardH });
+			// A card at either end of the row turns off the bus at a corner.
+			const end = (i === 0 && cx < trunk) || (i === row.length - 1 && cx > trunk);
+			const side = cx < trunk ? corner : -corner;
+			const turn = `Q${cx} ${bus} ${cx} ${bus + corner}V${cardTop}`;
+			drops.push({
+				id,
+				d: end ? `M${cx + side} ${bus}${turn}` : `M${cx} ${bus}V${cardTop}`,
+				lit: `M${trunk} ${hubBottom}V${bus}H${cx + side}${turn}`,
+				lx: cx + 8,
+				ly: bus + 6
 			});
-		}
+		});
+		cardTop += cardH + underCard + overCard;
+	}
+	if (ids.length) {
+		shared += `M${trunk} ${hubBottom}V${lastBus}`;
+	}
 
-		if (group.busLabel && row.index === 0) {
-			const text = group.busLabel;
-			const above = row.top - rowGap / 2 - 6;
-			if (route === 'down') {
-				busLabels.push({
-					key: group.id,
-					x: hx + 8,
-					y: hub.y + hub.h + rowGap / 2 - 6,
-					text,
-					anchor: 'start'
-				});
-			} else if (route === 'left') {
-				busLabels.push({ key: group.id, x: left + 6, y: above, text, anchor: 'start' });
-			} else if (route === 'right') {
-				busLabels.push({ key: group.id, x: right - 6, y: above, text, anchor: 'end' });
-			}
-		}
-	});
-	return { boxes, height, paths, busLabels };
+	// The legend takes the slot after the last machine, or starts a row of its own.
+	const used = ids.length % cols;
+	const lastTop = cardTop - (cardH + underCard + overCard);
+	const legend =
+		ids.length && used
+			? { x: colX(used), y: lastTop, w, h: cardH }
+			: { x: colX(0), y: ids.length ? lastTop + cardH + underCard : hubBottom + 20, w, h: cardH };
+
+	return {
+		width,
+		height: Math.max(legend.y + legend.h, ids.length ? lastTop + cardH : 0),
+		cols,
+		trunk,
+		internet,
+		relay,
+		hub,
+		cards,
+		legend,
+		shared,
+		internetLine,
+		relayLine,
+		internetLabel: { x: ix + 8, y: upBottom + 4 },
+		relayLabel: { x: rx + 8, y: upBottom + 4 },
+		drops
+	};
 }

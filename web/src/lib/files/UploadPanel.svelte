@@ -50,7 +50,7 @@
 				{:else if s.failed}
 					<X class="size-3.5" />
 				{:else}
-					<Check class="size-3.5 text-green-fg" />
+					<Check class="size-3.5 text-fg" />
 				{/if}
 			</span>
 			<div class="min-w-0 flex-1">
@@ -101,7 +101,7 @@
 			<div
 				class={[
 					'h-full transition-[width] duration-300',
-					s.failed && !s.active ? 'bg-red-fg' : s.active ? 'bg-blue-fg' : 'bg-green-fg'
+					s.failed && !s.active ? 'bg-red-fg' : s.active ? 'bg-blue-fg' : 'bg-lamp'
 				]}
 				style:width="{s.percent}%"
 			></div>
@@ -154,7 +154,7 @@
 							{/if}
 						</div>
 						{#if t.status === 'done'}
-							<Check class="size-3.5 shrink-0 text-green-fg" />
+							<Check class="size-3.5 shrink-0 text-fg" />
 						{:else if t.status === 'uploading' || t.status === 'queued'}
 							<IconButton label="Cancel upload" size="sm" onclick={() => uploads.cancel(t.id)}>
 								<X class="size-3.5" />

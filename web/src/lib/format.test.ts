@@ -8,6 +8,8 @@ import {
 	percent,
 	rate,
 	rateShort,
+	shortDuration,
+	since,
 	ratio
 } from './format.js';
 
@@ -110,4 +112,26 @@ describe('osLabel', () => {
 	])('$name', ({ os, want }) => {
 		expect(osLabel(os)).toBe(want);
 	});
+});
+
+describe('shortDuration', () => {
+	test.each([
+		[45, '45s'],
+		[60, '1m'],
+		[26 * 60, '26m'],
+		[3 * 3600 + 59, '3h'],
+		[38 * 86_400 + 7200, '38d'],
+		[-5, '0s'],
+		[null, '—']
+	])('%p seconds is %p', (seconds, want) => {
+		expect(shortDuration(seconds)).toBe(want);
+	});
+});
+
+test('since says how long ago a time was, in its largest unit', () => {
+	const now = Date.parse('2026-11-03T12:00:00Z');
+	expect(since('2026-11-03T09:00:00Z', now)).toBe('3h');
+	expect(since(now - 90_000, now)).toBe('1m');
+	expect(since(undefined, now)).toBe('—');
+	expect(since('not a time', now)).toBe('—');
 });

@@ -8,25 +8,27 @@ You can look at all of this without installing anything: `bield serve --demo` ru
 
 ![The Overview page: a network map, the health score and open alerts](images/overview.png)
 
-How the tailnet is doing, at a glance. It shows how many machines are online, whether each of Bield's sources is healthy (Tailscale, the hub's own metrics, the network check, Docker, systemd), and a map: the internet and Tailscale's relay at the top, the hub in the middle, every machine below it, with the kind of path to each (direct, relay or peer relay) and its round-trip time. The **Network health** card is the health score from [Checks](#checks). Open alerts and a table of machines sit below.
+How the tailnet is doing, at a glance. The headline says how many machines are online and how many things need you, next to the health score, how many checks pass, how many containers are up and the home relay. Under it is a map: the internet and Tailscale's relay at the top, the hub in the middle, and every other machine below it, nearest first, with the kind of path to each and its round-trip time. A solid line is direct, a dashed one goes through a relay, and a dotted one isn't observed. Color means something's wrong: a healthy machine stays pale, one that needs attention is amber, and one that's offline with an alert is red.
+
+**Needs you** lists the open alerts, which you can act on right there, with the health score over the last day under them. A table of machines sits below, with the ones in trouble first. If one of Bield's sources is failing (Tailscale, the hub's own metrics, the network check, Docker, systemd), a line under the headline says so, and [Activity](#activity) has all of them.
 
 The first time an admin opens Bield, the Overview sends them to the [first-run setup](#first-run-setup).
 
 ## Devices
 
-A table of every machine on the tailnet with its status, how traffic reaches it (the connection), its tailnet IP, and, for machines that report, its CPU, memory and disk, and when it was last seen. Filter by status. **Agents** in the corner opens [the agent page](agent.md).
+A table of every machine on the tailnet with its status, how traffic reaches it (the route), its tailnet IP, and, for machines that report, its CPU, memory and disk, and how long it has been up or offline. Filter by status. **Agents** in the corner opens [the agent page](agent.md).
 
 ![A device's page, with its metrics, an alert and history charts](images/device.png)
 
 A machine's page has:
 
 - Buttons for **Terminal**, **Files** and **Docker**, when Bield has [SSH access](ssh.md).
-- Tiles for CPU, memory, disk, network and uptime, and one more for battery, temperature or swap, if it has an agent or Bield measures it.
-- Its open alerts, which you can acknowledge or snooze there.
-- **History**, with charts for 1 hour to 90 days: CPU and memory, network, disk, and the round-trip time. Click a point to see what was running then.
-- What uses its CPU and memory right now, and the trend over days.
-- Its **Tailscale** details: addresses, MagicDNS name, the path and endpoint, the home relay, the key's expiry, and how much traffic has passed.
-- The **System** details the agent reports, a **Notes** card, and the cards for [SSH access](ssh.md) and the agent.
+- CPU, memory, disk, network and uptime across the top, and one more for battery, temperature or swap, if it has an agent or Bield measures it.
+- A line for each open alert, which you can acknowledge or snooze there.
+- **History**, with charts for 1 hour to 90 days: CPU and memory, network, and the round-trip time. Point at the first to see what was running then, and click for all of it.
+- **Running now**: what uses its CPU and memory, the busiest first, with a link to all of it and the trend over days.
+- Its **Tailscale** details: addresses, the route and endpoint, the home relay, the key's expiry, and how much traffic has passed.
+- Your note on it, the **System** details the agent reports, and the cards for [SSH access](ssh.md) and the agent.
 
 **Edit** changes the machine's name, its type, its thresholds and its notes. See [per-device thresholds](settings.md#per-device-thresholds).
 
@@ -68,7 +70,7 @@ The **health score** is the share of live checks that pass, rounded down. It's h
 
 The containers, volumes, images and networks of one machine, picked at the top. The machine Bield runs on works when it can use the Docker socket ([Docker on the same machine](install.md#docker-on-the-same-machine), [Docker](docker.md#managing-the-machines-containers)). Another machine needs [SSH access](ssh.md#docker-on-other-machines).
 
-The summary tiles show running containers, CPU, memory, network and disk use, and the engine version. Containers are grouped by Compose project, with their state, CPU, memory, network, ports and restarts. Volumes, images and networks have their own tabs, and each says what uses it.
+The headline says how many containers run and how many are unhealthy or crashed, with their CPU, memory and disk use and the engine version. Containers are grouped by Compose project, with what's wrong, their CPU, memory, port and uptime. On a wide screen, clicking one opens it beside the list, with its logs, its stats and what an admin can do to it. Volumes, images and networks have their own tabs, and each says what uses it.
 
 ![A container's page, with its state, resources and configuration](images/container.png)
 
@@ -80,7 +82,7 @@ A shell on a machine, in the browser, in tabs. With tmux on the machine, a sessi
 
 ## Files
 
-A file manager for a machine's disk: browse, preview, edit, upload, download, rename, copy, move, delete and search. Admins only. See [Files](ssh.md#files).
+A file manager for a machine's disk: browse, preview, edit, upload, download, rename, copy, move, delete and search. On a wide screen, a file opens beside the list. The side has shortcuts to folders, your bookmarks and the machine's Docker volumes. Admins only. See [Files](ssh.md#files).
 
 ## Activity
 

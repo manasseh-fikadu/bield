@@ -165,24 +165,12 @@ function scoreTone(score: number | null): 'good' | 'fair' | 'bad' | 'none' {
 	return score >= 90 ? 'good' : score >= 70 ? 'fair' : 'bad';
 }
 
-const scoreColors = {
-	good: 'var(--color-green-fg)',
-	fair: 'var(--color-amber)',
-	bad: 'var(--color-red-fg)',
-	none: 'var(--color-line-heavy)'
-};
-
 const scoreClasses = {
-	good: 'text-green-fg',
+	good: 'text-fg',
 	fair: 'text-amber-fg',
 	bad: 'text-red-fg',
 	none: 'text-fg-muted'
 };
-
-/** The CSS color of a health score, for rings and lines. */
-export function scoreColor(score: number | null): string {
-	return scoreColors[scoreTone(score)];
-}
 
 /** The text class of a health score's color. */
 export function scoreClass(score: number | null): string {

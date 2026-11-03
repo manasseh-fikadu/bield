@@ -1,41 +1,36 @@
 <!--
-	The network map: the internet and Tailscale's DERP relays above the hub,
-	every peer below it, and the hub's services, its containers and systemd
-	units, beside it, with a line from the hub to each. A line flows while
-	the hub can see the link, and is dashed while it can't. On a phone, the
-	map is a list instead.
+	The network map: the internet and the home relay above the hub, and every
+	other machine under it, nearest first, with one trunk down the middle. A
+	solid line is a direct connection, a dashed one goes through a relay, and a
+	dotted one isn't observed. Lines are grey unless something's wrong. Pointing
+	at a card lights the line from the hub to it. On a phone, the map is a list.
 -->
+<script lang="ts" module>
+	/** The map draws itself in once each time the app loads, not each time it's opened. */
+	let drawn = false;
+</script>
+
 <script lang="ts">
-	import Boxes from '@lucide/svelte/icons/boxes';
-	import ContainerIcon from '@lucide/svelte/icons/container';
 	import Globe from '@lucide/svelte/icons/globe';
-	import RadioTower from '@lucide/svelte/icons/radio-tower';
-	import ServerCog from '@lucide/svelte/icons/server-cog';
+	import Radio from '@lucide/svelte/icons/radio';
 	import { resolve } from '$app/paths';
-	import { mapServices, type MapService } from '#lib/alerts.js';
-	import type { Device, Snapshot } from '#lib/api/types.js';
-	import { deviceIcon } from '#lib/device.js';
-	import {
-		bytes,
-		dateTime,
-		duration,
-		latency,
-		osLabel,
-		percent,
-		rateShort,
-		ratio
-	} from '#lib/format.js';
+	import { alertedDevices, quietlyOffline } from '#lib/alerts.js';
+	import type { Device, Snapshot, Status } from '#lib/api/types.js';
+	import { limitsOf } from '#lib/device.js';
+	import { duration, latency, ratio, rateShort } from '#lib/format.js';
+	import Logo from '#lib/shell/Logo.svelte';
 	import {
 		derpStatus,
-		linkLabel,
-		pathLabel,
+		nearestFirst,
+		routeLabel,
 		slowLink,
 		tailnetIP,
 		uplinkStatus
 	} from '#lib/tailnet.js';
-	import MapCard from './MapCard.svelte';
-	import MapFact from './MapFact.svelte';
-	import { edgeState, layoutMap, type EdgeState, type Group, type MapEdge } from './layout.js';
+	import StatusDot from '#lib/ui/StatusDot.svelte';
+	import MachineCard from './MachineCard.svelte';
+	import MiniMeter from './MiniMeter.svelte';
+	import { layoutMap } from './layout.js';
 
 	interface Props {
 		snapshot: Snapshot;
@@ -43,280 +38,360 @@
 
 	let { snapshot }: Props = $props();
 
-	/** Narrower than this, the map is a list. */
-	const listBelow = 560;
-	const upstreamHeight = 90;
-	const deviceHeight = 132;
-	const serviceHeight = 96;
-
-	/** What a card on the map shows. */
-	type View =
-		| { kind: 'internet' }
-		| { kind: 'derp' }
-		| { kind: 'device'; device: Device }
-		| { kind: 'service'; service: MapService };
-
-	interface Node {
-		id: string;
-		h: number;
-		view: View;
-	}
-
-	interface MapGroup extends Group {
-		nodes: Node[];
-		/** The heading over the group in the list. */
-		title: string;
-	}
-
 	let width = $state(0);
+	/** The machine being pointed at, whose line is lit. */
+	let lit = $state<string | null>(null);
 
 	const hub = $derived(snapshot.devices.find((d) => d.self));
+	const machines = $derived(nearestFirst(snapshot.devices.filter((d) => !d.self)));
+	const byId = $derived(new Map(machines.map((d) => [d.id, d])));
+	const ids = $derived(machines.map((d) => d.id));
+	const layout = $derived(width > 0 ? layoutMap(width, ids) : null);
+	const alerted = $derived(alertedDevices(snapshot.alerts));
+	/** The machines with an alert nobody has acknowledged. */
+	const unseen = $derived(alertedDevices(snapshot.alerts.filter((a) => a.state === 'open')));
+	const now = $derived(Date.parse(snapshot.generatedAt));
 	const uplink = $derived(snapshot.uplink);
 
-	function peerEdge(d: Device): MapEdge {
-		let state: EdgeState = 'live';
-		if (!d.online) {
-			state = 'down';
-		} else if (slowLink(d)) {
-			state = 'warn';
+	const firstDraw = !drawn;
+	$effect(() => {
+		if (layout) {
+			drawn = true;
 		}
-		return { to: d.id, label: pathLabel(d), state };
-	}
-
-	const groups: MapGroup[] = $derived.by(() => {
-		const derp = uplink.derp;
-		const out: MapGroup[] = [
-			{
-				id: 'upstream',
-				title: 'Upstream',
-				link: 'up',
-				nodes: [
-					{ id: 'internet', h: upstreamHeight, view: { kind: 'internet' } },
-					{ id: 'derp', h: upstreamHeight, view: { kind: 'derp' } }
-				],
-				edges: [
-					{ to: 'internet', label: 'uplink', state: edgeState(uplinkStatus(uplink)) },
-					{
-						to: 'derp',
-						label: derp ? `${derp.code} · ${latency(derp.latencyMs)}` : 'netcheck',
-						state: edgeState(derpStatus(uplink))
-					}
-				]
-			}
-		];
-		if (hub) {
-			out.push({
-				id: 'hub',
-				title: 'Hub',
-				link: null,
-				nodes: [{ id: hub.id, h: deviceHeight, view: { kind: 'device', device: hub } }],
-				edges: []
-			});
-		}
-		const peers = snapshot.devices.filter((d) => !d.self);
-		out.push({
-			id: 'tailnet',
-			title: 'Tailnet',
-			link: 'down',
-			busLabel: 'tailnet',
-			nodes: peers.map((d) => ({ id: d.id, h: deviceHeight, view: { kind: 'device', device: d } })),
-			edges: peers.map(peerEdge)
-		});
-		const failing = new Set(snapshot.checks.filter((c) => c.state === 'failing').map((c) => c.id));
-		const services = mapServices(snapshot.containers, snapshot.units, failing);
-		const edgeLabels: Record<MapService['kind'], string> = {
-			compose: 'compose',
-			container: 'docker',
-			unit: 'systemd'
-		};
-		out.push({
-			id: 'services',
-			title: 'Services',
-			link: 'side-left',
-			busLabel: 'services',
-			nodes: services.map((s) => ({
-				id: s.id,
-				h: serviceHeight,
-				view: { kind: 'service', service: s }
-			})),
-			edges: services.map((s) => ({
-				to: s.id,
-				label: edgeLabels[s.kind],
-				state: edgeState(s.status)
-			}))
-		});
-		return out;
 	});
 
-	const layout = $derived(width >= listBelow ? layoutMap(width, groups, hub?.id ?? '') : null);
-	const nodes = $derived(groups.flatMap((g) => g.nodes));
+	/** How long a card's lamp waits for its line, as the map draws in from the top. */
+	function lightAfter(y: number, height: number): number | undefined {
+		return firstDraw ? Math.round((y / height) * 700) : undefined;
+	}
 
-	const labelClass: Record<EdgeState, string> = {
-		live: 'border-line text-fg-subtle',
-		warn: 'border-amber/25 text-amber-fg/90',
-		down: 'border-line text-fg-faint',
-		idle: 'border-line text-fg-faint'
+	// Now and then, a short pulse travels along the line to a live machine.
+	let signal = $state<{ id: string; n: number } | null>(null);
+	const liveIds = $derived(machines.filter((d) => d.online).map((d) => d.id));
+	$effect(() => {
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			return;
+		}
+		let n = 0;
+		const timer = setInterval(() => {
+			const list = liveIds;
+			if (list.length && document.visibilityState === 'visible') {
+				signal = { id: list[n % list.length], n };
+				n++;
+			}
+		}, 6000);
+		return () => clearInterval(timer);
+	});
+
+	type LineStyle = 'direct' | 'relay' | 'none';
+
+	/** What a line looks like: solid, dashed or dotted. */
+	const dash: Record<LineStyle, string | undefined> = {
+		direct: undefined,
+		relay: '4 3',
+		none: '1.5 3.5'
 	};
 
-	function dashed(state: EdgeState): boolean {
-		return state === 'down' || state === 'idle';
+	function lineStyle(d: Device): LineStyle {
+		if (!d.online) {
+			return 'none';
+		}
+		return d.path.kind === 'derp' || d.path.kind === 'peer-relay' ? 'relay' : 'direct';
 	}
 
-	function yesNo(v: boolean): string {
-		return v ? 'yes' : 'no';
+	function lineColor(d: Device): string {
+		if (!d.online) {
+			return quietlyOffline(d, alerted) ? 'var(--color-fg-faint)' : 'var(--color-red)';
+		}
+		return d.status === 'attention' || slowLink(d) ? 'var(--color-amber)' : 'var(--color-track)';
 	}
+
+	/** The line from the hub up to the internet or the relay. */
+	function upstreamColor(s: Status): string {
+		return s === 'attention'
+			? 'var(--color-amber)'
+			: s === 'offline'
+				? 'var(--color-red)'
+				: s === 'unknown'
+					? 'var(--color-fg-faint)'
+					: 'var(--color-track)';
+	}
+
+	const internetStatus = $derived(uplinkStatus(uplink));
+	const relayStatus = $derived(derpStatus(uplink));
+	const relayName = $derived(
+		uplink.derp?.name ?? (uplink.checkedAt ? 'No relay answered' : 'Waiting for netcheck')
+	);
+	const relayLabel = $derived(
+		uplink.derp ? `${uplink.derp.code} · ${latency(uplink.derp.latencyMs)}` : 'not observed'
+	);
+	const families = $derived(
+		uplink.ipv4 && uplink.ipv6 ? 'IPv4, IPv6' : uplink.ipv4 ? 'IPv4' : uplink.ipv6 ? 'IPv6' : 'None'
+	);
 </script>
 
-{#snippet card(view: View)}
-	{#if view.kind === 'internet'}
-		<MapCard
-			icon={Globe}
-			title="Internet"
-			status={uplinkStatus(uplink)}
-			subtitle={uplink.publicIp
-				? `Public IP ${uplink.publicIp}`
-				: uplink.checkedAt
-					? 'The hub’s uplink'
-					: 'Waiting for netcheck'}
-		>
-			<MapFact label="ipv4">{uplink.checkedAt ? yesNo(uplink.ipv4) : '—'}</MapFact>
-			<MapFact label="ipv6">{uplink.checkedAt ? yesNo(uplink.ipv6) : '—'}</MapFact>
-		</MapCard>
-	{:else if view.kind === 'derp'}
-		<MapCard
-			icon={RadioTower}
-			title="Tailscale DERP"
-			status={derpStatus(uplink)}
-			subtitle={uplink.derp
-				? `Home relay: ${uplink.derp.name}`
-				: uplink.checkedAt
-					? 'No relay answered'
-					: 'Waiting for netcheck'}
-		>
-			<MapFact label="region">{uplink.derp?.code ?? '—'}</MapFact>
-			<MapFact label="udp">{uplink.checkedAt ? (uplink.udp ? 'yes' : 'blocked') : '—'}</MapFact>
-		</MapCard>
-	{:else if view.kind === 'service'}
-		{@const s = view.service}
-		<MapCard
-			icon={s.kind === 'unit' ? ServerCog : s.kind === 'compose' ? Boxes : ContainerIcon}
-			title={s.name}
-			status={s.status}
-			subtitle={s.subtitle}
-			href={s.kind === 'unit' && hub
-				? resolve('/devices/[id]', { id: hub.id })
-				: resolve('/docker')}
-		>
-			{#if s.kind === 'unit'}
-				<MapFact label="memory">{s.memory ? bytes(s.memory) : '—'}</MapFact>
-			{:else}
-				<MapFact label="ports" wide>{s.ports.length ? s.ports.join(', ') : 'internal only'}</MapFact
-				>
-			{/if}
-		</MapCard>
-	{:else}
-		{@const d = view.device}
-		{@const m = d.metrics}
-		<MapCard
-			icon={deviceIcon(d)}
-			title={d.name}
-			status={d.status}
-			subtitle={d.online
-				? d.self && m?.uptime
-					? `${d.statusReason} · up ${duration(m.uptime)}`
-					: d.statusReason
-				: d.lastSeen
-					? `Last seen ${dateTime(d.lastSeen)}`
-					: d.statusReason}
-			href={resolve('/devices/[id]', { id: d.id })}
-			highlight={d.self}
-		>
-			{#if d.self && m}
-				<MapFact label="cpu">{percent(m.cpu, 1)}</MapFact>
-				<MapFact label="ram">{percent(ratio(m.memory?.used, m.memory?.total), 1)}</MapFact>
-				<MapFact label="disk">{percent(ratio(m.disk?.used, m.disk?.total), 1)}</MapFact>
-				<MapFact label="load">{m.load ? m.load[0].toFixed(2) : '—'}</MapFact>
-				<MapFact label="net" wide>↓ {rateShort(m.netRx)}/s ↑ {rateShort(m.netTx)}/s</MapFact>
-			{:else}
-				<MapFact label="os">{osLabel(d.os)}</MapFact>
-				{#if d.self}
-					<MapFact label="version">{snapshot.hub.version || '—'}</MapFact>
-				{:else}
-					<MapFact label="rtt">{latency(d.path.rttMs)}</MapFact>
-				{/if}
-				{#if m}
-					<MapFact label="cpu">{percent(m.cpu)}</MapFact>
-					<MapFact label="disk">{percent(ratio(m.disk?.used, m.disk?.total))}</MapFact>
-				{:else}
-					<MapFact label="link">{d.online && !d.self ? linkLabel(d) : '—'}</MapFact>
-					<MapFact label="derp">{d.path.homeDerp ?? '—'}</MapFact>
-				{/if}
-				<MapFact label="tailnet ip" wide>{tailnetIP(d) ?? '—'}</MapFact>
-			{/if}
-		</MapCard>
-	{/if}
+{#snippet upstream(status: Status, title: string, Icon: typeof Globe, line: string, note: string)}
+	<div class="flex h-full flex-col gap-1 rounded-lg border border-line bg-raised px-3.5 py-2.75">
+		<div class="flex h-4.5 shrink-0 items-center gap-2">
+			<StatusDot {status} small />
+			<span class="min-w-0 flex-1 truncate text-[13.5px] leading-4.5 font-medium text-fg">
+				{title}
+			</span>
+			<Icon class="size-3.5 shrink-0 text-fg-faint" strokeWidth={1.6} />
+		</div>
+		<div class="flex h-4 shrink-0 justify-between gap-2">
+			<span class="truncate font-mono text-[11px] leading-4 text-fg-muted">{line}</span>
+			<span
+				class={[
+					'shrink-0 text-[12px] leading-4',
+					status === 'attention' ? 'text-amber' : 'text-fg-faint'
+				]}
+			>
+				{note}
+			</span>
+		</div>
+	</div>
+{/snippet}
+
+{#snippet internetCard()}
+	{@render upstream(
+		internetStatus,
+		'Internet',
+		Globe,
+		uplink.publicIp ?? (uplink.checkedAt ? 'The hub’s uplink' : 'Waiting for netcheck'),
+		uplink.checkedAt ? families : ''
+	)}
+{/snippet}
+
+{#snippet relayCard()}
+	{@render upstream(
+		relayStatus,
+		'Home relay',
+		Radio,
+		relayName,
+		uplink.checkedAt ? (uplink.udp ? 'UDP' : 'UDP blocked') : ''
+	)}
+{/snippet}
+
+{#snippet hubCard(d: Device, stacked = false)}
+	{@const m = d.metrics}
+	<a
+		href={resolve('/devices/[id]', { id: d.id })}
+		class={[
+			'flex h-full gap-x-5 gap-y-3 rounded-[10px] border border-line-strong bg-hover px-4 py-3.5 shadow-[0_0_0_3px_rgb(221_231_243/0.03)] transition-colors duration-[220ms] hover:border-line-heavy focus-visible:rounded-[10px]',
+			stacked ? 'flex-col' : 'items-center'
+		]}
+	>
+		<span class="flex min-w-0 flex-1 flex-col gap-0.5">
+			<span class="flex h-5 shrink-0 items-center gap-2">
+				<Logo class="size-4.5 shrink-0 text-fg" />
+				<span class="truncate text-[15px] leading-5 font-medium text-fg">{d.name}</span>
+			</span>
+			<span class="truncate text-[12px] leading-4 text-fg-muted">
+				This hub{m?.uptime ? `, up ${duration(m.uptime).split(' ')[0]}` : ''}
+			</span>
+			<span class="truncate font-mono text-[11px] leading-4 text-fg-faint">{tailnetIP(d)}</span>
+		</span>
+		{#if m}
+			{@const limits = limitsOf(d, snapshot.hub.thresholds)}
+			<span class={['flex min-w-0 shrink flex-col gap-2.5', !stacked && 'w-61']}>
+				<span class="flex gap-3.5">
+					<MiniMeter label="CPU" value={m.cpu ?? null} warn={limits.cpu} bright />
+					<MiniMeter
+						label="Memory"
+						value={ratio(m.memory?.used, m.memory?.total)}
+						warn={limits.memory}
+						bright
+					/>
+					<MiniMeter
+						label="Disk"
+						value={ratio(m.disk?.used, m.disk?.total)}
+						warn={limits.disk}
+						crit={limits.diskCritical}
+						bright
+					/>
+				</span>
+				<span class="flex h-3.5 shrink-0 justify-between gap-2">
+					<span class="truncate font-mono text-[11px] leading-3.5 text-fg-muted">
+						↓ {rateShort(m.netRx)}/s ↑ {rateShort(m.netTx)}/s
+					</span>
+					{#if m.load}
+						<span class="shrink-0 font-mono text-[11px] leading-3.5 text-fg-muted">
+							load {m.load[0].toFixed(2)}
+						</span>
+					{/if}
+				</span>
+			</span>
+		{/if}
+	</a>
+{/snippet}
+
+{#snippet machineCard(d: Device, after?: number)}
+	<MachineCard
+		device={d}
+		thresholds={snapshot.hub.thresholds}
+		quiet={quietlyOffline(d, alerted)}
+		breathe={unseen.has(d.id)}
+		{now}
+		lit={lit === d.id}
+		lightAfter={after}
+		onlit={(on) => (lit = on ? d.id : lit === d.id ? null : lit)}
+	/>
+{/snippet}
+
+{#snippet title()}
+	<h2 class="text-[13.5px] leading-5 font-medium text-fg">Network</h2>
+	<p class="text-[12px] leading-4 text-fg-faint">Nearest machines first</p>
+{/snippet}
+
+{#snippet allMachines()}
+	<a
+		href={resolve('/devices')}
+		class="text-[12px] leading-5 text-fg-faint transition-colors hover:text-fg-muted pointer-coarse:-my-2.5 pointer-coarse:py-2.5"
+	>
+		All machines →
+	</a>
+{/snippet}
+
+{#snippet legendLine(style: LineStyle, text: string)}
+	<span class="flex h-4 shrink-0 items-center gap-2.5">
+		<svg width="22" height="6" viewBox="0 0 22 6" class="shrink-0" aria-hidden="true">
+			<path
+				d="M1 3H22"
+				fill="none"
+				stroke={style === 'none' ? 'var(--color-fg-faint)' : 'var(--color-track)'}
+				stroke-width="1.5"
+				stroke-linecap={style === 'none' ? 'round' : undefined}
+				stroke-dasharray={dash[style]}
+			/>
+		</svg>
+		<span class="text-[12px] leading-4 text-fg-faint">{text}</span>
+	</span>
 {/snippet}
 
 <div bind:clientWidth={width} class="w-full">
 	{#if layout}
-		<div class="relative map-grid" style:height="{layout.height}px">
+		<div class="relative" style:height="{layout.height}px">
+			<div class="absolute top-0 left-0">{@render title()}</div>
+			<div class="absolute top-0 right-0">{@render allMachines()}</div>
+
 			<svg
-				{width}
+				width={layout.width}
 				height={layout.height}
-				class="pointer-events-none absolute inset-0"
+				class={['pointer-events-none absolute inset-0', firstDraw && 'animate-reveal']}
 				aria-hidden="true"
 			>
-				{#each layout.paths as p (p.key)}
-					<path d={p.trunk} fill="none" class="stroke-[#3a3a3a]" stroke-width="1" />
-					{#if dashed(p.state)}
-						<!-- Hide the shared bus under the branch, so the dashes show. -->
-						<path d={p.branch} fill="none" class="stroke-surface" stroke-width="3" />
+				<g fill="none" stroke-width="1.5">
+					<path d={layout.shared} stroke="var(--color-track)" />
+					<path
+						d={layout.internetLine}
+						stroke={upstreamColor(internetStatus)}
+						stroke-dasharray={internetStatus === 'online' ? undefined : dash.none}
+						stroke-linecap={internetStatus === 'online' ? undefined : 'round'}
+					/>
+					<path
+						d={layout.relayLine}
+						stroke={upstreamColor(relayStatus)}
+						stroke-dasharray={relayStatus === 'online' ? undefined : dash.none}
+						stroke-linecap={relayStatus === 'online' ? undefined : 'round'}
+					/>
+					{#each layout.drops as drop (drop.id)}
+						{@const d = byId.get(drop.id)}
+						{#if d}
+							{@const style = lineStyle(d)}
+							<path
+								d={drop.d}
+								stroke={lineColor(d)}
+								stroke-dasharray={dash[style]}
+								stroke-linecap={style === 'none' ? 'round' : undefined}
+							/>
+						{/if}
+					{/each}
+					{#each layout.drops as drop (drop.id)}
 						<path
-							d={p.branch}
-							fill="none"
-							class="stroke-fg-faint"
-							stroke-width="1"
-							stroke-dasharray="3 4"
+							d={drop.lit}
+							stroke="var(--color-lamp)"
+							class={[
+								'transition-opacity duration-[220ms]',
+								lit === drop.id ? 'opacity-100' : 'opacity-0'
+							]}
 						/>
-					{:else}
-						<path d={p.branch} fill="none" class="stroke-[#3a3a3a]" stroke-width="1" />
-						<path
-							d={p.trunk + p.branch.replace(/^M[^V]+/, '')}
-							fill="none"
-							class={[p.state === 'warn' ? 'stroke-amber' : 'stroke-green-fg', 'animate-flow']}
-							stroke-opacity="0.85"
-							stroke-width="1.5"
-							stroke-dasharray="5 19"
-							stroke-linecap="round"
-						/>
+					{/each}
+					{#if signal}
+						{@const drop = layout.drops.find((x) => x.id === signal?.id)}
+						{#if drop}
+							{#key signal.n}
+								<path
+									d={drop.lit}
+									pathLength="1"
+									stroke="var(--color-lamp)"
+									stroke-dasharray="0.06 1"
+									stroke-linecap="round"
+									class="animate-signal"
+								/>
+							{/key}
+						{/if}
 					{/if}
-				{/each}
-				{#each layout.busLabels as b (b.key)}
-					<text
-						x={b.x}
-						y={b.y}
-						text-anchor={b.anchor}
-						class="fill-fg-faint font-mono text-[10px] tracking-wide uppercase"
-					>
-						{b.text}
-					</text>
-				{/each}
+				</g>
 			</svg>
-			{#each layout.paths as p (p.key)}
-				<div
-					aria-hidden="true"
-					class={[
-						'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded border bg-canvas px-1.5 py-px font-mono text-[10px] leading-4 whitespace-nowrap',
-						labelClass[p.state]
-					]}
-					style:left="{p.lx}px"
-					style:top="{p.ly}px"
-				>
-					{p.label}
-				</div>
+
+			<span
+				class="absolute font-mono text-[11px] leading-3.5 whitespace-nowrap text-fg-faint"
+				style:left="{layout.internetLabel.x}px"
+				style:top="{layout.internetLabel.y}px">uplink</span
+			>
+			<span
+				class="absolute font-mono text-[11px] leading-3.5 whitespace-nowrap text-fg-faint"
+				style:left="{layout.relayLabel.x}px"
+				style:top="{layout.relayLabel.y}px">{relayLabel}</span
+			>
+			{#each layout.drops as drop (drop.id)}
+				{@const d = byId.get(drop.id)}
+				{#if d}
+					<span
+						class={[
+							'absolute font-mono text-[11px] leading-3.5 whitespace-nowrap transition-colors duration-[220ms]',
+							lit === drop.id ? 'text-fg-muted' : 'text-fg-faint'
+						]}
+						style:left="{drop.lx}px"
+						style:top="{drop.ly}px"
+					>
+						{routeLabel(d)}
+					</span>
+				{/if}
 			{/each}
-			{#each nodes as n (n.id)}
-				{@const b = layout.boxes.get(n.id)}
+
+			<div
+				class="absolute"
+				style:left="{layout.internet.x}px"
+				style:top="{layout.internet.y}px"
+				style:width="{layout.internet.w}px"
+				style:height="{layout.internet.h}px"
+			>
+				{@render internetCard()}
+			</div>
+			<div
+				class="absolute"
+				style:left="{layout.relay.x}px"
+				style:top="{layout.relay.y}px"
+				style:width="{layout.relay.w}px"
+				style:height="{layout.relay.h}px"
+			>
+				{@render relayCard()}
+			</div>
+			{#if hub}
+				<div
+					class="absolute"
+					style:left="{layout.hub.x}px"
+					style:top="{layout.hub.y}px"
+					style:width="{layout.hub.w}px"
+					style:height="{layout.hub.h}px"
+				>
+					{@render hubCard(hub)}
+				</div>
+			{/if}
+			{#each machines as d (d.id)}
+				{@const b = layout.cards.get(d.id)}
 				{#if b}
 					<div
 						class="absolute"
@@ -325,61 +400,45 @@
 						style:width="{b.w}px"
 						style:height="{b.h}px"
 					>
-						{@render card(n.view)}
+						{@render machineCard(d, lightAfter(b.y, layout.height))}
 					</div>
 				{/if}
 			{/each}
+			<div
+				class="absolute flex flex-col justify-center gap-2 pl-3.5"
+				style:left="{layout.legend.x}px"
+				style:top="{layout.legend.y}px"
+				style:width="{layout.legend.w}px"
+				style:height="{layout.legend.h}px"
+			>
+				{@render legendLine('direct', 'Direct')}
+				{@render legendLine('relay', 'Through a relay')}
+				{@render legendLine('none', 'Not observed')}
+			</div>
 		</div>
 	{:else if width > 0}
-		<div class="space-y-5 px-1 py-3">
-			{#each groups as g (g.id)}
-				{#if g.nodes.length}
-					{#if !g.link}
-						{#each g.nodes as n (n.id)}
-							<div style:height="{n.h}px">{@render card(n.view)}</div>
-						{/each}
-					{:else}
-						{@const edges = new Map(g.edges.map((e) => [e.to, e]))}
-						<section>
-							<h3 class="mb-2 font-mono text-[10px] tracking-wider text-fg-faint uppercase">
-								{g.title} · {g.nodes.length}
-							</h3>
-							<div class="relative space-y-3 pl-5">
-								<span class="absolute top-0 bottom-6 left-[7px] w-px bg-line-heavy/60"></span>
-								{#each g.nodes as n (n.id)}
-									{@const e = edges.get(n.id)}
-									<div class="relative">
-										<span
-											class={[
-												'absolute top-[30px] -left-[13px] w-[13px]',
-												e && dashed(e.state)
-													? 'border-t border-dashed border-fg-faint'
-													: 'h-px bg-line-heavy/60'
-											]}
-										></span>
-										{#if e}
-											<p
-												aria-hidden="true"
-												class={[
-													'mb-1 font-mono text-[10px]',
-													e.state === 'warn'
-														? 'text-amber-fg'
-														: dashed(e.state)
-															? 'text-fg-faint'
-															: 'text-fg-subtle'
-												]}
-											>
-												{e.label}
-											</p>
-										{/if}
-										<div style:height="{n.h}px">{@render card(n.view)}</div>
-									</div>
-								{/each}
-							</div>
-						</section>
-					{/if}
-				{/if}
-			{/each}
+		<div class="flex flex-col gap-3">
+			<div class="flex items-start justify-between gap-3">
+				<div>{@render title()}</div>
+				{@render allMachines()}
+			</div>
+			<div class="grid grid-cols-2 gap-2">
+				<div class="min-w-0">{@render internetCard()}</div>
+				<div class="min-w-0">{@render relayCard()}</div>
+			</div>
+			{#if hub}
+				{@render hubCard(hub, true)}
+			{/if}
+			<ul class="relative flex flex-col gap-2 pl-3.5">
+				<span class="absolute top-0 bottom-11 left-0 w-px bg-track" aria-hidden="true"></span>
+				{#each machines as d (d.id)}
+					<li class="relative">
+						<span class="absolute top-2 -left-3.5 h-px w-2.5 bg-track" aria-hidden="true"></span>
+						<p class="mb-1 font-mono text-[11px] leading-3.5 text-fg-faint">{routeLabel(d)}</p>
+						<div class="h-23">{@render machineCard(d)}</div>
+					</li>
+				{/each}
+			</ul>
 		</div>
 	{:else}
 		<div class="h-130"></div>

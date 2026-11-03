@@ -62,7 +62,11 @@ export function shortcutGroups(mod: string): ShortcutGroup[] {
 			shortcuts: [
 				{ keys: [mod, 'K'], label: 'Search pages, devices and actions' },
 				{ keys: ['?'], label: 'Show this list' },
-				{ keys: ['g', '1–9'], sequence: true, label: 'Go to the page with that number' },
+				{
+					keys: ['g', '1–9'],
+					sequence: true,
+					label: 'Go to that page of the sidebar, counting from the top'
+				},
 				{ keys: ['Esc'], label: 'Close a dialog or menu' }
 			]
 		},

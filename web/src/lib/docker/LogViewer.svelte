@@ -17,7 +17,6 @@
 	import { Persisted } from '#lib/files/persisted.svelte.js';
 	import type { Status } from '#lib/status.js';
 	import Button from '#lib/ui/Button.svelte';
-	import Card from '#lib/ui/Card.svelte';
 	import Input from '#lib/ui/Input.svelte';
 	import Select from '#lib/ui/Select.svelte';
 	import StatusDot from '#lib/ui/StatusDot.svelte';
@@ -52,9 +51,11 @@
 		startedAt?: string;
 		/** Whether the container has a terminal, which merges its standard output and error. */
 		tty: boolean;
+		/** Fills a side panel, with no frame and only the controls that fit. */
+		embedded?: boolean;
 	}
 
-	let { deviceId, container, running, startedAt, tty }: Props = $props();
+	let { deviceId, container, running, startedAt, tty, embedded = false }: Props = $props();
 
 	/** How many more lines a click on "earlier lines" draws when lines wrap. */
 	const wrapStep = 1_000;
@@ -264,8 +265,10 @@
 	const selectClass = 'h-8! w-auto! text-[12.5px]';
 </script>
 
-<Card>
-	<div class="flex flex-wrap items-start gap-2 border-b border-line p-3">
+<div class={embedded ? 'flex min-h-0 flex-1 flex-col' : 'overflow-hidden card'}>
+	<div
+		class={['flex-wrap items-start gap-2 border-b border-line p-3', embedded ? 'hidden' : 'flex']}
+	>
 		<div class="min-w-0 flex-1 basis-56">
 			<div class="relative">
 				<Search
@@ -311,7 +314,12 @@
 			<span class="hidden sm:inline">Clear</span>
 		</Button>
 	</div>
-	<div class="flex flex-wrap items-center gap-2 border-b border-line bg-canvas/40 px-3 py-2">
+	<div
+		class={[
+			'flex-wrap items-center gap-2 border-b border-line bg-canvas/40 px-3 py-2',
+			embedded ? 'hidden' : 'flex'
+		]}
+	>
 		{#if tty}
 			<span class="text-[12.5px] text-fg-subtle">
 				This container has a terminal, so its output and errors come together.
@@ -351,7 +359,7 @@
 		</div>
 	</div>
 
-	<div class="relative">
+	<div class={['relative', embedded && 'min-h-0 flex-1']}>
 		<!-- A box that scrolls has to take the keyboard, and a log is read with it. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div
@@ -363,7 +371,10 @@
 			aria-label="Logs of {container}"
 			aria-live="off"
 			tabindex="0"
-			class="h-[65vh] min-h-80 overflow-auto bg-canvas font-mono text-[12px] [overflow-anchor:none]"
+			class={[
+				'overflow-auto bg-canvas font-mono text-[12px] [overflow-anchor:none]',
+				embedded ? 'h-full' : 'h-[65vh] min-h-80'
+			]}
 		>
 			{#if rows.length === 0}
 				<div
@@ -388,7 +399,13 @@
 						</div>
 					{/if}
 					{#each drawn as entry (entry.n)}
-						<LogLine {entry} wrap={true} timestamps={timestamps.value} {search} />
+						<LogLine
+							{entry}
+							wrap={true}
+							timestamps={embedded || timestamps.value}
+							{search}
+							numbered={!embedded}
+						/>
 					{/each}
 				</div>
 			{:else}
@@ -398,7 +415,13 @@
 					style:padding-bottom="{gap + Math.max(0, rows.length - end) * rowHeight}px"
 				>
 					{#each drawn as entry (entry.n)}
-						<LogLine {entry} wrap={false} timestamps={timestamps.value} {search} />
+						<LogLine
+							{entry}
+							wrap={false}
+							timestamps={embedded || timestamps.value}
+							{search}
+							numbered={!embedded}
+						/>
 					{/each}
 				</div>
 			{/if}
@@ -419,7 +442,7 @@
 		class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line px-3 py-2 text-[12px] text-fg-subtle"
 	>
 		<span class="flex min-w-0 items-center gap-2">
-			<StatusDot status={dot[stream.status]} pulse={stream.status === 'live' && follow} />
+			<StatusDot status={dot[stream.status]} />
 			<span class={['truncate', stream.status === 'failed' && 'text-red-fg']} role="status">
 				{statusText}
 			</span>
@@ -429,4 +452,4 @@
 		</span>
 		<span class="num">{lineCount(rows.length, source.length, searching)}</span>
 	</div>
-</Card>
+</div>

@@ -9,6 +9,7 @@
 	import { page } from '$app/state';
 	import Detail from '#lib/docker/detail/Detail.svelte';
 	import { live } from '#lib/live.svelte.js';
+	import { crumb } from '#lib/shell/header.svelte.js';
 	import { listedDeviceId, terminalDevices } from '#lib/terminal.js';
 	import { buttonClass } from '#lib/ui/button.js';
 	import Card from '#lib/ui/Card.svelte';
@@ -21,6 +22,8 @@
 	const deviceId = $derived(page.url.searchParams.get('device') ?? '');
 	const deviceName = $derived(live.snapshot?.devices.find((d) => d.id === deviceId)?.name);
 	const name = $derived(page.params.name ?? '');
+
+	crumb(() => name);
 	/** Whether Files can open this machine, which a path in a mount or a compose project needs. */
 	const filesReady = $derived.by(() => {
 		const all = live.snapshot?.devices ?? [];

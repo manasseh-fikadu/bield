@@ -33,11 +33,11 @@ export function fileIcon(entry: Pick<FileEntry, 'name' | 'type' | 'targetType'>)
 	tone: string;
 } {
 	if (entry.type === 'dir') {
-		return { icon: Folder, tone: 'fill-blue-fg/15 text-blue-fg' };
+		return { icon: Folder, tone: 'fill-track text-track' };
 	}
 	if (entry.type === 'symlink') {
 		if (entry.targetType === 'dir') {
-			return { icon: FolderSymlink, tone: 'fill-blue-fg/15 text-blue-fg' };
+			return { icon: FolderSymlink, tone: 'fill-track text-track' };
 		}
 		if (!entry.targetType) {
 			return { icon: FileSymlink, tone: 'text-red-fg/80' };
@@ -48,21 +48,21 @@ export function fileIcon(entry: Pick<FileEntry, 'name' | 'type' | 'targetType'>)
 	}
 	const ext = extOf(entry.name);
 	const kind = fileKind(entry.name);
-	if (kind === 'image') return { icon: FileImage, tone: 'text-purple-fg' };
-	if (kind === 'video') return { icon: FileVideo, tone: 'text-[#ff8a65]' };
-	if (kind === 'audio') return { icon: FileAudio, tone: 'text-[#f472b6]' };
-	if (kind === 'pdf') return { icon: FileText, tone: 'text-red-fg' };
+	if (kind === 'image') return { icon: FileImage, tone: 'text-fg-faint' };
+	if (kind === 'video') return { icon: FileVideo, tone: 'text-fg-faint' };
+	if (kind === 'audio') return { icon: FileAudio, tone: 'text-fg-faint' };
+	if (kind === 'pdf') return { icon: FileText, tone: 'text-fg-faint' };
 	if (kind === 'docx' || ext === 'doc' || ext === 'odt' || ext === 'rtf') {
-		return { icon: FileType, tone: 'text-blue-fg' };
+		return { icon: FileType, tone: 'text-fg-faint' };
 	}
-	if (kind === 'sheet') return { icon: FileSpreadsheet, tone: 'text-green-fg' };
-	if (kind === 'archive') return { icon: FileArchive, tone: 'text-amber-fg' };
+	if (kind === 'sheet') return { icon: FileSpreadsheet, tone: 'text-fg-faint' };
+	if (kind === 'archive') return { icon: FileArchive, tone: 'text-fg-faint' };
 	if (KEYS.has(ext) || /^id_(rsa|ed25519|ecdsa)/.test(entry.name)) {
-		return { icon: FileKey, tone: 'text-amber-fg' };
+		return { icon: FileKey, tone: 'text-fg-faint' };
 	}
-	if (SHELL.has(ext)) return { icon: FileTerminal, tone: 'text-green-fg' };
-	if (DATA.has(ext)) return { icon: FileJson, tone: 'text-amber-fg/90' };
-	if (CODE.has(ext)) return { icon: FileCode, tone: 'text-[#7dd3fc]' };
-	if (kind === 'text') return { icon: FileText, tone: 'text-fg-muted' };
-	return { icon: File, tone: 'text-fg-subtle' };
+	if (SHELL.has(ext)) return { icon: FileTerminal, tone: 'text-fg-faint' };
+	if (DATA.has(ext)) return { icon: FileJson, tone: 'text-fg-faint' };
+	if (CODE.has(ext)) return { icon: FileCode, tone: 'text-fg-faint' };
+	if (kind === 'text') return { icon: FileText, tone: 'text-fg-faint' };
+	return { icon: File, tone: 'text-fg-faint' };
 }

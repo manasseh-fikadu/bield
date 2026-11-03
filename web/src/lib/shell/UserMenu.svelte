@@ -1,4 +1,4 @@
-<!-- Who's signed in, as an avatar that opens a menu with their details. -->
+<!-- Who's signed in, at the foot of the sidebar, as a row that opens a menu with their details. -->
 <script lang="ts">
 	import Bug from '@lucide/svelte/icons/bug';
 	import Keyboard from '@lucide/svelte/icons/keyboard';
@@ -23,24 +23,22 @@
 	const role = $derived(me?.role ? roleLabel(me.role) : '');
 </script>
 
-<Menu class="w-64">
+<Menu class="w-52" side="top" align="start">
 	{#snippet trigger({ props })}
 		<button
 			{...props}
 			type="button"
-			class="flex items-center gap-2 rounded-md py-0.5 pr-0.5 pl-1.5 transition-colors hover:bg-hover"
+			class="flex h-10 w-full shrink-0 items-center gap-2.5 rounded-md px-2.5 text-left transition-colors hover:bg-hover/60"
 			aria-label="Signed in as {name}"
 		>
-			<span class="hidden text-right lg:block">
-				<span class="block max-w-40 truncate text-[12px] leading-4 text-fg-muted">{name}</span>
-				<span class="block font-mono text-[10px] leading-3 text-fg-faint">{role}</span>
-			</span>
 			<span
-				class="flex size-7 items-center justify-center rounded-full border border-line-strong bg-gradient-to-br from-[#2a2a2a] to-raised text-[11px] font-medium text-fg-muted"
+				class="flex size-6 shrink-0 items-center justify-center rounded-full border border-line-strong bg-raised text-[11px] leading-3.5 font-semibold text-fg-muted"
 				aria-hidden="true"
 			>
 				{name.slice(0, 1).toUpperCase()}
 			</span>
+			<span class="min-w-0 flex-1 truncate text-[13px] leading-5 text-fg-muted">{name}</span>
+			<span class="shrink-0 text-[12px] leading-4 text-fg-faint">{role}</span>
 		</button>
 	{/snippet}
 	<MenuLabel>

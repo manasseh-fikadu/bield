@@ -19,6 +19,8 @@
 		selected: Set<string>;
 		/** The row the keyboard is on, or -1. */
 		cursor: number;
+		/** The path of the file open in the preview, if one is. */
+		opened?: string;
 		sort: Sort;
 		now: number;
 		/** The folder a search started in, if the entries are its matches. */
@@ -40,6 +42,7 @@
 		entries,
 		selected,
 		cursor,
+		opened,
 		sort,
 		now,
 		searchRoot,
@@ -106,10 +109,10 @@
 
 	const heads: Array<{ key: SortKey; label: string; class: string }> = [
 		{ key: 'name', label: 'Name', class: '' },
-		{ key: 'size', label: 'Size', class: 'hidden justify-end pr-3 sm:flex' },
-		{ key: 'mtime', label: 'Modified', class: 'hidden sm:flex' },
-		{ key: 'mode', label: 'Permissions', class: 'hidden lg:flex' },
-		{ key: 'owner', label: 'Owner', class: 'hidden lg:flex' }
+		{ key: 'size', label: 'Size', class: 'hidden justify-end @md:flex' },
+		{ key: 'mtime', label: 'Modified', class: 'hidden justify-end @md:flex' },
+		{ key: 'mode', label: 'Permissions', class: 'hidden pl-3 @3xl:flex' },
+		{ key: 'owner', label: 'Owner', class: 'hidden @3xl:flex' }
 	];
 </script>
 
@@ -120,7 +123,7 @@
 		role="row"
 		class={[
 			gridClass,
-			'sticky top-14 z-[5] h-9 items-center border-b border-line bg-surface/95 backdrop-blur'
+			'sticky top-13 z-[5] h-7.5 items-center border-b border-line bg-surface lg:top-15'
 		]}
 	>
 		<div role="columnheader" class="h-full">
@@ -136,7 +139,7 @@
 					<span
 						class={[
 							'flex size-4 items-center justify-center rounded border transition-colors',
-							all || some ? 'border-blue-fg bg-blue text-white' : 'border-line-heavy bg-canvas'
+							all || some ? 'border-blue-fg bg-blue text-canvas' : 'border-line-heavy'
 						]}
 					>
 						{#if all}<Check class="size-3" strokeWidth={3} />{/if}
@@ -153,7 +156,7 @@
 				onclick={() => onsort(h.key)}
 				class={[
 					'flex h-full min-w-0 items-center gap-1 text-left text-[12px] transition-colors',
-					active ? 'text-fg' : 'text-fg-subtle hover:text-fg',
+					active ? 'text-fg-muted' : 'text-fg-faint hover:text-fg-muted',
 					h.class
 				]}
 			>
@@ -185,6 +188,7 @@
 					index={i}
 					selected={selected.has(entry.path)}
 					cursor={i === cursor}
+					opened={entry.path === opened}
 					{now}
 					folder={folderOf(entry.path)}
 					{onrowclick}
