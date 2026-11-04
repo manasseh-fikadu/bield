@@ -14,6 +14,7 @@
 		"test": "bun test src",
 		"e2e": "playwright test",
 		"screenshots": "playwright test -c screenshots.config.ts",
+		"recording": "playwright test -c recording.config.ts",
 		"lint": "prettier --check .",
 		"format": "prettier --write ."
 	},

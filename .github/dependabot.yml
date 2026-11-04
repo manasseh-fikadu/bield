@@ -40,6 +40,18 @@ updates:
       site:
         update-types: [minor, patch]
 
+  - package-ecosystem: bun
+    directory: /site/docs-site
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+    groups:
+      docs-site:
+        update-types: [minor, patch]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

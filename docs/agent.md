@@ -8,7 +8,7 @@ The agent is one bash script, [`agent/agent.sh`](../agent/agent.sh), that sends 
 
 ## What you get
 
-With an agent, a machine's page shows its CPU, memory, swap, disk, network traffic, temperature, battery, load, uptime and process count, with history charts from the last hour to 90 days, and a list of what uses the CPU and memory. Bield can raise [alerts](settings.md#alerts) about disk, memory, CPU and a stopped agent. Without one, a machine only shows what Tailscale knows.
+With an agent, a machine's page shows its CPU, memory, swap, disk, network traffic, temperature, battery, load, uptime and process count, with history charts of CPU, memory and network from the last hour to 90 days, and a list of what uses the CPU and memory. Bield can raise [alerts](settings.md#alerts) about disk, memory, CPU and a stopped agent. Without one, a machine only shows what Tailscale knows.
 
 Bield doesn't need an agent for the machine it runs on. On Linux it measures that machine itself, and the Agents page lists it as **Built in**. If Bield runs on a Mac, it can't measure that machine, so install the agent on it like any other.
 
