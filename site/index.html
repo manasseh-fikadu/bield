@@ -9,6 +9,24 @@
 			content="Bield is one binary that joins your Tailscale or Headscale network and shows every machine: how it’s doing, what’s wrong with it, what runs on it."
 		/>
 		<link rel="icon" href="/favicon.svg" />
+		<!-- Absolute addresses, which a shared link needs: see siteUrl in vite.config.ts. -->
+		<link rel="canonical" href="@site/" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="Bield" />
+		<meta property="og:title" content="Bield: your whole tailnet, on one page" />
+		<meta
+			property="og:description"
+			content="Bield is one binary that joins your Tailscale or Headscale network and shows every machine: how it’s doing, what’s wrong with it, what runs on it."
+		/>
+		<meta property="og:url" content="@site/" />
+		<meta property="og:image" content="@site/social.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="Bield: your whole tailnet, on one page. One binary that joins your Tailscale or Headscale network."
+		/>
+		<meta name="twitter:card" content="summary_large_image" />
 		<script type="module" src="/src/main.ts"></script>
 	</head>
 	<body>
@@ -32,11 +50,7 @@
 						>
 					</a>
 					<div class="flex items-center gap-7 text-[14px] leading-5 text-fg-muted">
-						<a
-							href="https://github.com/manasseh-fikadu/bield/tree/main/docs"
-							class="transition-colors hover:text-fg"
-							>Docs</a
-						>
+						<a href="docs/" class="transition-colors hover:text-fg">Docs</a>
 						<a
 							href="https://github.com/manasseh-fikadu/bield"
 							class="flex items-center gap-2 transition-colors hover:text-fg"
@@ -100,58 +114,15 @@
 					<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
 						<span class="text-fg-faint">Works with</span>
 						<a
-							href="https://github.com/manasseh-fikadu/bield/blob/main/docs/tailscale.md"
-							class="flex items-center gap-2 text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+							href="docs/tailscale/"
+							class="text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+							>Tailscale</a
 						>
-							<svg
-								class="h-4.5 w-4.5 shrink-0"
-								viewBox="0 0 21.54 21.54"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<circle opacity="0.2" cx="2.692" cy="2.692" r="2.692" />
-								<circle opacity="0.2" cx="10.768" cy="2.692" r="2.692" />
-								<circle opacity="0.2" cx="18.843" cy="2.692" r="2.692" />
-								<circle cx="2.692" cy="10.768" r="2.692" />
-								<circle cx="10.768" cy="10.768" r="2.692" />
-								<circle cx="18.843" cy="10.768" r="2.692" />
-								<circle opacity="0.2" cx="2.692" cy="18.843" r="2.692" />
-								<circle cx="10.768" cy="18.843" r="2.692" />
-								<circle opacity="0.2" cx="18.843" cy="18.843" r="2.692" />
-							</svg>
-							Tailscale
-						</a>
 						<a
-							href="https://github.com/manasseh-fikadu/bield/blob/main/docs/headscale.md"
-							class="flex items-center gap-2 text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+							href="docs/headscale/"
+							class="text-[15px] font-medium text-fg transition-colors hover:text-fg-muted"
+							>Headscale</a
 						>
-							<svg
-								class="h-4.5 w-auto shrink-0"
-								viewBox="30 120 1220 400"
-								fill="currentColor"
-								aria-hidden="true"
-							>
-								<circle cx="150.7" cy="325.4" r="117.5" />
-								<g opacity="0.6">
-									<circle cx="355" cy="268.3" r="33.5" />
-									<circle cx="355" cy="384.2" r="33.5" />
-									<circle cx="506.6" cy="384.2" r="33.5" />
-									<circle cx="507" cy="268.3" r="33.5" />
-									<circle cx="802.4" cy="326.7" r="117.2" />
-									<circle cx="1054.7" cy="326.7" r="117.2" />
-								</g>
-								<g opacity="0.4">
-									<path
-										d="M680.282 124.808h-68.093v390.325h68.081v-28.23H640V153.228h40.282v-28.42Z"
-									/>
-									<path
-										d="M680.282 124.808h-68.093v390.325h68.081v-28.23H640V153.228h40.282v-28.42Z"
-										transform="matrix(-1 0 0 1 1857.19 0)"
-									/>
-								</g>
-							</svg>
-							Headscale
-						</a>
 					</div>
 					<a
 						href="https://github.com/manasseh-fikadu/bield#try-the-demo"
@@ -237,8 +208,8 @@
 									See what was running when it spiked.
 								</h2>
 								<p class="text-[17px] leading-6.75 text-fg-muted">
-									CPU, memory, disk and network for every machine, with up to 90 days of history.
-									Click a point on a chart and Bield shows what was busy at that moment.
+									Charts of CPU, memory and network for every machine, with up to 90 days of
+									history. Click a point on a chart and Bield shows what was busy at that moment.
 								</p>
 								<p class="text-[14px] leading-5.5 text-fg-faint">
 									Metrics come from a small bash agent under the MIT license, so you can read it
@@ -579,11 +550,7 @@ make build      <span class="text-fg-faint"># needs Go 1.27.3, Node 22.17 and Bu
 								class="transition-colors hover:text-fg"
 								>GitHub</a
 							>
-							<a
-								href="https://github.com/manasseh-fikadu/bield/tree/main/docs"
-								class="transition-colors hover:text-fg"
-								>Docs</a
-							>
+							<a href="docs/" class="transition-colors hover:text-fg">Docs</a>
 							<a
 								href="https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md"
 								class="transition-colors hover:text-fg"

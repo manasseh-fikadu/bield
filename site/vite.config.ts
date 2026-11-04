@@ -47,10 +47,34 @@ function demoPages(): Plugin {
 	};
 }
 
+/**
+ * Where the page is served from, which the few addresses that have to be absolute need: the
+ * canonical link, and the pictures shown when the page is shared. The build gets it from the
+ * environment (BIELD_SITE_URL, in the Pages workflow), and development from its own port.
+ */
+const siteUrl = (process.env.BIELD_SITE_URL ?? 'http://127.0.0.1:4701/').replace(/\/?$/, '/');
+
+/** Puts the site's address into the page, where it says @site. */
+function site(): Plugin {
+	return {
+		name: 'bield-site',
+		transformIndexHtml: {
+			order: 'pre',
+			handler: (html) => html.replaceAll('@site/', siteUrl)
+		}
+	};
+}
+
 // A static page, with relative links so it works from any path, such as on GitHub Pages.
 export default defineConfig({
 	base: './',
-	plugins: [tailwindcss(), mockups(), demoPages()],
+	plugins: [tailwindcss(), mockups(), demoPages(), site()],
 	build: { outDir: 'build' },
-	server: { host: '127.0.0.1', port: 4701, strictPort: true }
+	server: {
+		host: '127.0.0.1',
+		port: 4701,
+		strictPort: true,
+		// The documentation is its own site (docs-site/, `make docs`), which this page links to.
+		proxy: { '/docs': 'http://127.0.0.1:4702' }
+	}
 });
