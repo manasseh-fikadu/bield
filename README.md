@@ -2,12 +2,14 @@
 
 Bield is a self-hosted control plane for the machines on your tailnet. It's one binary. Run it on a server, and it joins your [Tailscale](https://tailscale.com) tailnet (or a [Headscale](https://github.com/juanfont/headscale) one) and shows every machine in one place: how healthy it is, what's wrong with it, what runs on it. From the same page, you can open a terminal on it, browse its files and restart its containers. There's no password and no account to make, because your tailnet is the login.
 
-![Bield's overview: a map of the tailnet, a health score and the open alerts](docs/images/overview.png)
+[Website and demo](https://manasseh-fikadu.github.io/bield/) · [Documentation](https://manasseh-fikadu.github.io/bield/docs/) · [Releases](https://github.com/manasseh-fikadu/bield/releases)
+
+![A 20-second tour of the demo: the overview, a machine's history, Docker, alerts and search](docs/images/demo.webp)
 
 ## What it does
 
 - **Devices.** Every machine on the tailnet, on a live map, with how traffic reaches it (direct, through a relay) and the round-trip time.
-- **Health.** CPU, memory, disk, network and what's using them, for each machine, with up to 90 days of history. The machine Bield runs on is measured by Bield itself, if it's Linux, and the others by a small bash [agent](docs/agent.md).
+- **Health.** CPU, memory, disk, network and what's using them, for each machine, with charts of CPU, memory and network for up to 90 days. The machine Bield runs on is measured by Bield itself, if it's Linux, and the others by a small bash [agent](docs/agent.md).
 - **Checks.** Website, port and DNS checks, and a ping of every device, rolled up into a health score.
 - **Alerts.** For offline machines, full disks, expiring Tailscale keys, failing checks, crashed containers and failed services. They reach your phone through ntfy, Telegram, email, Discord, Slack or any webhook ([Notifications](docs/notifications.md)).
 - **Docker.** Containers, logs, live stats, images, volumes and networks on any machine Bield can reach, and start, stop and restart.
@@ -23,7 +25,7 @@ It works on a phone, and it's keyboard-friendly: `Ctrl+K` (`⌘K` on a Mac) sear
 
 ## Try the demo
 
-The demo is a made-up tailnet with 12 machines and a week of history. It needs no Tailscale and touches nothing on your machine.
+The demo is a made-up tailnet with 12 machines and a week of history. It needs no Tailscale and touches nothing on your machine. To click through it in your browser without installing anything, open the [website](https://manasseh-fikadu.github.io/bield/).
 
 Download the [release archive](https://github.com/manasseh-fikadu/bield/releases/latest) for your system (Linux or macOS, amd64 or arm64), unpack it and run it:
 
@@ -38,7 +40,7 @@ Or run it in Docker, which leaves nothing behind:
 docker run --rm -p 127.0.0.1:4700:4700 ghcr.io/manasseh-fikadu/bield serve --demo --demo-listen 0.0.0.0:4700
 ```
 
-To build it yourself, `make build` makes `./bield`, as under [Build from source](#build-from-source). See [Demo mode](docs/demo.md). Every screenshot here comes from it.
+To build it yourself, `make build` makes `./bield`, as under [Build from source](#build-from-source). See [Demo mode](docs/demo.md). Every screenshot, and the clip at the top, comes from it, which `make screenshots` and `make recording` retake.
 
 ## Quickstart
 
@@ -114,7 +116,7 @@ Bield hasn't had an outside review yet. [SECURITY.md](SECURITY.md) has the full 
 | [Upgrading and backups](docs/upgrading.md), [Uninstalling](docs/uninstalling.md) | Keeping it running, and removing it |
 | [FAQ](docs/faq.md) | Questions, and what to check when something's wrong |
 
-The full list is in [docs/](docs/README.md).
+The full list is in [docs/](docs/README.md). The same pages are on the [documentation site](https://manasseh-fikadu.github.io/bield/docs/), with search.
 
 ## Build from source
 
@@ -149,6 +151,7 @@ Open the URL that the Go server logs (`bield is running url=...`), which is on y
 | `internal/` | The hub's packages |
 | `web/` | The SvelteKit app, which `make build` embeds in the binary |
 | `agent/` | The bash agent that devices run to report their metrics |
+| `site/` | The landing page, and the documentation site in `site/docs-site`, which builds `docs/` |
 | `install.sh` | Installs Bield as a systemd service |
 | `Dockerfile`, `compose*.yaml` | The Docker image, which GoReleaser builds, and examples that run it |
 | `docs/` | The documentation, and the screenshots in it, which `bield serve --demo` made |
