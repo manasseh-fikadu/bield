@@ -412,7 +412,10 @@ func TestFeed_recordsHealth(t *testing.T) {
 			Store:   st,
 		})
 		go feed.Run(t.Context())
-		start := time.Now()
+		// The history is in whole minutes, so count from the start of one. If the
+		// bubble's clock has moved even a millisecond by now, a start that's off the
+		// minute shifts every bucket with it.
+		start := time.Now().Truncate(time.Minute)
 		time.Sleep(3*time.Minute + 30*time.Second)
 		synctest.Wait()
 
