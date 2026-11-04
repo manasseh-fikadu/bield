@@ -10,6 +10,12 @@ test.each([
 	],
 	['skips a picture', '# T\n\n![alt](x.png)\n\nText.', 'Text.'],
 	['skips a table before it', '# T\n\n| a | b |\n| - | - |\n\nText.', 'Text.'],
+	[
+		'skips a wrapped list item',
+		'# T\n\n- An item that wraps\n  onto the next line\n\nText.',
+		'Text.'
+	],
+	['skips a wrapped HTML block', '# T\n\n<img src="a.png"\n  width="280">\n\nText.', 'Text.'],
 	['nothing but a heading', '# T\n\n## Sub\n\nText.', undefined],
 	['no paragraph', '# T\n', undefined],
 	['a title only after a fence', '```\ncode\n```\n# T\n\nBody.', 'Body.']

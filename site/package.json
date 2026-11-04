@@ -14,7 +14,8 @@
 		"links": "bun scripts/check-links.ts",
 		"demo": "bun demo/build.ts",
 		"lint": "prettier --check .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"links:external": "bun scripts/check-links.ts --external"
 	},
 	"devDependencies": {
 		"@fontsource-variable/host-grotesk": "^5.3.0",

@@ -41,6 +41,14 @@ describe('targetOf', () => {
 		expect(targetOf(link, from, base)).toEqual(want as never);
 	});
 
+	test('a bad % escape is a link to nothing, not a crash', () => {
+		expect(targetOf('docs/foo%', '', base)).toEqual({
+			kind: 'inside',
+			path: 'docs/foo%',
+			hash: ''
+		});
+	});
+
 	test('a root-relative link without the base path', () => {
 		expect(targetOf('/favicon.svg', '', base).kind).toBe('wrong');
 	});

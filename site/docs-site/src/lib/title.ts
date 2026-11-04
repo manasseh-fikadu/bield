@@ -22,6 +22,8 @@ function plain(text: string): string {
 	return text
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
 		.replace(/`([^`]*)`/g, '$1')
-		.replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1')
+		.replace(/\*\*(.+?)\*\*/g, '$1')
+		.replace(/\*(.+?)\*/g, '$1')
+		.replace(/(^|\W)_{1,2}([^_]+?)_{1,2}(?!\w)/g, '$1$2')
 		.trim();
 }

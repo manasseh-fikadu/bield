@@ -32,6 +32,8 @@ describe('rewriteLink', () => {
 		['a page', 'install.md', '/bield/docs/install/'],
 		['a page and a heading', 'install.md#running-it', '/bield/docs/install/#running-it'],
 		['the index', 'README.md', '/bield/docs/'],
+		['the folder', '.', '/bield/docs/'],
+		['the folder, from the repository', '../docs/', '/bield/docs/'],
 		['a picture', 'images/overview.png', '/bield/docs/images/overview.png'],
 		['a file in the repository', '../SECURITY.md', 'https://example.test/r/blob/main/SECURITY.md'],
 		[
@@ -58,7 +60,8 @@ describe('rewriteLink', () => {
 	test.each([
 		['a missing page', 'nope.md'],
 		['a missing file in the repository', '../nope.md'],
-		['something outside the repository', '../../outside.md']
+		['something outside the repository', '../../outside.md'],
+		['a bad escape', 'install%.md']
 	])('%s is an error', (_name, href) => {
 		expect(() => rewriteLink(href, docs, ctx)).toThrow();
 	});

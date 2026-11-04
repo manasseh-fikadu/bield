@@ -27,7 +27,12 @@ export function rewriteLink(href: string, fromDir: string, ctx: LinkContext): st
 		return href;
 	}
 	const match = /^([^#?]*)(\?[^#]*)?(#.*)?$/.exec(href);
-	const path = decodeURI(match?.[1] ?? href);
+	let path: string;
+	try {
+		path = decodeURI(match?.[1] ?? href);
+	} catch {
+		throw new Error(`The link "${href}" in ${fromDir} isn't valid: it has a bad % escape`);
+	}
 	const query = match?.[2] ?? '';
 	const hash = match?.[3] ?? '';
 
@@ -39,6 +44,9 @@ export function rewriteLink(href: string, fromDir: string, ctx: LinkContext): st
 	if (!existsSync(absolute)) {
 		throw new Error(`The link "${href}" in ${fromDir} points at ${rel}, which doesn't exist`);
 	}
+
+	// The docs folder is the site's index page.
+	if (rel === 'docs') return `${ctx.base}/${query}${hash}`;
 
 	// Pages and the files beside them are served by the site.
 	if (rel.startsWith('docs/')) {

@@ -1,5 +1,5 @@
 import { cpSync, existsSync, readFileSync, statSync } from 'node:fs';
-import { extname, join, normalize, sep } from 'node:path';
+import { basename, extname, join, normalize, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
 
@@ -18,14 +18,23 @@ const types: Record<string, string> = {
  * Serves the files beside the pages in docs/ (the screenshots, mostly) at the same paths under the
  * site, so a page's `images/overview.png` works on the site as it does on GitHub.
  */
+/** A path that isn't valid percent-encoding is a path that matches nothing. */
+function safeDecode(path: string): string {
+	try {
+		return decodeURI(path);
+	} catch {
+		return '';
+	}
+}
+
 export function docsAssets(dir: string, base: string): AstroIntegration {
-	const isAsset = (name: string) => extname(name) !== '.md' && !name.startsWith('.');
+	const isAsset = (path: string) => extname(path) !== '.md' && !basename(path).startsWith('.');
 	return {
 		name: 'bield-docs-assets',
 		hooks: {
 			'astro:server:setup': ({ server }) => {
 				server.middlewares.use((req, res, next) => {
-					const path = decodeURI((req.url ?? '').split(/[?#]/)[0]);
+					const path = safeDecode((req.url ?? '').split(/[?#]/)[0]);
 					if (!path.startsWith(`${base}/`)) return next();
 					const file = normalize(join(dir, path.slice(base.length + 1)));
 					if (!file.startsWith(dir + sep) || !isAsset(file) || !existsSync(file)) return next();

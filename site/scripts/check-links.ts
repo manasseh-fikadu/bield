@@ -96,9 +96,18 @@ export function targetOf(
 	}
 	return {
 		kind: 'inside',
-		path: decodeURIComponent(url.pathname.slice(baseUrl.pathname.length)),
-		hash: decodeURIComponent(url.hash.slice(1))
+		path: safeDecode(url.pathname.slice(baseUrl.pathname.length)),
+		hash: safeDecode(url.hash.slice(1))
 	};
+}
+
+/** A bad % escape is left as it is, so the link is reported as missing rather than stopping the check. */
+function safeDecode(text: string): string {
+	try {
+		return decodeURIComponent(text);
+	} catch {
+		return text;
+	}
 }
 
 /** The file in the build that serves a path, as GitHub Pages would. */

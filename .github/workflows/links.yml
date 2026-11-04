@@ -35,4 +35,4 @@ jobs:
         working-directory: site/docs-site
       - run: bun run build
       - name: Request the outside links
-        run: bun run links -- --external
+        run: bun run links:external

@@ -7,16 +7,23 @@ const limit = 160;
 export function firstParagraph(markdown: string): string | undefined {
 	const lines = markdown.split('\n');
 	const start = lines.findIndex((line) => /^ {0,3}#[ \t]+\S/.test(line));
-	let paragraph: string[] = [];
+	const paragraph: string[] = [];
+	// A block that isn't prose (a list, a table, a quote, a picture, HTML) runs to the next blank line.
+	let skipping = false;
 	for (const line of lines.slice(start + 1)) {
 		if (line.trim() === '') {
 			if (paragraph.length > 0) break;
+			skipping = false;
 			continue;
 		}
-		// Only prose will do: not a heading, list, table, quote, code, picture or HTML.
-		if (paragraph.length === 0 && /^\s*(#|[-*+]\s|\d+[.)]\s|\||>|`{3}|~{3}|!|<)/.test(line)) {
-			if (/^\s*#/.test(line) || /^\s*(`{3}|~{3})/.test(line)) break;
-			continue;
+		if (skipping) continue;
+		if (paragraph.length === 0) {
+			// Another heading or a fence means this page has no paragraph before its first section.
+			if (/^\s*(#|`{3}|~{3})/.test(line)) break;
+			if (/^\s*([-*+]\s|\d+[.)]\s|\||>|!|<)/.test(line)) {
+				skipping = true;
+				continue;
+			}
 		}
 		paragraph.push(line.trim());
 	}
