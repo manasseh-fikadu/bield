@@ -1,5 +1,39 @@
 # FAQ
 
+## About Bield
+
+### How is Bield different from Beszel, Uptime Kuma, Portainer, Cockpit and the Tailscale admin console?
+
+Each of these does its own job well, and some do it better than Bield. Bield's job is narrower: one page for a small tailnet, with the tailnet as the login. It's new, and they are older and better tested. If one of them already covers what you need, keep it. They run fine next to Bield.
+
+**Beszel** is the closest. It has a hub and an agent on each machine, with CPU, memory, disk, network and container stats, history and alerts, under the MIT license. It collects more than Bield's agent does (GPU, S.M.A.R.T. disk health, ZFS), has its own users with OAuth and OIDC sign-in, and can back up its data to S3. Bield adds what comes from being on the tailnet: every device in the Tailscale device list, with its route and key expiry and no agent installed, and then terminals, files and container actions. If you only want metrics, Beszel is the lighter and more mature choice.
+
+**Uptime Kuma** watches services and tells you when they stop answering. It has more kinds of monitor than Bield's website, port and DNS checks, public status pages, and over 90 notification services. Bield's checks run from the machine Bield is on and feed its alerts and health score, and it pings every device. Use Uptime Kuma if you want a status page, or to watch from outside your network. Bield sends to ntfy, Telegram, email, Discord, Slack and webhooks ([Notifications](notifications.md)).
+
+**Portainer** is a full container manager. It creates and deploys containers and stacks, and its Business Edition adds roles, SSO and audit logs for teams. Bield can list containers, read their logs and stats, and start, stop and restart them. It can't create, exec or prune, and that's on purpose. What it adds is the container list next to the rest of what's wrong with the machine. To deploy with Docker, use Portainer or Compose files.
+
+**Cockpit** is a web admin session on one machine: a terminal, services, storage, networking and logs. It reaches other machines too, if each runs Cockpit and you sign in with that machine's own accounts. It goes much deeper into one machine than Bield does, which has no storage or network settings. Bield goes wider. It shows the whole tailnet at once, phones and laptops included, and it needs nothing on a machine except sshd and, for metrics, a small bash agent.
+
+**The Tailscale admin console** is where you manage the tailnet itself: devices, keys, access controls and DNS. Bield doesn't replace it and doesn't change your tailnet's settings. It reads the device list and puts it beside what each machine is doing, which the console doesn't show: CPU, memory, disk, containers and alerts. You still use the console to give Bield the access it needs ([Bield and Tailscale](tailscale.md)).
+
+### Is v0.1 ready for production?
+
+Not yet, for anything you can't afford to get wrong. v0.1.0 is the first release, and it hasn't had an outside security review. It can open a shell on every machine you give it SSH access to, so a bug in Bield can be a bug on all of them. [SECURITY.md](../SECURITY.md) has the threat model.
+
+The [release notes](https://github.com/manasseh-fikadu/bield/releases) say what was run on real machines and what wasn't. The API can change in any release ([Is there an API?](#is-there-an-api)). For a homelab or a few machines you can recover, it's reasonable to try it today. Run it next to your existing monitoring, not instead of it, and take a backup before each upgrade ([Upgrading, backups and rolling back](upgrading.md)). For a tailnet that holds production servers, wait for an outside review, or read the code you're trusting first.
+
+### What's the license, and can I use it at work?
+
+Bield is under the GNU Affero General Public License v3.0 (AGPL-3.0). The agent in `agent/` is under the MIT License.
+
+Running Bield as it is, at work or at home, asks nothing of you. You pay nothing and publish nothing. The AGPL has one extra rule, and it's about changes: if you modify Bield and other people use your version over a network, colleagues included, you have to offer them the source of your version under the same license. Running Bield next to your own software doesn't make that software AGPL.
+
+Some companies ban AGPL software outright. Ask yours before you put Bield on a work tailnet. This isn't legal advice. The agent is MIT so that you can copy and change the script that runs on your machines without asking that question.
+
+### What does "Bield" mean?
+
+Bield is a Scots word for shelter or refuge, said "beeld". Bield Housing & Care (bield.co.uk), a Scottish housing association for older people, uses the same word for its name. This project has nothing to do with it, and it isn't affiliated with Tailscale Inc. or the Headscale project either.
+
 ## Setting up
 
 ### Do I need a Tailscale account?
@@ -8,7 +42,18 @@ You need a tailnet, which is Tailscale's, or a [Headscale](headscale.md) server 
 
 ### Do I have to open a port or set up a reverse proxy?
 
-No. Bield listens only on the tailnet. In embedded mode that's port 443 of its own node (with port 80 redirecting to it), or port 80 alone when the tailnet has no HTTPS certificates, and in host mode it's port 4700 on the machine's tailnet addresses. The login page that embedded mode shows at first is on `127.0.0.1:4700`, which is the machine itself. Bield trusts the tailnet to say who is connecting, so don't publish it on the open internet.
+No. Bield listens only on the tailnet. In embedded mode that's port 443 of its own node (with port 80 redirecting to it), or port 80 alone when the tailnet has no HTTPS certificates, and in host mode it's port 4700 on the machine's tailnet addresses. The login page that embedded mode shows at first is on `127.0.0.1:4700`, which is the machine itself. Bield trusts the tailnet to say who is connecting, so don't publish it on the open internet ([how to check](#how-do-i-keep-bield-off-the-public-internet)).
+
+### How do I keep Bield off the public internet?
+
+You don't have to do anything. Bield serves the app only on the tailnet, as the answer above says. Putting it on the open internet takes something you add:
+
+- A reverse proxy or a tunnel in front of it. Don't. Bield works out who is calling from the tailnet connection. Through a proxy it can't tell, so every caller is anonymous, and an anonymous caller still gets the app's files and the health check.
+- Docker's `ports:` for 4700 on all interfaces. Until Bield is logged in to Tailscale, anyone who opens that page can add Bield to their own tailnet. Publish it on the host's loopback only, `127.0.0.1:4700:4700`, or leave it unpublished ([Bield in Docker](docker.md)).
+- `BIELD_SETUP_LISTEN` set to more than loopback. Bield warns about it in its log.
+- `--demo-listen 0.0.0.0:4700` on a machine that anyone can reach. The demo takes everyone for an admin ([Demo mode](demo.md)).
+
+To see what Bield listens on, run `sudo ss -tlnp | grep bield`. In embedded mode you should see only `127.0.0.1:4700`. In host mode you should see the machine's tailnet addresses on port 4700, which start with `100.`. With Docker, `docker compose ps` should show no published ports.
 
 ### Embedded or host mode?
 
