@@ -1,6 +1,6 @@
 # Bield documentation
 
-Start with the [README](../README.md) for what Bield is and a two-minute quickstart. These pages go deeper.
+Start with the [README](../README.md) for what Bield is and a two-minute quickstart. These pages go deeper. The [website](https://manasseh-fikadu.github.io/bield/) has a demo you can click through without installing anything.
 
 ## Set up
 

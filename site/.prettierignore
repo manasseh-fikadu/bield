@@ -2,5 +2,8 @@ bun.lock
 /build/
 /public/demo/
 
+# Its own project, with its own prettier config and lockfile
+/docs-site/
+
 # Generated from the Landing artboard in Paper
 src/mock/

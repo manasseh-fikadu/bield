@@ -1,0 +1,97 @@
+/*
+ * Starlight in the dashboard's colours and type: a near-black ground, hairlines, and colour only
+ * for links and for things that are wrong. The names after the values are the landing page's
+ * (site/src/style.css), so a change there is a change here.
+ */
+:root,
+:root[data-theme] {
+	color-scheme: dark;
+
+	--sl-font: 'Host Grotesk Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--sl-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+	--bield-amber: #f5b544; /* amber */
+
+	--sl-color-white: #ecedee; /* fg */
+	--sl-color-gray-1: #d9dbdd;
+	--sl-color-gray-2: #b4b7bb; /* between fg and fg-muted, for reading at length */
+	--sl-color-gray-3: #7d8085; /* fg-faint */
+	--sl-color-gray-4: #4a4e54; /* track */
+	--sl-color-gray-5: #303337; /* line-strong */
+	--sl-color-gray-6: #17181a; /* raised */
+	--sl-color-gray-7: #101112; /* sheet */
+	--sl-color-black: #0b0c0d; /* ground */
+
+	--sl-color-accent-low: #17233a;
+	--sl-color-accent: #5d8de0;
+	--sl-color-accent-high: #7fa9f5; /* blue */
+
+	--sl-color-blue-low: #17233a;
+	--sl-color-blue: #5d8de0;
+	--sl-color-blue-high: #a9c6fa;
+	--sl-hue-orange: 38;
+	--sl-hue-red: 3;
+
+	--sl-color-bg-nav: var(--sl-color-black);
+	--sl-color-bg-sidebar: var(--sl-color-black);
+	--sl-color-bg-inline-code: var(--sl-color-gray-6);
+	--sl-color-hairline-light: #303337; /* line-strong */
+	--sl-color-hairline: #222427; /* line */
+	--sl-color-hairline-shade: #222427;
+
+	--sl-content-width: 46rem;
+}
+
+::selection {
+	background: rgb(127 169 245 / 0.35);
+}
+
+body {
+	font-feature-settings: 'ss01' off;
+	text-rendering: optimizeLegibility;
+}
+
+/* Headings are medium and tight, as on the landing page. */
+.sl-markdown-content :is(h1, h2, h3, h4),
+h1#_top {
+	font-weight: 500;
+	letter-spacing: -0.03em;
+}
+h1#_top {
+	letter-spacing: -0.04em;
+}
+
+/* The page you're on is a lit row, not a blue block. */
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+	background: #1e2022; /* hover */
+	color: var(--sl-color-white);
+}
+.sidebar-content a {
+	border-radius: 6px;
+}
+.sidebar-content details > summary .large {
+	letter-spacing: 0.01em;
+}
+
+/* Tables sit on a hairline, with no stripes. */
+.sl-markdown-content table {
+	font-size: var(--sl-text-sm);
+}
+.sl-markdown-content :is(th, td) {
+	border-color: var(--sl-color-hairline);
+}
+.sl-markdown-content tr:nth-child(2n) {
+	background-color: transparent;
+}
+
+/* A screenshot is a window onto the dashboard, so it gets an edge. */
+.sl-markdown-content img {
+	border: 1px solid var(--sl-color-hairline-light);
+	border-radius: 10px;
+}
+
+/* The search box. */
+site-search button[data-open-modal] {
+	border-radius: 8px;
+}

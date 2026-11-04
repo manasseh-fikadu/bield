@@ -104,7 +104,7 @@ jobs:
       - run: bun run test
 
   site:
-    name: Landing page
+    name: Landing page and docs
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -121,11 +121,25 @@ jobs:
         with:
           bun-version-file: site/package.json
       - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile
+        working-directory: site/docs-site
       - name: Check formatting
         run: bun run lint
+      - name: Check formatting of the docs site
+        run: bun run lint
+        working-directory: site/docs-site
       - run: bun run check
+      - name: Type-check the docs site
+        run: bun run check
+        working-directory: site/docs-site
       - run: bun run test
+      - name: Test the docs site
+        run: bun run test
+        working-directory: site/docs-site
+      # Builds the landing page and, into it, the docs. The demo isn't part of this build.
       - run: bun run build
+      - name: Check the links
+        run: bun run links
 
   build:
     name: Build

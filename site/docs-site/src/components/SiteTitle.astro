@@ -1,0 +1,34 @@
+---
+// The wordmark, which goes to the landing page, as it does on the landing page itself.
+const home = import.meta.env.BASE_URL.replace(/\/docs\/?$/, '') + '/';
+---
+
+<a href={home} class="site-title" aria-label="Bield, home">
+	<svg width="22" height="22" viewBox="0 0 20 20" aria-hidden="true">
+		<path
+			d="M2.5 10.5 10 3l7.5 7.5"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		></path>
+		<circle cx="10" cy="13.5" r="3" fill="var(--bield-amber)"></circle>
+	</svg>
+	<span translate="no">Bield</span>
+</a>
+
+<style>
+	@layer starlight.core {
+		.site-title {
+			display: flex;
+			align-items: center;
+			gap: 0.625rem;
+			font-size: 1.0625rem;
+			font-weight: 600;
+			letter-spacing: -0.015em;
+			color: var(--sl-color-white);
+			text-decoration: none;
+		}
+	}
+</style>

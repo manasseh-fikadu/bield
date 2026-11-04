@@ -8,7 +8,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build web dev dev-api dev-web demo demo-api site site-demo test e2e screenshots bench load lint types clean
+.PHONY: help build web dev dev-api dev-web demo demo-api site docs site-demo social test e2e screenshots recording bench load lint types clean
 
 ## build: build ./bield with the web UI embedded
 build: web
@@ -39,18 +39,35 @@ demo-api:
 site: site/node_modules
 	cd site && $(BUN) run dev
 
+## docs: run the documentation site, on http://127.0.0.1:4702/docs/ (the landing page's Docs link needs make site too)
+docs: site/docs-site/node_modules
+	cd site/docs-site && $(BUN) run dev
+
 ## site-demo: build the clickable demo into the landing page
 site-demo: web/node_modules site/node_modules
 	$(GO) build -o site/.bield-demo ./cmd/bield
 	cd site && BIELD_BIN=.bield-demo $(BUN) run demo
 
-## test: run the Go and web tests, and type-check the web app and the landing page
-test: web/node_modules site/node_modules
+## social: redraw site/public/social.png, the picture shown when a link to the site is shared
+social: site/node_modules web/node_modules
+	cd web && $(BUN) x playwright screenshot --viewport-size 1200,630 "file://$(CURDIR)/site/social/card.html" "$(CURDIR)/site/public/social.png"
+
+## recording: film the demo into docs/images/demo.webp (README) and demo.mp4 (to upload), which needs make build first and ffmpeg
+# The first three seconds are the page loading and settling, so they're cut.
+recording: web/node_modules
+	cd web && $(BUN) run recording
+	ffmpeg -v error -y -ss 3 -i web/test-results/recording.webm -vf "fps=15,scale=960:-1:flags=lanczos" -c:v libwebp_anim -quality 85 -compression_level 6 -preset text -loop 0 -an docs/images/demo.webp
+	ffmpeg -v error -y -ss 3 -i web/test-results/recording.webm -vf "fps=25,scale=1280:-2" -c:v libx264 -crf 27 -preset slow -pix_fmt yuv420p -movflags +faststart -an docs/images/demo.mp4
+
+## test: run the Go and web tests, and test and type-check the web app, the landing page and the docs site
+test: web/node_modules site/node_modules site/docs-site/node_modules
 	$(GO) test -race -shuffle=on ./...
 	cd web && $(BUN) run test
 	cd web && $(BUN) run check
 	cd site && $(BUN) run test
 	cd site && $(BUN) run check
+	cd site/docs-site && $(BUN) run test
+	cd site/docs-site && $(BUN) run check
 
 ## e2e: click through the demo in a browser (run make build first)
 e2e: web/node_modules
@@ -69,11 +86,12 @@ load:
 	BIELD_LOAD_DAYS=$${BIELD_LOAD_DAYS:-7} $(GO) test -tags load -run TestLoad -v -count=1 -timeout 40m ./cmd/bield
 
 ## lint: run golangci-lint, shellcheck and prettier
-lint: web/node_modules site/node_modules
+lint: web/node_modules site/node_modules site/docs-site/node_modules
 	golangci-lint run ./...
 	shellcheck agent/*.sh install.sh .github/scripts/*.sh
 	cd web && $(BUN) run lint
 	cd site && $(BUN) run lint
+	cd site/docs-site && $(BUN) run lint
 
 ## types: regenerate web/src/lib/api/types.ts from internal/api/types.go
 types:
@@ -81,7 +99,7 @@ types:
 
 ## clean: remove build output
 clean:
-	rm -rf bield web/build web/.svelte-kit site/build site/public/demo site/.bield-demo
+	rm -rf bield web/build web/.svelte-kit site/build site/public/demo site/.bield-demo site/docs-site/.astro
 
 web/node_modules: web/package.json web/bun.lock
 	cd web && $(BUN) install --frozen-lockfile
@@ -89,6 +107,10 @@ web/node_modules: web/package.json web/bun.lock
 
 site/node_modules: site/package.json site/bun.lock
 	cd site && $(BUN) install --frozen-lockfile
+	@touch $@
+
+site/docs-site/node_modules: site/docs-site/package.json site/docs-site/bun.lock
+	cd site/docs-site && $(BUN) install --frozen-lockfile
 	@touch $@
 
 ## help: list these targets

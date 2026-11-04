@@ -1,0 +1,35 @@
+{
+	"name": "bield-docs-site",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"packageManager": "bun@1.4.0",
+	"scripts": {
+		"dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+		"build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+		"preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+		"check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+		"test": "bun test src",
+		"lint": "prettier --check .",
+		"format": "prettier --write ."
+	},
+	"dependencies": {
+		"@astrojs/markdown-remark": "^7.3.0",
+		"@astrojs/starlight": "^0.42.9",
+		"@fontsource-variable/host-grotesk": "^5.3.0",
+		"@fontsource/ibm-plex-mono": "^5.3.0",
+		"astro": "^7.4.5"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.12",
+		"@types/bun": "^1.4.4",
+		"@types/mdast": "^4.0.4",
+		"mdast-util-to-string": "^4.0.0",
+		"prettier": "^3.8.3",
+		"prettier-plugin-astro": "^1.1.2",
+		"remark-parse": "^11.0.0",
+		"typescript": "^6.0.3",
+		"unified": "^11.0.5",
+		"unist-util-visit": "^5.2.0"
+	}
+}
