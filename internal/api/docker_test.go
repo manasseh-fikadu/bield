@@ -150,6 +150,33 @@ func TestDocker_containers(t *testing.T) {
 	}
 }
 
+// Docker's error from starting a container can quote the command it ran and
+// paths on the machine, so a viewer gets the container without it.
+func TestDocker_startError(t *testing.T) {
+	t.Parallel()
+	e := newDockerEnv(t, testStore(t), false)
+	for _, tc := range []struct {
+		name string
+		from netip.Addr
+		want string
+	}{{"admin", laptopIP, backupError}, {"viewer", phoneIP, ""}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var list api.DockerContainerList
+			get(t, e.h, "/api/devices/bield/docker/containers", tc.from, &list)
+			var detail api.DockerContainerDetail
+			get(t, e.h, "/api/devices/bield/docker/containers/backup", tc.from, &detail)
+			if len(list.Containers) != 2 || list.Containers[0].Name != "backup" || list.Containers[0].Error != tc.want || detail.State.Error != tc.want {
+				t.Errorf("the %s sees the error %q in the list and %q in the detail, want %q", tc.name, list.Containers[0].Error, detail.State.Error, tc.want)
+			}
+		})
+	}
+	phone := serve(e.h, newRequest(t, http.MethodGet, "/api/devices/bield/docker/containers", phoneIP))
+	if strings.Contains(phone.Body.String(), "s3cret-flag") {
+		t.Errorf("a viewer's list has the command in it: %s", phone.Body)
+	}
+}
+
 func TestDocker_detail(t *testing.T) {
 	t.Parallel()
 	e := newDockerEnv(t, testStore(t), false)

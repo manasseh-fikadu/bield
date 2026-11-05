@@ -3,7 +3,11 @@
 package agent_test
 
 import (
+	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -85,5 +89,40 @@ func TestOlder(t *testing.T) {
 		if got := agent.Older(tt.version); got != tt.want {
 			t.Errorf("Older(%q) = %v, want %v (the hub serves %s)", tt.version, got, tt.want, agent.Version)
 		}
+	}
+}
+
+// A hostname with a control character in it must not turn the heartbeat into
+// invalid JSON, which the hub would refuse every time.
+func TestHeartbeat_hostnameWithControlCharacters(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS != "linux" {
+		t.Skip("the script reads the hostname from hostname(1) on Linux only")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("no bash")
+	}
+	bin := t.TempDir()
+	fake := "#!/bin/sh\nprintf 'web\\001-\\033[31m1\\177\\037\\n'\n"
+	if err := os.WriteFile(filepath.Join(bin, "hostname"), []byte(fake), 0o700); err != nil { //nolint:gosec // G306: it has to run.
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(t.Context(), bash, "agent.sh", "--print") //nolint:gosec // G204: bash is the one on PATH.
+	cmd.Env = append(os.Environ(),
+		"PATH="+bin+":"+os.Getenv("PATH"), "BIELD_AGENT_CONF=/nonexistent",
+		"SERVER_URL=https://bield.example.ts.net", "SECRET=not-a-real-secret")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("agent.sh --print: %v\n%s", err, out)
+	}
+	var beat struct {
+		Hostname string `json:"hostname"`
+	}
+	if err := json.Unmarshal(out, &beat); err != nil {
+		t.Fatalf("the heartbeat isn't valid JSON: %v\n%.200s", err, out)
+	}
+	if want := "web - [31m1  "; beat.Hostname != want {
+		t.Errorf("hostname = %q, want %q, with the control characters turned into spaces", beat.Hostname, want)
 	}
 }

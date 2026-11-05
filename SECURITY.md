@@ -18,7 +18,7 @@ What happens next:
 
 ## Supported versions
 
-Bield hasn't had a release yet. After the first one, security fixes go into the latest release only, so upgrading is how you get them.
+Security fixes go into the latest release only, so upgrading is how you get them.
 
 | Version | Gets security fixes |
 | --- | --- |
@@ -43,7 +43,7 @@ These are out of scope:
 
 ## Threat model
 
-Bield is a control plane for a tailnet: it logs in to your machines over SSH, so whoever controls Bield controls them. This is what it trusts, what it checks and what it leaves to you. It hasn't had an outside review yet. If you try to break it, [report what you find](#report-a-vulnerability).
+Bield is a control plane for a tailnet: it logs in to your machines over SSH, so whoever controls Bield controls them. This is what it trusts, what it checks and what it leaves to you. It has had an outside review, and v0.1.1 fixes what that found. More eyes are welcome: if you try to break it, [report what you find](#report-a-vulnerability).
 
 ### Who can do what
 

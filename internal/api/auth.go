@@ -57,9 +57,9 @@ func callerOf(r *http.Request) caller {
 // guard checks every request before it reaches a handler, and works out who
 // sent it:
 //
-//   - The Host header must be one of the names of Bield's node, so a page
-//     that rebinds its own domain to Bield's address can't talk to Bield as
-//     the browser's device.
+//   - The Host header must be one of the names of Bield's node, or the host
+//     of the Public URL an admin set, so a page that rebinds its own domain
+//     to Bield's address can't talk to Bield as the browser's device.
 //   - Requests that change things need CSRFHeader.
 //   - WebSockets must come from a page on Bield, since browsers let any page
 //     open one.
@@ -75,14 +75,15 @@ func (h *handler) guard(next http.Handler) http.Handler {
 			return
 		}
 		self := snap.Status.Self
-		if !h.opts.Demo && !ownHost(self, r.Host) {
+		public := h.publicURL(r.Context())
+		if !h.opts.Demo && !ownHost(self, r.Host) && !publicHost(public, r.Host) {
 			h.deny(w, r, http.StatusMisdirectedRequest, "Bield only answers to its own name on the tailnet")
 			return
 		}
 		switch {
 		case isWebSocket(r):
 			// Browsers can't add headers to a WebSocket, but they do send Origin.
-			if !sameOrigin(r) {
+			if !sameOrigin(r) && !publicOrigin(public, r.Header.Get("Origin")) {
 				h.deny(w, r, http.StatusForbidden, "WebSockets must come from Bield's own pages")
 				return
 			}
@@ -174,6 +175,56 @@ func ownHost(self tailnet.Device, hostport string) bool {
 	}
 	short, _, _ := strings.Cut(self.DNSName, ".")
 	return strings.EqualFold(host, self.DNSName) || strings.EqualFold(host, short)
+}
+
+// publicURL returns the Public URL that admins set in the settings, or nil if
+// they haven't. It's the address that a proxy, or a name of their own for
+// Bield's address, serves Bield at, so it names Bield too.
+func (h *handler) publicURL(ctx context.Context) *url.URL {
+	s := h.opts.Settings.Get(ctx).General.PublicURL
+	if s == "" {
+		return nil
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return nil
+	}
+	return u
+}
+
+// canonicalHost writes hostport so that two spellings of one address are
+// equal: in lower case, without a trailing dot or brackets, and without the
+// port that scheme uses anyway.
+func canonicalHost(scheme, hostport string) string {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		host, port = hostport, ""
+	}
+	host = strings.ToLower(strings.Trim(strings.TrimSuffix(host, "."), "[]"))
+	if port == "" || port == map[string]string{"http": "80", "https": "443"}[scheme] {
+		return host
+	}
+	return net.JoinHostPort(host, port)
+}
+
+// publicHost reports whether hostport is the host, and the port, of the Public
+// URL. It takes no other name, so a page that rebinds its own domain to
+// Bield's address still gets a 421.
+func publicHost(public *url.URL, hostport string) bool {
+	return public != nil && hostport != "" &&
+		canonicalHost(public.Scheme, hostport) == canonicalHost(public.Scheme, public.Host)
+}
+
+// publicOrigin reports whether origin is the Public URL's origin: the page a
+// proxy serves, which browsers say it is even if the proxy hands Bield its
+// own name as the Host.
+func publicOrigin(public *url.URL, origin string) bool {
+	if public == nil {
+		return false
+	}
+	o, err := url.Parse(origin)
+	return err == nil && o.User == nil && o.Path == "" && o.Scheme == public.Scheme &&
+		canonicalHost(o.Scheme, o.Host) == canonicalHost(public.Scheme, public.Host)
 }
 
 func safeMethod(method string) bool {

@@ -732,6 +732,75 @@ func TestTerminal_shutdown(t *testing.T) {
 	})
 }
 
+// A shell outlives the request that guard checked, so a terminal closes when
+// its admin stops being one.
+func TestTerminal_roleChange(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		st := openStore(t)
+		e := newSSHEnv(t, st, nil)
+		e.setUp(t)
+		c, err := dialTerminal(t, e, laptopIP, "", bieldOrigin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		c.message(t)
+
+		// Alice stays signed in, but she's a viewer now. Bob is the admin left.
+		for _, change := range []struct {
+			login string
+			role  store.Role
+		}{{bob, store.Admin}, {alice, store.Viewer}} {
+			if _, err := st.SetRole(t.Context(), change.login, change.role); err != nil {
+				t.Fatal(err)
+			}
+		}
+		time.Sleep(api.RoleCheckInterval)
+		synctest.Wait()
+		select {
+		case _, ok := <-c.frames:
+			if ok {
+				t.Fatal("got a frame, want the terminal to close")
+			}
+			if c.closed != websocket.StatusPolicyViolation {
+				t.Errorf("closed with %v after alice lost her admin role, want a policy violation", c.closed)
+			}
+		default:
+			t.Error("the terminal stayed open after alice lost her admin role")
+		}
+	})
+}
+
+// A role the store can't look up isn't a role taken away, so the terminal
+// stays open.
+func TestTerminal_roleLookupFails(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		st := openStore(t)
+		e := newSSHEnv(t, st, nil)
+		e.setUp(t)
+		c, err := dialTerminal(t, e, laptopIP, "", bieldOrigin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		synctest.Wait()
+		c.message(t)
+
+		if err := st.Close(); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(api.RoleCheckInterval)
+		synctest.Wait()
+		select {
+		case _, ok := <-c.frames:
+			if !ok {
+				t.Fatalf("closed with %v when the store couldn't say what alice's role is", c.closed)
+			}
+		default:
+		}
+		_ = c.conn.Close(websocket.StatusNormalClosure, "")
+	})
+}
+
 func TestTerminal_pings(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		e := newSSHEnv(t, openStore(t), nil)

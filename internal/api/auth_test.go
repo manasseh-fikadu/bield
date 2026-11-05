@@ -194,6 +194,89 @@ func TestGuard_host(t *testing.T) {
 	}
 }
 
+// The Public URL is a name that admins gave Bield, so it passes the Host and
+// Origin checks, and nothing else near it does.
+func TestGuard_publicURL(t *testing.T) {
+	t.Parallel()
+	h := api.New(withTailnet(t, testTailnet(), api.Options{}))
+	host := func(host string) int {
+		req := newRequest(t, http.MethodGet, "/api/me", laptopIP)
+		req.Host = host
+		return serve(h, req).Code
+	}
+	socket := func(host, origin string) int {
+		req := newRequest(t, http.MethodGet, "/api/nope", laptopIP)
+		req.Host = host
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Upgrade", "websocket")
+		req.Header.Set("Origin", origin)
+		return serve(h, req).Code
+	}
+
+	// Without one, the name is as foreign as any.
+	if got := host("bield.example.com"); got != http.StatusMisdirectedRequest {
+		t.Errorf("Host bield.example.com with no Public URL = %d, want 421", got)
+	}
+	if got := socket(bieldHost, "https://bield.example.com"); got != http.StatusForbidden {
+		t.Errorf("WebSocket from https://bield.example.com with no Public URL = %d, want 403", got)
+	}
+
+	patchSettings(t, h, `{"general": {"name": "Bield", "publicUrl": "https://bield.example.com:8443"}}`)
+	for name, want := range map[string]int{
+		"bield.example.com:8443":    http.StatusOK,
+		"BIELD.Example.com:8443":    http.StatusOK,
+		"bield.example.com:8443.":   http.StatusMisdirectedRequest,
+		"bield.example.com":         http.StatusMisdirectedRequest, // another port
+		"bield.example.com:443":     http.StatusMisdirectedRequest,
+		"evil.example.com:8443":     http.StatusMisdirectedRequest,
+		"bield.example.com.evil:80": http.StatusMisdirectedRequest,
+		bieldHost:                   http.StatusOK, // Bield's own name still works
+		"attacker.example":          http.StatusMisdirectedRequest,
+		"":                          http.StatusMisdirectedRequest,
+	} {
+		if got := host(name); got != want {
+			t.Errorf("Host %q with the Public URL set = %d, want %d", name, got, want)
+		}
+	}
+	for _, tc := range []struct {
+		host, origin string
+		allowed      bool
+	}{
+		{"bield.example.com:8443", "https://bield.example.com:8443", true},
+		{bieldHost, "https://bield.example.com:8443", true}, // a proxy that hands Bield its own name
+		{bieldHost, "http://" + bieldHost, true},
+		{bieldHost, "http://bield.example.com:8443", false},            // not the Public URL's scheme
+		{"bield.example.com:8443", "https://bield.example.com", false}, // another port
+		{bieldHost, "https://evil.example.com:8443", false},
+		{bieldHost, "https://bield.example.com:8443/x", false},
+		{bieldHost, "https://user@bield.example.com:8443", false},
+		{bieldHost, "null", false},
+		{bieldHost, "", false},
+	} {
+		if got := socket(tc.host, tc.origin) != http.StatusForbidden; got != tc.allowed {
+			t.Errorf("WebSocket to Host %q from Origin %q: allowed = %v, want %v", tc.host, tc.origin, got, tc.allowed)
+		}
+	}
+
+	// Port 443 is the one https uses anyway.
+	patchSettings(t, h, `{"general": {"name": "Bield", "publicUrl": "https://bield.example.com"}}`)
+	for name, want := range map[string]int{
+		"bield.example.com":      http.StatusOK,
+		"bield.example.com:443":  http.StatusOK,
+		"bield.example.com:8443": http.StatusMisdirectedRequest,
+	} {
+		if got := host(name); got != want {
+			t.Errorf("Host %q with an https Public URL = %d, want %d", name, got, want)
+		}
+	}
+
+	// Clearing it takes the name away again.
+	patchSettings(t, h, `{"general": {"name": "Bield", "publicUrl": ""}}`)
+	if got := host("bield.example.com"); got != http.StatusMisdirectedRequest {
+		t.Errorf("Host bield.example.com after clearing the Public URL = %d, want 421", got)
+	}
+}
+
 func TestGuard_csrf(t *testing.T) {
 	t.Parallel()
 	h := api.New(withTailnet(t, testTailnet(), api.Options{}))

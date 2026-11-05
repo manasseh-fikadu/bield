@@ -63,7 +63,8 @@ func (h *handler) terminal(w http.ResponseWriter, r *http.Request) {
 	if err := writeMessage(ctx, conn, TerminalMessage{Type: TerminalMessageTypeReady, Session: opts.Session}); err != nil {
 		return
 	}
-	bridge(ctx, conn, term, h.opts.Stopping)
+	c := callerOf(r)
+	bridge(ctx, conn, term, h.opts.Stopping, func(ctx context.Context) bool { return h.callerRoleChanged(ctx, c) })
 }
 
 // terminalError says why a terminal couldn't open, for the browser.
@@ -90,8 +91,11 @@ func writeMessage(ctx context.Context, conn *websocket.Conn, m TerminalMessage) 
 // bridge copies term's output to conn as binary frames, and conn's input,
 // resizes and acks to term. When the shell exits, it sends its exit status
 // and closes conn. It returns then, or when conn closes, or when stopping
-// is closed, which closes conn too.
-func bridge(ctx context.Context, conn *websocket.Conn, term *ssh.Terminal, stopping <-chan struct{}) {
+// is closed, which closes conn too. Every roleCheckInterval, it asks
+// roleChanged whether the caller still has the role they opened the terminal
+// with, and closes conn if they don't, since a shell outlives the request
+// that guard checked.
+func bridge(ctx context.Context, conn *websocket.Conn, term *ssh.Terminal, stopping <-chan struct{}, roleChanged func(context.Context) bool) {
 	ctx, cancel := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -126,6 +130,8 @@ func bridge(ctx context.Context, conn *websocket.Conn, term *ssh.Terminal, stopp
 	wg.Go(func() {
 		t := time.NewTicker(terminalPing)
 		defer t.Stop()
+		roles := time.NewTicker(roleCheckInterval)
+		defer roles.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -133,6 +139,14 @@ func bridge(ctx context.Context, conn *websocket.Conn, term *ssh.Terminal, stopp
 			case <-stopping:
 				_ = conn.Close(websocket.StatusGoingAway, "Bield is shutting down")
 				return
+			case <-roles.C:
+				// If the store can't say, the terminal stays open, and the
+				// next check asks again.
+				if roleChanged(ctx) {
+					_ = conn.Close(websocket.StatusPolicyViolation, "Your role changed")
+					return
+				}
+				continue
 			case <-t.C:
 			}
 			pctx, done := context.WithTimeout(ctx, terminalPing)

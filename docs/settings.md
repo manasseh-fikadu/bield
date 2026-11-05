@@ -9,7 +9,7 @@ Environment variables and flags are a separate thing. They set up how Bield star
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Name | `Bield` | What this Bield is called. It's in the sidebar and in the title of every page, and notification messages say it. Up to 40 characters on one line, with no space at either end. |
-| Public URL | empty | The address that people and agents reach Bield at, if it differs from Bield's own address on the tailnet, such as a name from a proxy. Bield writes it into the agent's install command and into the links in notifications. Empty means Bield's own address on the tailnet. It takes a scheme, a host and maybe a port, such as `https://bield.example.ts.net`, and no path. |
+| Public URL | empty | The address that people and agents reach Bield at, if it differs from Bield's own address on the tailnet, such as a name of your own that points at it. Bield answers to that host as well as to its own names, and writes it into the agent's install command and into the links in notifications. It doesn't change who a caller is: that still comes from the tailnet connection. Empty means Bield's own address on the tailnet. It takes a scheme, a host and maybe a port, such as `https://bield.example.ts.net`, and no path. |
 
 The **First-run setup** card on this tab reopens [the setup](pages.md#first-run-setup).
 

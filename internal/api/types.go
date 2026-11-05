@@ -1898,8 +1898,10 @@ type DockerContainerRow struct {
 	ExitCode *int `json:"exitCode,omitempty"`
 	// OOMKilled reports whether it was killed for using too much memory.
 	OOMKilled bool `json:"oomKilled,omitempty"`
-	// Error is Docker's error from starting it, if it had one.
-	Error         string `json:"error,omitempty"`
+	// Error is Docker's error from starting it, if it had one. It can hold
+	// the command it tried to run, and paths on the machine, so only admins
+	// get it.
+	Error         string `json:"error,omitempty" bield:"secret"`
 	RestartPolicy string `json:"restartPolicy,omitempty"`
 	// Project and Service are its Docker Compose project and service, if
 	// it has them.
@@ -1989,8 +1991,10 @@ type DockerState struct {
 	// Pid is its main process's ID on the machine, if it runs.
 	Pid int `json:"pid,omitempty"`
 	// ExitCode is how it last exited, if it isn't running.
-	ExitCode   *int       `json:"exitCode,omitempty"`
-	Error      string     `json:"error,omitempty"`
+	ExitCode *int `json:"exitCode,omitempty"`
+	// Error is Docker's error from starting it, if it had one. Only admins
+	// get it, as with DockerContainerRow.Error.
+	Error      string     `json:"error,omitempty" bield:"secret"`
 	StartedAt  *time.Time `json:"startedAt,omitempty"`
 	FinishedAt *time.Time `json:"finishedAt,omitempty"`
 }
