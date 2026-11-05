@@ -4,7 +4,7 @@
 # Works on macOS (bash 3.2) and Linux. Needs only curl and standard system tools.
 set -u
 
-AGENT_VERSION="1.3.0"
+AGENT_VERSION="1.3.1"
 CONF="${BIELD_AGENT_CONF:-$HOME/.config/bield-agent/env}"
 # shellcheck disable=SC1090
 [ -f "$CONF" ] && . "$CONF"
@@ -23,6 +23,9 @@ json_str() {
   s=${s//$'\n'/ }
   s=${s//$'\r'/}
   s=${s//$'\t'/ }
+  # JSON has no room for any other control character in a string, and a
+  # hostname with one would make every heartbeat a 400.
+  s=${s//[[:cntrl:]]/ }
   printf '"%s"' "$s"
 }
 
