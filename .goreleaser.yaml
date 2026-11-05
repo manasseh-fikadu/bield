@@ -82,30 +82,29 @@ changelog:
 release:
   # A tag like v0.1.0-rc.1 is a pre-release.
   prerelease: auto
-  # Written by hand for v0.1.0, and above the generated changelog. Rewrite the
+  # Written by hand for v0.1.1, and above the generated changelog. Rewrite the
   # lists for the next release, since they say what was run for this one.
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This is the first release. It hasn't had an outside review, and it can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
+    This release fixes what an outside review of v0.1.0 found:
+
+    - An open terminal closes within 10 seconds of its admin losing the role. It used to stay open until the tab closed.
+    - Saving in the file editor can't empty the file when the save fails. The editor has the whole text before it touches the file.
+    - Viewers no longer see Docker's error from starting a container, which can quote its command and paths on the machine.
+    - The agent (1.3.1) copes with a hostname that has a control character in it. Before, Bield refused every heartbeat from that machine. Update the agent from its page in Bield.
+    - The Public URL setting counts as one of Bield's own names, so agent install commands and terminals work through it.
+
+    Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - `install.sh`, as `curl | sudo bash`, on clean virtual machines: Ubuntu 24.04 (amd64 and arm64), Ubuntu 25.10, Debian 12 and Fedora 43 (arm64). Each reached the Tailscale login link. On Ubuntu 24.04 it was also given an auth key: 13 seconds to install, then Bield joined a real tailnet, served HTTPS there, and made the key's owner its admin.
-    - Host mode on Ubuntu 24.04 with a real Tailscale, with `BIELD_TAILSCALE=host` and `tailscale set --operator=bield`: it listened on the machine's tailnet IPs and served HTTPS.
-    - The Docker image on arm64: `compose.yaml` with an auth key (healthy in 8 seconds, joined the tailnet), and `serve --demo`.
-    - The macOS arm64 archive, with `serve --demo`. The agent on a Mac, from the hub's install command to a running LaunchAgent that reported live metrics, and its removal.
-    - The systemd service with its sandbox in effect (`ProtectSystem=strict`, `NoNewPrivileges` and the rest), on Debian 12 in a privileged container: it starts, writes its database and serves the setup page.
-    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo.
+    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo. Each fix has a test that fails without it.
 
     ### What has not been run
 
-    - Logging in with the setup page's link or QR code. The tests used auth keys.
-    - Headscale against a real server.
-    - The terminal, files and Docker pages against a real machine over SSH, and so anything past the login under the service's sandbox.
-    - Bield on a Raspberry Pi or other arm64 hardware. The arm64 runs were virtual machines on Apple silicon.
-    - Fedora with SELinux enforcing.
-    - Upgrading from an earlier release.
+    - Upgrading from v0.1.0 to this release.
+    - What the [v0.1.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.1.0) list under "What has not been run". Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |
