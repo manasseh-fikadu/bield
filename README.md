@@ -100,7 +100,7 @@ Bield logs in to your machines, so whoever controls Bield controls them. These a
 - **It keeps a log.** Terminals opened, files changed, containers restarted, settings and roles changed: each is a line in the activity log.
 - **What it holds is sensitive.** The database has notification tokens, unencrypted, and Bield's data directory has its SSH key. Both are readable only by Bield's user. Keep the machine as you would a bastion host.
 
-Bield hasn't had an outside review yet. [SECURITY.md](SECURITY.md) has the full threat model and says how to report a problem privately.
+Bield has had an outside review, and v0.1.1 fixes what it found. It's a young project, and more people trying to break it is welcome. [SECURITY.md](SECURITY.md) has the full threat model and says how to report a problem privately.
 
 ## Documentation
 

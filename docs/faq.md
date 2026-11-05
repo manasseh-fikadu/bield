@@ -18,9 +18,9 @@ Each of these does its own job well, and some do it better than Bield. Bield's j
 
 ### Is v0.1 ready for production?
 
-Not yet, for anything you can't afford to get wrong. v0.1.0 is the first release, and it hasn't had an outside security review. It can open a shell on every machine you give it SSH access to, so a bug in Bield can be a bug on all of them. [SECURITY.md](../SECURITY.md) has the threat model.
+Not yet, for anything you can't afford to get wrong. v0.1 is the first release line. It has had an outside security review, and v0.1.1 fixes what that found, but it's young. It can open a shell on every machine you give it SSH access to, so a bug in Bield can be a bug on all of them. [SECURITY.md](../SECURITY.md) has the threat model.
 
-The [release notes](https://github.com/manasseh-fikadu/bield/releases) say what was run on real machines and what wasn't. The API can change in any release ([Is there an API?](#is-there-an-api)). For a homelab or a few machines you can recover, it's reasonable to try it today. Run it next to your existing monitoring, not instead of it, and take a backup before each upgrade ([Upgrading, backups and rolling back](upgrading.md)). For a tailnet that holds production servers, wait for an outside review, or read the code you're trusting first.
+The [release notes](https://github.com/manasseh-fikadu/bield/releases) say what was run on real machines and what wasn't. The API can change in any release ([Is there an API?](#is-there-an-api)). For a homelab or a few machines you can recover, it's reasonable to try it today. Run it next to your existing monitoring, not instead of it, and take a backup before each upgrade ([Upgrading, backups and rolling back](upgrading.md)). For a tailnet that holds production servers, wait until more people have tried to break it, or read the code you're trusting first.
 
 ### What's the license, and can I use it at work?
 
