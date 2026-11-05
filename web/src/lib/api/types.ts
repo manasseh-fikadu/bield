@@ -2722,7 +2722,9 @@ export interface DockerContainerRow {
    */
   oomKilled?: boolean;
   /**
-   * Error is Docker's error from starting it, if it had one.
+   * Error is Docker's error from starting it, if it had one. It can hold
+   * the command it tried to run, and paths on the machine, so only admins
+   * get it.
    */
   error?: string;
   restartPolicy?: string;
@@ -2845,6 +2847,10 @@ export interface DockerState {
    * ExitCode is how it last exited, if it isn't running.
    */
   exitCode?: number /* int */;
+  /**
+   * Error is Docker's error from starting it, if it had one. Only admins
+   * get it, as with DockerContainerRow.Error.
+   */
   error?: string;
   startedAt?: string /* RFC 3339 */;
   finishedAt?: string /* RFC 3339 */;

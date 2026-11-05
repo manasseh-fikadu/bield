@@ -16,6 +16,9 @@ const (
 	backupID = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	// webImage is web's image.
 	webImage = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	// backupError is what Docker says about why backup stopped. It holds the
+	// command it tried to run, which can have a secret in it.
+	backupError = `failed to create task: exec: "/opt/backup.sh --token=s3cret-flag": permission denied`
 )
 
 // engine is a fake Docker Engine with two containers: web, which runs in a
@@ -182,7 +185,7 @@ func (e *engine) container(w http.ResponseWriter, r *http.Request, id, rest stri
 		if rest == "json" {
 			reply(w, map[string]any{
 				"Id": backupID, "Name": "/backup", "Created": "2027-01-01T00:00:00Z", "Image": "sha256:2222",
-				"State":      map[string]any{"Status": "exited", "ExitCode": 1, "OOMKilled": true, "StartedAt": "2027-01-01T00:00:01Z", "FinishedAt": "2027-01-01T00:05:00Z"},
+				"State":      map[string]any{"Status": "exited", "ExitCode": 1, "OOMKilled": true, "StartedAt": "2027-01-01T00:00:01Z", "FinishedAt": "2027-01-01T00:05:00Z", "Error": backupError},
 				"Config":     map[string]any{"Image": "restic", "Env": []string{"RESTIC_PASSWORD=hunter-two"}},
 				"HostConfig": map[string]any{"RestartPolicy": map[string]any{"Name": "no"}},
 			})
