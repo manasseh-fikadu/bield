@@ -1,6 +1,7 @@
 package files
 
 import (
+	"bytes"
 	"cmp"
 	"compress/gzip"
 	"context"
@@ -433,8 +434,16 @@ func (r *Remote) WriteText(body io.Reader, length int64, p string, create bool, 
 			return Entry{}, errorf(http.StatusConflict, "%s changed on disk since you opened it", name)
 		}
 	}
-	body = &cappedReader{r: body, left: MaxText}
-	_, _, err = r.writeAtomically(target, body, st, ConflictFail)
+	// Read all of the body before touching the file. A write that fails can
+	// have taken some or all of the body already, and the in-place write
+	// below empties the file before it writes, so it would save nothing, or
+	// only the end, and say it worked.
+	track := &readTracker{r: &cappedReader{r: body, left: MaxText}}
+	text, err := io.ReadAll(track)
+	if err != nil {
+		return Entry{}, bodyError(track, err, target)
+	}
+	_, _, err = r.writeAtomically(target, bytes.NewReader(text), st, ConflictFail)
 	var e *Error
 	// No write access to the folder, say for a config file in a root-owned
 	// one: write in place instead.
@@ -443,13 +452,12 @@ func (r *Remote) WriteText(body io.Reader, length int64, p string, create bool, 
 		if openErr != nil {
 			return Entry{}, fsError(openErr, target)
 		}
-		track := &readTracker{r: body}
-		_, err = f.ReadFromWithConcurrency(track, writeWith)
+		_, err = f.ReadFromWithConcurrency(bytes.NewReader(text), writeWith)
 		if closeErr := f.Close(); err == nil {
 			err = closeErr
 		}
 		if err != nil {
-			return Entry{}, bodyError(track, err, target)
+			return Entry{}, fsError(err, target)
 		}
 	} else if err != nil {
 		return Entry{}, err

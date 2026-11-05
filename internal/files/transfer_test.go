@@ -224,6 +224,44 @@ func TestRemote_WriteText_readOnlyFolder(t *testing.T) {
 	}
 }
 
+// A save whose body breaks off leaves the file as it was, whether the folder
+// lets Bield replace it or only write in place. The in-place write empties
+// the file first, so it must have the whole body before it starts.
+func TestRemote_WriteText_bodyBreaks(t *testing.T) {
+	t.Parallel()
+	for _, readOnly := range []bool{false, true} {
+		t.Run("readOnly="+strconv.FormatBool(readOnly), func(t *testing.T) {
+			t.Parallel()
+			if readOnly && os.Getuid() == 0 {
+				t.Skip("root writes anywhere")
+			}
+			m := newMachine(t, "")
+			r := m.open(t)
+			p := m.write(t, "etc/app.conf", "old")
+			if readOnly {
+				//nolint:gosec // G302: a folder has to be searchable.
+				if err := os.Chmod(filepath.Dir(p), 0o500); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = os.Chmod(filepath.Dir(p), 0o700) }) //nolint:gosec // G302: see above.
+			}
+			body := io.MultiReader(strings.NewReader("new, but not all"), iotest.ErrReader(errors.New("connection reset")))
+			if _, err := r.WriteText(body, -1, p, false, time.Time{}); err == nil {
+				t.Error("WriteText of a body that broke off said it saved")
+			}
+			if b, _ := os.ReadFile(filepath.Clean(p)); string(b) != "old" {
+				t.Errorf("file = %q, want old, untouched", b)
+			}
+			entries, _ := os.ReadDir(filepath.Dir(p))
+			for _, e := range entries {
+				if strings.HasSuffix(e.Name(), ".part") {
+					t.Errorf("%q was left behind", e.Name())
+				}
+			}
+		})
+	}
+}
+
 func serve(t *testing.T, r *files.Remote, method, p string, header map[string]string, download bool) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(t.Context(), method, "/raw", nil)
