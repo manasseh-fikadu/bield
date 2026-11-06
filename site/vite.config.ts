@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
+import { latestReleases, renderReleases } from './scripts/changelog';
 
 /**
  * Puts the mockups into the page, where it says <!-- @mock name -->. They're long and generated
@@ -23,6 +24,40 @@ function mockups(): Plugin {
 				server.ws.send({ type: 'full-reload' });
 				return [];
 			}
+		}
+	};
+}
+
+/** The repository, which a release's notes are linked from. */
+const repo = 'manasseh-fikadu/bield';
+
+/** How many releases the landing page lists. The rest are in the file and on GitHub. */
+const releasesShown = 3;
+
+/**
+ * Puts the latest releases into the page, where it says <!-- @changelog -->. They come from
+ * CHANGELOG.md, so a release is written down once. A changelog that can't be read fails the build,
+ * and not the page that's already out.
+ */
+function changelog(): Plugin {
+	const file = resolve(import.meta.dirname, '../CHANGELOG.md');
+	return {
+		name: 'bield-changelog',
+		transformIndexHtml: {
+			order: 'pre',
+			handler: (html) =>
+				html.replace('<!-- @changelog -->', () =>
+					renderReleases(latestReleases(readFileSync(file, 'utf8'), releasesShown), repo)
+				)
+		},
+		configureServer(server) {
+			// It's outside the folder that Vite watches.
+			server.watcher.add(file);
+			server.watcher.on('change', (changed) => {
+				if (changed === file) {
+					server.ws.send({ type: 'full-reload' });
+				}
+			});
 		}
 	};
 }
@@ -68,7 +103,7 @@ function site(): Plugin {
 // A static page, with relative links so it works from any path, such as on GitHub Pages.
 export default defineConfig({
 	base: './',
-	plugins: [tailwindcss(), mockups(), demoPages(), site()],
+	plugins: [tailwindcss(), mockups(), changelog(), demoPages(), site()],
 	build: { outDir: 'build' },
 	server: {
 		host: '127.0.0.1',
