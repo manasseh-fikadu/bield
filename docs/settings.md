@@ -70,6 +70,7 @@ Bield deletes history older than these limits within the hour. Shortening one as
 | Activity log | 30 days | 365 | Events, and resolved alerts with their notes. |
 | Device history | 7 days | 90 | What devices used, and the round-trip times to them. |
 | Check results | 7 days | 90 | Each result of every check, and the health score. |
+| Coding tools' usage | 365 days | 1095 | What [coding tools](coding.md) used, by the hour, and their sessions. |
 
 Device history keeps the last 48 hours as measured and averages of 5 minutes and of an hour for the rest. The per-process breakdown (what used a machine's CPU) and what each container used are kept for 7 days at most, whatever you set. [Benchmarks](benchmark.md) says what 90 days costs.
 
