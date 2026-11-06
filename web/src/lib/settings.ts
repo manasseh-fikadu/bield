@@ -69,6 +69,12 @@ export const retention: {
 		label: 'Check results',
 		description: 'Each result of every check, and the health score.',
 		max: 90
+	},
+	{
+		key: 'codingDays',
+		label: "Coding tools' usage",
+		description: 'The tokens and cost of coding sessions, by the hour, and the sessions.',
+		max: 1095
 	}
 ];
 
