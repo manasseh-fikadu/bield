@@ -88,6 +88,7 @@ func (b ChangeSettings) apply(s *settings.Settings) error {
 		set(&s.Retention.ActivityDays, r.ActivityDays)
 		set(&s.Retention.HistoryDays, r.HistoryDays)
 		set(&s.Retention.ChecksDays, r.ChecksDays)
+		set(&s.Retention.CodingDays, r.CodingDays)
 	}
 	if n := b.Notifications; n != nil {
 		set(&s.Notifications.RemindHours, n.RemindHours)

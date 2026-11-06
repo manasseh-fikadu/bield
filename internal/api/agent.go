@@ -34,7 +34,9 @@ func (h *handler) heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if historyID == store.HubID && h.opts.Feed.measuresHub() {
-		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: measuresItself})
+		// The agent still has to know whether to report its coding tools,
+		// which Bield can't measure itself.
+		h.writeJSON(w, r, http.StatusConflict, agentRefusal{Error: measuresItself, Coding: &codingFlag{Enabled: h.codingEnabled(r, historyID)}})
 		return
 	}
 
@@ -69,6 +71,10 @@ func (h *handler) heartbeat(w http.ResponseWriter, r *http.Request) {
 		h.opts.Usage.Record(r.Context(), historyID, s)
 	}
 	h.log.Debug("took a heartbeat", "device", d.ID)
+	if h.codingEnabled(r, historyID) {
+		h.writeJSON(w, r, http.StatusOK, heartbeatReply{Coding: codingFlag{Enabled: true}})
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

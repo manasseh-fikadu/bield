@@ -22,21 +22,29 @@ type Retention struct {
 	// Checks is how long it keeps the results of checks, and the health
 	// score.
 	Checks time.Duration
+	// Coding is how long it keeps what coding tools used (#73), by the hour.
+	Coding time.Duration
 }
 
 // DefaultRetention returns how long the store keeps history unless an admin
 // says otherwise.
 func DefaultRetention() Retention {
-	return Retention{Activity: 30 * 24 * time.Hour, History: 7 * 24 * time.Hour, Checks: 7 * 24 * time.Hour}
+	return Retention{
+		Activity: 30 * 24 * time.Hour, History: 7 * 24 * time.Hour, Checks: 7 * 24 * time.Hour,
+		Coding: 365 * 24 * time.Hour,
+	}
 }
 
 // valid reports whether every span is above zero, which a bug or a bad
 // setting could leave out, and which would delete everything.
-func (r Retention) valid() bool { return r.Activity > 0 && r.History > 0 && r.Checks > 0 }
+func (r Retention) valid() bool {
+	return r.Activity > 0 && r.History > 0 && r.Checks > 0 && r.Coding > 0
+}
 
 func activity(r Retention) time.Duration { return r.Activity }
 func history(r Retention) time.Duration  { return r.History }
 func checks(r Retention) time.Duration   { return r.Checks }
+func coding(r Retention) time.Duration   { return r.Coding }
 
 // raw, fine and detail are how long History lets the raw samples, the buckets
 // of FineStep and the history that isn't summed up last.
@@ -84,6 +92,13 @@ var retention = []struct {
 	{"health", checks, "DELETE FROM health WHERE ts < ?", nil},
 	// A resolved alert, and its notes, are kept like the activity log.
 	{"alerts", activity, "DELETE FROM alerts WHERE resolved_at < ?", nil},
+	// What coding tools used (#73) lasts as long as an admin chose. The latest
+	// limits and which tools could be read are one row each, and go a month
+	// after their device stops reporting.
+	{"coding_usage", coding, "DELETE FROM coding_usage WHERE hour < ?", nil},
+	{"coding_sessions", coding, "DELETE FROM coding_sessions WHERE last_at < ?", nil},
+	{"coding_limits", fixed(30 * 24 * time.Hour), "DELETE FROM coding_limits WHERE seen_at < ?", nil},
+	{"coding_tools", fixed(30 * 24 * time.Hour), "DELETE FROM coding_tools WHERE at < ?", nil},
 	// An enrollment code goes once it expires.
 	{"enrollment_codes", fixed(0), "DELETE FROM enrollment_codes WHERE expires_at < ?", nil},
 }

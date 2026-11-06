@@ -208,6 +208,9 @@ type RetentionSettings struct {
 	// ChecksDays is how long the results of checks, and the health score,
 	// last.
 	ChecksDays int `json:"checksDays"`
+	// CodingDays is how long what coding tools used, by the hour, and their
+	// sessions last.
+	CodingDays int `json:"codingDays"`
 }
 
 // NotificationSettings are when Bield sends notifications. Which alerts each
@@ -316,6 +319,7 @@ type ChangeRetention struct {
 	ActivityDays *int `json:"activityDays,omitempty"`
 	HistoryDays  *int `json:"historyDays,omitempty"`
 	ChecksDays   *int `json:"checksDays,omitempty"`
+	CodingDays   *int `json:"codingDays,omitempty"`
 }
 
 // ChangeNotifications changes NotificationSettings.
@@ -2340,4 +2344,172 @@ type ChannelConfigInput struct {
 	Token *string `json:"token,omitempty"`
 	// Password signs in to the mail server or the ntfy server.
 	Password *string `json:"password,omitempty"`
+}
+
+// CodingTokens counts the tokens that coding tools used. Input is only what
+// the cache didn't serve, and Output includes Reasoning. Total adds up the
+// first four.
+type CodingTokens struct {
+	Input      int64 `json:"input"`
+	CacheRead  int64 `json:"cacheRead"`
+	CacheWrite int64 `json:"cacheWrite"`
+	Output     int64 `json:"output"`
+	Reasoning  int64 `json:"reasoning"`
+	Total      int64 `json:"total"`
+}
+
+// CodingCost is dollars: what the same tokens would cost on the model
+// maker's API, or what a tool said it cost. Total adds up the kinds of token.
+type CodingCost struct {
+	Total      float64 `json:"total"`
+	Input      float64 `json:"input"`
+	CacheRead  float64 `json:"cacheRead"`
+	CacheWrite float64 `json:"cacheWrite"`
+	Output     float64 `json:"output"`
+}
+
+// CodingTotals is what some coding sessions used.
+type CodingTotals struct {
+	Cost     CodingCost   `json:"cost"`
+	Tokens   CodingTokens `json:"tokens"`
+	Sessions int          `json:"sessions"`
+	// Requests is how many requests the sessions made to a model.
+	Requests int64 `json:"requests"`
+	// CacheSavings is what the cache saved, in dollars: the cached tokens at
+	// the input rate, less what they cost at the cache rate.
+	CacheSavings float64 `json:"cacheSavings"`
+	// FastCost is the part of Cost that was billed at a model's fast tier,
+	// and SpeedPremium is how much more than the standard tier that was.
+	FastCost     float64 `json:"fastCost"`
+	SpeedPremium float64 `json:"speedPremium"`
+	// UnpricedTokens are the tokens of models that have no price, which
+	// count for nothing in Cost.
+	UnpricedTokens int64 `json:"unpricedTokens"`
+}
+
+// CodingTool is what one tool used, such as claude, codex, opencode or pi.
+type CodingTool struct {
+	Tool   string       `json:"tool"`
+	Totals CodingTotals `json:"totals"`
+}
+
+// CodingModel is what one model used in one tool.
+type CodingModel struct {
+	Tool     string       `json:"tool"`
+	Model    string       `json:"model"`
+	Cost     float64      `json:"cost"`
+	Tokens   CodingTokens `json:"tokens"`
+	Sessions int          `json:"sessions"`
+	// Priced is false if Bield has no price for the model and the tool gave
+	// none, so Cost is 0 and says nothing.
+	Priced bool `json:"priced"`
+}
+
+// CodingPoint is what a tool used in one hour or day. TS is its start, in
+// Unix milliseconds.
+type CodingPoint struct {
+	TS     int64   `json:"ts"`
+	Cost   float64 `json:"cost"`
+	Tokens int64   `json:"tokens"`
+}
+
+// CodingSeries is what a tool used over time, with a point for every hour or
+// day in the range, including the ones in which it used nothing.
+type CodingSeries struct {
+	Tool   string        `json:"tool"`
+	Points []CodingPoint `json:"points"`
+}
+
+// CodingDevice is what the coding tools on one device used, with whether
+// Bield watches them.
+type CodingDevice struct {
+	DeviceID string `json:"deviceId"`
+	// Enabled is whether an admin turned watching coding tools on for the
+	// device.
+	Enabled bool         `json:"enabled"`
+	Totals  CodingTotals `json:"totals"`
+}
+
+// CodingSession is a session of a coding tool in the range.
+type CodingSession struct {
+	DeviceID string `json:"deviceId"`
+	Tool     string `json:"tool"`
+	ID       string `json:"id"`
+	// Project is the name of the project's folder.
+	Project string    `json:"project" bield:"secret"`
+	First   time.Time `json:"first"`
+	Last    time.Time `json:"last"`
+	// Models are the models it used, the one that cost most first.
+	Models []string     `json:"models"`
+	Cost   float64      `json:"cost"`
+	Tokens CodingTokens `json:"tokens"`
+	// Active is whether it did anything in the last five minutes.
+	Active bool `json:"active"`
+}
+
+// CodingLimit is where one of a tool's limits stood when the tool last said.
+// Codex says how much of each window it has used. Claude Code only says when it
+// refused a request for being over a limit, so it has no Used.
+type CodingLimit struct {
+	DeviceID string `json:"deviceId"`
+	Tool     string `json:"tool"`
+	// ID says which limit it is, such as codex:primary or five_hour.
+	ID string `json:"id"`
+	// WindowMinutes is how long the limit's window is, or 0 if it isn't known.
+	WindowMinutes int `json:"windowMinutes"`
+	// Used is the percent of the limit used, if the tool says.
+	Used *float64 `json:"used,omitempty"`
+	// ResetsAt is when the window starts over, if the tool says.
+	ResetsAt *time.Time `json:"resetsAt,omitempty"`
+	// Status is ok, or rejected if the tool refused a request for being over.
+	Status string `json:"status"`
+	Plan   string `json:"plan"`
+	// Seen is when the tool wrote it down.
+	Seen time.Time `json:"seen"`
+	// Expired is whether the window has started over since, so what Used
+	// says is out of date until the tool says again.
+	Expired bool `json:"expired"`
+}
+
+// CodingSource says whether a device's agent could read a tool's files.
+type CodingSource struct {
+	DeviceID string `json:"deviceId"`
+	Tool     string `json:"tool"`
+	// Status is ok, unreadable, or needs-sqlite, for OpenCode on a machine
+	// that has neither the sqlite3 command nor Python.
+	Status string    `json:"status"`
+	At     time.Time `json:"at"`
+}
+
+// CodingSummary is the response to GET /api/coding?range=, for every device,
+// and to GET /api/devices/{id}/coding?range=, for one. The range is 24h, 7d,
+// 30d, 90d or 1y. tz says which time zone the days are in, such as
+// Europe/London, and is UTC if it's left out or unknown.
+type CodingSummary struct {
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+	// Step is hour for a range of 24h and day for a longer one.
+	Step     string `json:"step"`
+	Timezone string `json:"timezone"`
+	// Enabled is whether watching is on for the device. It's only meaningful
+	// for one device.
+	Enabled bool           `json:"enabled"`
+	Totals  CodingTotals   `json:"totals"`
+	Tools   []CodingTool   `json:"tools"`
+	Models  []CodingModel  `json:"models"`
+	Series  []CodingSeries `json:"series"`
+	// Devices is what each device used, for every device together.
+	Devices  []CodingDevice  `json:"devices"`
+	Sessions []CodingSession `json:"sessions"`
+	Limits   []CodingLimit   `json:"limits"`
+	Sources  []CodingSource  `json:"sources"`
+	// PricesAsOf is the day of the price list that Cost comes from.
+	PricesAsOf string `json:"pricesAsOf"`
+}
+
+// SetCoding is the body of PUT /api/devices/{id}/coding, which turns watching
+// the device's coding tools on or off, and the response to it. The device's
+// agent has to be at least version 1.4.0 to report them.
+type SetCoding struct {
+	Enabled bool `json:"enabled"`
 }

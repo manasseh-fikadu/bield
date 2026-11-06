@@ -19,6 +19,7 @@ import (
 	"github.com/manasseh-fikadu/bield/internal/docker"
 	"github.com/manasseh-fikadu/bield/internal/files"
 	"github.com/manasseh-fikadu/bield/internal/notify"
+	"github.com/manasseh-fikadu/bield/internal/pricing"
 	"github.com/manasseh-fikadu/bield/internal/settings"
 	"github.com/manasseh-fikadu/bield/internal/ssh"
 	"github.com/manasseh-fikadu/bield/internal/store"
@@ -62,6 +63,9 @@ type Options struct {
 	Docker *docker.Fleet
 	// Settings holds what admins changed in the settings. Required.
 	Settings *settings.Cache
+	// Prices says what the models that coding tools use cost, which the coding
+	// pages work dollars out from. Nil is the list that's built in.
+	Prices *pricing.Table
 	// Notify sends the notifications. Required.
 	Notify *notify.Dispatcher
 	// Systemd watches the units on Bield's machine. It's nil if Bield can't
@@ -107,6 +111,9 @@ func newHandler(opts Options) *handler {
 		opts.Settings == nil || opts.Notify == nil {
 		panic("api.New: Options.WhoIs, Snapshot, Feed, Store, Agents, Usage, Checks, Alerts, SSH, Docker, Settings and Notify are required")
 	}
+	if opts.Prices == nil {
+		opts.Prices = pricing.Default()
+	}
 	h := &handler{opts: opts, log: opts.Logger, limits: newLimits()}
 	if h.log == nil {
 		h.log = slog.New(slog.DiscardHandler)
@@ -133,6 +140,9 @@ func (h *handler) routes(rt *router) {
 	rt.read("GET /api/devices/{id}/usage", viewers, h.deviceUsage)
 	rt.read("GET /api/devices/{id}/usage/history", viewers, h.usageHistory)
 	rt.write("PUT /api/devices/{id}/settings", h.setDeviceSettings)
+	rt.read("GET /api/devices/{id}/coding", viewers, h.deviceCoding)
+	rt.write("PUT /api/devices/{id}/coding", h.setDeviceCoding)
+	rt.read("GET /api/coding", viewers, h.fleetCoding)
 	rt.write("DELETE /api/devices/{id}/agent", h.revokeAgent)
 	rt.write("POST /api/devices/{id}/agent/install", h.installAgent)
 	rt.write("POST /api/devices/{id}/agent/uninstall", h.uninstallAgent)
@@ -211,6 +221,7 @@ func (h *handler) routes(rt *router) {
 	rt.read("GET /api/agent/uninstall.sh", anyone, h.uninstallScript)
 	rt.enroll("POST /api/agent/enroll", h.enroll)
 	rt.agent("POST /api/agent/heartbeat", h.heartbeat)
+	rt.agent("POST /api/agent/sessions", h.codingSessions)
 	rt.agent("DELETE /api/agent/enrollment", h.unenroll)
 
 	rt.read("GET /api/settings", admins, h.settings)
