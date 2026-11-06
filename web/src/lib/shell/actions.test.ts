@@ -39,6 +39,10 @@ function snapshot(over: Partial<Snapshot> = {}): Snapshot {
 const ids = (s: Snapshot | null, admin: boolean) => paletteActions(s, admin).map((a) => a.id);
 
 describe('paletteActions', () => {
+	test('everyone can open the coding usage, once there is a snapshot', () => {
+		expect(ids(snapshot(), false)).toEqual(['shortcuts', 'coding']);
+	});
+
 	test('before the first snapshot there is only the shortcuts', () => {
 		expect(ids(null, true)).toEqual(['shortcuts']);
 	});
@@ -49,12 +53,12 @@ describe('paletteActions', () => {
 			containers: [container()],
 			checks: [{ id: 'k1', name: 'Home' } as Check]
 		});
-		expect(ids(s, false)).toEqual(['shortcuts', 'docker:d1']);
+		expect(ids(s, false)).toEqual(['shortcuts', 'docker:d1', 'coding']);
 	});
 
 	test('an admin can open a terminal and files on a machine with working SSH', () => {
 		const s = snapshot({ devices: [device()] });
-		expect(ids(s, true)).toEqual(['shortcuts', 'terminal:d1', 'files:d1', 'new-check']);
+		expect(ids(s, true)).toEqual(['shortcuts', 'coding', 'terminal:d1', 'files:d1', 'new-check']);
 	});
 
 	test('a demo has no terminals, files or container actions to offer', () => {
@@ -63,12 +67,12 @@ describe('paletteActions', () => {
 			devices: [device({ docker: true })],
 			containers: [container()]
 		});
-		expect(ids(s, true)).toEqual(['shortcuts', 'docker:d1', 'new-check']);
+		expect(ids(s, true)).toEqual(['shortcuts', 'docker:d1', 'coding', 'new-check']);
 	});
 
 	test('a machine without SSH access gets no terminal', () => {
 		const s = snapshot({ devices: [device({ ssh: { state: 'not-set-up' } })] });
-		expect(ids(s, true)).toEqual(['shortcuts', 'new-check']);
+		expect(ids(s, true)).toEqual(['shortcuts', 'coding', 'new-check']);
 	});
 
 	test.each([

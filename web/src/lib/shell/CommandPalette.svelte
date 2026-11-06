@@ -8,6 +8,7 @@
 	import { Command, Dialog, computeCommandScore } from 'bits-ui';
 	import Bell from '@lucide/svelte/icons/bell';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import Code from '@lucide/svelte/icons/code';
 	import Container from '@lucide/svelte/icons/container';
 	import CornerDownLeft from '@lucide/svelte/icons/corner-down-left';
 	import FolderOpen from '@lucide/svelte/icons/folder-open';
@@ -75,7 +76,8 @@
 		'run-check': Play,
 		'ack-alert': Bell,
 		'new-check': Plus,
-		shortcuts: Keyboard
+		shortcuts: Keyboard,
+		coding: Code
 	};
 	const containerIcons = { start: Play, stop: Square, restart: RotateCw };
 
@@ -126,6 +128,8 @@
 				return { ...base, icon: CircleCheck, href: '', run: () => void acknowledge(a.alertId) };
 			case 'new-check':
 				return { ...base, icon: actionIcons['new-check'], href: `${resolve('/checks')}?new` };
+			case 'coding':
+				return { ...base, icon: actionIcons.coding, href: resolve('/devices/coding') };
 			case 'shortcuts':
 				return { ...base, icon: actionIcons.shortcuts, href: '', run: () => onshortcuts?.() };
 		}

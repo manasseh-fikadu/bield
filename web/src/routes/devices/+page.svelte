@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Bot from '@lucide/svelte/icons/bot';
+	import Code from '@lucide/svelte/icons/code';
 	import Monitor from '@lucide/svelte/icons/monitor';
 	import { resolve } from '$app/paths';
 	import type { Status } from '#lib/api/types.js';
@@ -43,6 +44,9 @@
 		: 'Connecting to the hub…'}
 >
 	{#snippet actions()}
+		<a href={resolve('/devices/coding')} class={buttonClass()}>
+			<Code class="size-3.5" /> Coding
+		</a>
 		<a href={resolve('/devices/agents')} class={buttonClass()}>
 			<Bot class="size-3.5" /> Agents
 		</a>

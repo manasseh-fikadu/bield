@@ -24,9 +24,9 @@ func TestStore_retention(t *testing.T) {
 		want []string
 	}{
 		{"the defaults", store.Options{}, []string{"6d"}},
-		{"a day", store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: day, Checks: day})}, nil},
+		{"a day", store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: day, Checks: day, Coding: day})}, nil},
 		// What isn't summed up in buckets goes back a week at most.
-		{"a month", store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: 30 * day, Checks: day})}, []string{"6d"}},
+		{"a month", store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: 30 * day, Checks: day, Coding: day})}, []string{"6d"}},
 		{"a setting it can't read", store.Options{Retention: func(context.Context, *store.Store) (store.Retention, error) {
 			return store.Retention{}, errors.New("no")
 		}}, []string{"10d", "6d"}},

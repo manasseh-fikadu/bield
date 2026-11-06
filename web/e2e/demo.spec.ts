@@ -49,6 +49,7 @@ for (const [path, heading] of [
 	['/checks', 'Checks'],
 	['/docker', /^\d+ of \d+ running/],
 	['/activity', 'Activity'],
+	['/devices/coding', 'Coding usage'],
 	['/settings', 'Settings']
 ] as const) {
 	test(`${path} loads without errors`, async ({ page }) => {
@@ -87,6 +88,24 @@ test('a device page shows its numbers and what it can do', async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'NAS' }).first()).toBeVisible();
 	await expect(page.getByRole('main').getByRole('link', { name: 'Docker' }).first()).toBeVisible();
 	await expect(page.getByText(loadError)).toHaveCount(0);
+	expect(problems).toEqual([]);
+});
+
+test('the coding page adds up what the coding tools used, and a device has a card', async ({
+	page
+}) => {
+	const problems = await visit(page, '/devices/coding');
+
+	await expect(shown(page, /API estimate/)).toBeVisible();
+	await expect(shown(page, 'Claude Code')).toBeVisible();
+	await expect(shown(page, 'Codex')).toBeVisible();
+	await page.getByRole('tab', { name: 'Limits' }).click();
+	await expect(shown(page, /Codex · weekly limit/)).toBeVisible();
+	await expect(page.getByText(loadError)).toHaveCount(0);
+
+	await visit(page, '/devices');
+	await deviceLink(page, 'MacBook Pro').click();
+	await expect(page.getByRole('heading', { name: 'Coding tools' })).toBeVisible();
 	expect(problems).toEqual([]);
 });
 

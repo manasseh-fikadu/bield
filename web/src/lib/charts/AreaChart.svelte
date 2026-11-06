@@ -51,6 +51,8 @@
 		tooltip?: Snippet<[number]>;
 		/** Called with the time being pointed at, or null when it stops. */
 		onHover?: (ts: number | null) => void;
+		/** How the axis writes a time. It depends on how long the chart is if it's not given. */
+		tickFormat?: Intl.DateTimeFormatOptions;
 	}
 
 	let {
@@ -65,7 +67,8 @@
 		fill = true,
 		compact = false,
 		tooltip,
-		onHover
+		onHover,
+		tickFormat: tickFormatProp
 	}: Props = $props();
 
 	const pad = $derived(
@@ -118,7 +121,7 @@
 		const count = width > 500 ? 5 : 3;
 		return Array.from({ length: count }, (_, i) => t0 + ((t1 - t0) * i) / (count - 1));
 	});
-	const tickFormat = $derived(timeTickFormat(t1 - t0));
+	const tickFormat = $derived(tickFormatProp ?? timeTickFormat(t1 - t0));
 
 	function valueAt(s: ChartSeries, ts: number): number | null {
 		return s.points.find((p) => p.ts === ts)?.v ?? null;

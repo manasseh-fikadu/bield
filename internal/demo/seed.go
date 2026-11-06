@@ -46,6 +46,7 @@ func (d *Demo) Seed(ctx context.Context, st *store.Store, span time.Duration) er
 		{"pings", func() error { return d.seedPings(ctx, st, span) }},
 		{"container metrics", func() error { return d.seedContainers(ctx, st, span) }},
 		{"usage", func() error { return d.seedUsage(ctx, st, span) }},
+		{"coding tools", func() error { return d.seedCoding(ctx, st, span) }},
 		// Bield folds the last 48 hours into buckets now, so it needn't wait a
 		// few minutes to read the history from them.
 		{"buckets", func() error { return st.RollUp(ctx, time.Now()) }},
@@ -97,7 +98,10 @@ func (d *Demo) seedAccess(ctx context.Context, st *store.Store) error {
 	for i, m := range d.machines {
 		if m.agent {
 			at := d.start.Add(-time.Duration(3+i*7) * 24 * time.Hour)
-			code, _, err := st.NewEnrollmentCode(ctx, alex, at)
+			// The code is made now and used as of then. One made days ago has
+			// expired by the clock, and the store's first prune, which runs as it
+			// opens, can delete it before it's used.
+			code, _, err := st.NewEnrollmentCode(ctx, alex, time.Now())
 			if err != nil {
 				return err
 			}

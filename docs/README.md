@@ -18,6 +18,7 @@ Start with the [README](../README.md) for what Bield is and a two-minute quickst
 | --- | --- |
 | [A tour of Bield](pages.md) | What each page does |
 | [The agent](agent.md) | Per-machine metrics: what it sends, how to install, update, revoke and remove it |
+| [Coding sessions](coding.md) | Tokens, estimated cost and limits of Claude Code, Codex, OpenCode and Pi, per machine |
 | [SSH access, terminals and files](ssh.md) | Setting up Bield's key or Tailscale SSH, the terminal, the file manager |
 | [Notifications](notifications.md) | ntfy, Telegram, email, Discord, Slack and webhooks, and when they fire |
 | [Settings](settings.md) | Every setting on the Settings page, with defaults and limits |

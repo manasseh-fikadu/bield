@@ -26,7 +26,7 @@
 		<Tooltip.Content
 			{side}
 			sideOffset={6}
-			class="z-[70] rounded-md border border-line-strong bg-raised px-2 py-1 text-[12px] text-fg fade shadow-popover"
+			class="z-[70] max-w-72 rounded-md border border-line-strong bg-raised px-2 py-1 text-[12px] text-fg fade shadow-popover"
 		>
 			{content}
 		</Tooltip.Content>
