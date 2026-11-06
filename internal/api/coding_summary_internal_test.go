@@ -118,8 +118,8 @@ func TestSummarizeCoding_series(t *testing.T) {
 	for _, p := range claude.Points {
 		costs = append(costs, fmt.Sprintf("%.1f", p.Cost))
 	}
-	// 31 October to 6 November: nothing, 0.5 on the 1st, nothing, nothing,
-	// nothing, nothing, and 2.0 on the 6th.
+	// 31 October to 6 November: 0.5 on the 1st and 2.0 on the 6th, and
+	// no cost on the other days.
 	if want := []string{"0.0", "0.5", "0.0", "0.0", "0.0", "0.0", "2.0"}; fmt.Sprint(costs) != fmt.Sprint(want) {
 		t.Errorf("claude's cost by day = %v, want %v", costs, want)
 	}
