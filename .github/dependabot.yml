@@ -51,6 +51,11 @@ updates:
     groups:
       docs-site:
         update-types: [minor, patch]
+    # The docs site runs `astro check` in CI, which stops with "astro check does not
+    # currently support TypeScript 7.0". Take this out when Astro's checker does.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
