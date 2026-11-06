@@ -12,6 +12,7 @@ package pricing
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -64,7 +65,7 @@ func Parse(data []byte) (*Table, error) {
 		return nil, fmt.Errorf("read the price list: %w", err)
 	}
 	if len(t.Models) == 0 {
-		return nil, fmt.Errorf("read the price list: it has no models")
+		return nil, errors.New("read the price list: it has no models")
 	}
 	// Names are looked up in lower case.
 	lower := make(map[string]Rates, len(t.Models))
@@ -172,6 +173,13 @@ func (p *Price) Add(q Price) {
 // subscription, is the same as none.
 func (t *Table) Price(model, speed string, tk Tokens, reported float64) Price {
 	rates, ok := t.Lookup(model)
+	return PriceAt(rates, ok, speed, tk, reported)
+}
+
+// PriceAt is Price for a model whose rates have been looked up already, which
+// is cheaper for many rows of the same few models. ok is whether the model
+// has rates.
+func PriceAt(rates Rates, ok bool, speed string, tk Tokens, reported float64) Price {
 	if !ok {
 		if reported > 0 {
 			return Price{Total: reported, Source: Reported}

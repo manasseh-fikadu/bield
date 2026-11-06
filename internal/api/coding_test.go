@@ -1,9 +1,9 @@
 package api_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,7 +32,7 @@ func codingReport(now time.Time, tool, session, model, speed string) string {
 	 "limits":[{"tool":"codex","id":"codex:primary","window":10080,"used":18.5,"resets":` + itoa(now.Add(24*time.Hour).Unix()) + `,"status":"ok","plan":"plus","seen":"` + at + `"}]}`
 }
 
-func itoa(n int64) string { b, _ := json.Marshal(n); return string(b) }
+func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
 func codingHandler(t *testing.T) (http.Handler, *store.Store) {
 	t.Helper()

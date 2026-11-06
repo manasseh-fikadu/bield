@@ -87,9 +87,13 @@ type tally struct {
 	requests  int64
 	unpriced  int64
 	fastCost  float64
-	sessions  map[string]struct{}
+	sessions  map[sessionKey]struct{}
 	priced    bool
 }
+
+// sessionKey identifies a session, which a tool numbers on its own, on a
+// device.
+type sessionKey struct{ device, tool, id string }
 
 func (t *tally) add(u store.CodingUsage, tk pricing.Tokens, p pricing.Price) {
 	t.price.Add(p)
@@ -108,9 +112,9 @@ func (t *tally) add(u store.CodingUsage, tk pricing.Tokens, p pricing.Price) {
 		t.fastCost += p.Total
 	}
 	if t.sessions == nil {
-		t.sessions = map[string]struct{}{}
+		t.sessions = map[sessionKey]struct{}{}
 	}
-	t.sessions[u.DeviceID+"\x00"+u.Tool+"\x00"+u.Session] = struct{}{}
+	t.sessions[sessionKey{u.DeviceID, u.Tool, u.Session}] = struct{}{}
 }
 
 func tokenTotal(tk pricing.Tokens) int64 { return tk.Input + tk.CacheRead + tk.CacheWrite + tk.Output }
@@ -155,11 +159,22 @@ func summarizeCoding(in codingInput) CodingSummary {
 		byModel = map[modelKey]*tally{}
 		byDev   = map[string]*tally{}
 		series  = map[string]map[int64]*CodingPoint{}
-		bySess  = map[string]*sessionTally{}
+		bySess  = map[sessionKey]*sessionTally{}
 	)
+	// A few models make up thousands of rows, so each is looked up once.
+	type listed struct {
+		rates pricing.Rates
+		ok    bool
+	}
+	rates := map[string]listed{}
 	for _, u := range in.rows {
 		tk := pricing.Tokens{Input: u.Input, CacheRead: u.CacheRead, CacheWrite: u.CacheWrite, Output: u.Output}
-		p := in.prices.Price(u.Model, u.Speed, tk, float64(u.CostMicro)/1e6)
+		l, seen := rates[u.Model]
+		if !seen {
+			l.rates, l.ok = in.prices.Lookup(u.Model)
+			rates[u.Model] = l
+		}
+		p := pricing.PriceAt(l.rates, l.ok, u.Speed, tk, float64(u.CostMicro)/1e6)
 
 		all.add(u, tk, p)
 		get(byTool, u.Tool).add(u, tk, p)
@@ -180,7 +195,7 @@ func summarizeCoding(in codingInput) CodingSummary {
 		pt.Cost += p.Total
 		pt.Tokens += tokenTotal(tk)
 
-		sk := u.DeviceID + "\x00" + u.Tool + "\x00" + u.Session
+		sk := sessionKey{u.DeviceID, u.Tool, u.Session}
 		st := bySess[sk]
 		if st == nil {
 			st = &sessionTally{device: u.DeviceID, tool: u.Tool, id: u.Session, models: map[string]float64{}}
@@ -260,9 +275,9 @@ func summarizeCoding(in codingInput) CodingSummary {
 	}
 
 	// Sessions, with what the agent said about them, the latest first.
-	meta := map[string]store.CodingSession{}
+	meta := map[sessionKey]store.CodingSession{}
 	for _, s := range in.sessions {
-		meta[s.DeviceID+"\x00"+s.Tool+"\x00"+s.ID] = s
+		meta[sessionKey{s.DeviceID, s.Tool, s.ID}] = s
 	}
 	for k, st := range bySess {
 		cs := CodingSession{

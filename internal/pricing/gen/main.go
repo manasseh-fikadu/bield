@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -68,10 +69,15 @@ func run(in, out string) error {
 
 func read(path string) ([]byte, error) {
 	if path != "" {
-		return os.ReadFile(path)
+		return os.ReadFile(path) //nolint:gosec // G304: a path someone gave to a command they run.
 	}
-	client := &http.Client{Timeout: time.Minute}
-	resp, err := client.Get(source)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, source, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetch LiteLLM's list: %w", err)
 	}
