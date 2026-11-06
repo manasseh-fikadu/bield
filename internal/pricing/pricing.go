@@ -1,7 +1,7 @@
 // Package pricing turns the tokens a coding agent used into dollars. It holds
 // a list of what model makers charge per million tokens, taken from the
-// LiteLLM project's price list (MIT license), which `make prices` refreshes,
-// and prices a count of tokens with it.
+// LiteLLM project's price list (MIT license, see LICENSE-LiteLLM), which
+// `make prices` refreshes, and prices a count of tokens with it.
 //
 // The result is an estimate of what the same tokens would cost on the maker's
 // API, which is what the dashboard calls an API estimate. A subscription

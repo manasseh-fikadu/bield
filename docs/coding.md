@@ -39,7 +39,7 @@ BIELD_AGENT_STATE=$(mktemp -d) bash ~/.local/share/bield-agent/agent.sh --sessio
 
 **Tokens** come in four kinds. *Input* is what the model read fresh. *Cache read* is what it read from the prompt cache, which costs a tenth as much, and is most of the tokens in a long session. *Cache write* is what it put into the cache. *Output* is what it wrote, with its reasoning. *Processed* adds them up.
 
-**Cost** is an estimate of what the same tokens would cost on the model maker's API. It's labelled **API estimate** because a subscription doesn't bill per token, so it says what the use is worth, and not what you were charged. The prices come from [LiteLLM's price list](https://github.com/BerriAI/litellm), which is built into Bield and says on the page which day it's from. A newer Bield has a newer list, and it prices your history again. Some details:
+**Cost** is an estimate of what the same tokens would cost on the model maker's API. It's labelled **API estimate** because a subscription doesn't bill per token, so it says what the use is worth, and not what you were charged. The prices come from [LiteLLM's price list](https://github.com/BerriAI/litellm) (MIT license), which is built into Bield and says on the page which day it's from. A newer Bield has a newer list, and it prices your history again. Some details:
 
 - A model's **fast** tier costs more, and the page shows how much more under **Cost by speed**.
 - **Cache savings** is what the cache saved: the cached tokens at the input price, less what they cost at the cache price. It isn't part of the cost.
