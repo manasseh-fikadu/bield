@@ -5,6 +5,8 @@
 NAME="bield-agent"
 LABEL="dev.bield.agent"
 CONF_DIR="$HOME/.config/$NAME"
+# What the agent remembers about the coding sessions it has read, so it never reads a file twice.
+STATE_DIR="$HOME/.local/state/$NAME"
 
 case "$(uname -s)" in
   Darwin)

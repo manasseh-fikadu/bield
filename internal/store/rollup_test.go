@@ -249,7 +249,7 @@ func TestStore_bucketsLastAsLongAsHistory(t *testing.T) {
 	const day = 24 * time.Hour
 	synctest.Test(t, func(t *testing.T) {
 		s, err := store.OpenWith(t.Context(), filepath.Join(t.TempDir(), "bield.db"),
-			store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: 90 * day, Checks: day})}, store.Migrations())
+			store.Options{Retention: fixedRetention(store.Retention{Activity: day, History: 90 * day, Checks: day, Coding: day})}, store.Migrations())
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -300,6 +300,11 @@ export interface RetentionSettings {
    * last.
    */
   checksDays: number /* int */;
+  /**
+   * CodingDays is how long what coding tools used, by the hour, and their
+   * sessions last.
+   */
+  codingDays: number /* int */;
 }
 /**
  * NotificationSettings are when Bield sends notifications. Which alerts each
@@ -438,6 +443,7 @@ export interface ChangeRetention {
   activityDays?: number /* int */;
   historyDays?: number /* int */;
   checksDays?: number /* int */;
+  codingDays?: number /* int */;
 }
 /**
  * ChangeNotifications changes NotificationSettings.
@@ -3310,4 +3316,227 @@ export interface ChannelConfigInput extends ChannelConfig {
    * Password signs in to the mail server or the ntfy server.
    */
   password?: string;
+}
+/**
+ * CodingTokens counts the tokens that coding tools used. Input is only what
+ * the cache didn't serve, and Output includes Reasoning. Total adds up the
+ * first four.
+ */
+export interface CodingTokens {
+  input: number /* int64 */;
+  cacheRead: number /* int64 */;
+  cacheWrite: number /* int64 */;
+  output: number /* int64 */;
+  reasoning: number /* int64 */;
+  total: number /* int64 */;
+}
+/**
+ * CodingCost is dollars: what the same tokens would cost on the model
+ * maker's API, or what a tool said it cost. Total adds up the kinds of token.
+ */
+export interface CodingCost {
+  total: number /* float64 */;
+  input: number /* float64 */;
+  cacheRead: number /* float64 */;
+  cacheWrite: number /* float64 */;
+  output: number /* float64 */;
+}
+/**
+ * CodingTotals is what some coding sessions used.
+ */
+export interface CodingTotals {
+  cost: CodingCost;
+  tokens: CodingTokens;
+  sessions: number /* int */;
+  /**
+   * Requests is how many requests the sessions made to a model.
+   */
+  requests: number /* int64 */;
+  /**
+   * CacheSavings is what the cache saved, in dollars: the cached tokens at
+   * the input rate, less what they cost at the cache rate.
+   */
+  cacheSavings: number /* float64 */;
+  /**
+   * FastCost is the part of Cost that was billed at a model's fast tier,
+   * and SpeedPremium is how much more than the standard tier that was.
+   */
+  fastCost: number /* float64 */;
+  speedPremium: number /* float64 */;
+  /**
+   * UnpricedTokens are the tokens of models that have no price, which
+   * count for nothing in Cost.
+   */
+  unpricedTokens: number /* int64 */;
+}
+/**
+ * CodingTool is what one tool used, such as claude, codex, opencode or pi.
+ */
+export interface CodingTool {
+  tool: string;
+  totals: CodingTotals;
+}
+/**
+ * CodingModel is what one model used in one tool.
+ */
+export interface CodingModel {
+  tool: string;
+  model: string;
+  cost: number /* float64 */;
+  tokens: CodingTokens;
+  sessions: number /* int */;
+  /**
+   * Priced is false if Bield has no price for the model and the tool gave
+   * none, so Cost is 0 and says nothing.
+   */
+  priced: boolean;
+}
+/**
+ * CodingPoint is what a tool used in one hour or day. TS is its start, in
+ * Unix milliseconds.
+ */
+export interface CodingPoint {
+  ts: number /* int64 */;
+  cost: number /* float64 */;
+  tokens: number /* int64 */;
+}
+/**
+ * CodingSeries is what a tool used over time, with a point for every hour or
+ * day in the range, including the ones in which it used nothing.
+ */
+export interface CodingSeries {
+  tool: string;
+  points: CodingPoint[];
+}
+/**
+ * CodingDevice is what the coding tools on one device used, with whether
+ * Bield watches them.
+ */
+export interface CodingDevice {
+  deviceId: string;
+  /**
+   * Enabled is whether an admin turned watching coding tools on for the
+   * device.
+   */
+  enabled: boolean;
+  totals: CodingTotals;
+}
+/**
+ * CodingSession is a session of a coding tool in the range.
+ */
+export interface CodingSession {
+  deviceId: string;
+  tool: string;
+  id: string;
+  /**
+   * Project is the name of the project's folder.
+   */
+  project: string;
+  first: string /* RFC 3339 */;
+  last: string /* RFC 3339 */;
+  /**
+   * Models are the models it used, the one that cost most first.
+   */
+  models: string[];
+  cost: number /* float64 */;
+  tokens: CodingTokens;
+  /**
+   * Active is whether it did anything in the last five minutes.
+   */
+  active: boolean;
+}
+/**
+ * CodingLimit is where one of a tool's limits stood when the tool last said.
+ * Codex says how much of each window it has used. Claude Code only says when it
+ * refused a request for being over a limit, so it has no Used.
+ */
+export interface CodingLimit {
+  deviceId: string;
+  tool: string;
+  /**
+   * ID says which limit it is, such as codex:primary or five_hour.
+   */
+  id: string;
+  /**
+   * WindowMinutes is how long the limit's window is, or 0 if it isn't known.
+   */
+  windowMinutes: number /* int */;
+  /**
+   * Used is the percent of the limit used, if the tool says.
+   */
+  used?: number /* float64 */;
+  /**
+   * ResetsAt is when the window starts over, if the tool says.
+   */
+  resetsAt?: string /* RFC 3339 */;
+  /**
+   * Status is ok, or rejected if the tool refused a request for being over.
+   */
+  status: string;
+  plan: string;
+  /**
+   * Seen is when the tool wrote it down.
+   */
+  seen: string /* RFC 3339 */;
+  /**
+   * Expired is whether the window has started over since, so what Used
+   * says is out of date until the tool says again.
+   */
+  expired: boolean;
+}
+/**
+ * CodingSource says whether a device's agent could read a tool's files.
+ */
+export interface CodingSource {
+  deviceId: string;
+  tool: string;
+  /**
+   * Status is ok, unreadable, or needs-sqlite, for OpenCode on a machine
+   * that has neither the sqlite3 command nor Python.
+   */
+  status: string;
+  at: string /* RFC 3339 */;
+}
+/**
+ * CodingSummary is the response to GET /api/coding?range=, for every device,
+ * and to GET /api/devices/{id}/coding?range=, for one. The range is 24h, 7d,
+ * 30d, 90d or 1y. tz says which time zone the days are in, such as
+ * Europe/London, and is UTC if it's left out or unknown.
+ */
+export interface CodingSummary {
+  from: string /* RFC 3339 */;
+  to: string /* RFC 3339 */;
+  /**
+   * Step is hour for a range of 24h and day for a longer one.
+   */
+  step: string;
+  timezone: string;
+  /**
+   * Enabled is whether watching is on for the device. It's only meaningful
+   * for one device.
+   */
+  enabled: boolean;
+  totals: CodingTotals;
+  tools: CodingTool[];
+  models: CodingModel[];
+  series: CodingSeries[];
+  /**
+   * Devices is what each device used, for every device together.
+   */
+  devices: CodingDevice[];
+  sessions: CodingSession[];
+  limits: CodingLimit[];
+  sources: CodingSource[];
+  /**
+   * PricesAsOf is the day of the price list that Cost comes from.
+   */
+  pricesAsOf: string;
+}
+/**
+ * SetCoding is the body of PUT /api/devices/{id}/coding, which turns watching
+ * the device's coding tools on or off, and the response to it. The device's
+ * agent has to be at least version 1.4.0 to report them.
+ */
+export interface SetCoding {
+  enabled: boolean;
 }

@@ -22,7 +22,7 @@ To see exactly what a machine would send, run the script with `--print`. It writ
 SERVER_URL=http://127.0.0.1 SECRET=x bash agent.sh --print
 ```
 
-The agent doesn't read file contents or the environment of the processes it lists. It runs nothing that Bield sends back, since all it looks at in Bield's answer is whether the heartbeat was accepted, and the error text if it wasn't.
+The agent doesn't read file contents or the environment of the processes it lists. The one exception is [coding sessions](coding.md), which an admin turns on for each machine, and which makes the agent read the session files of AI coding tools and send counts from them. It runs nothing that Bield sends back, since all it looks at in Bield's answer is whether the heartbeat was accepted, the error text if it wasn't, and whether to read coding sessions.
 
 ## Installing it
 
@@ -49,6 +49,7 @@ Bield writes the address into the command from the **Public URL** setting if you
    | Its settings and secret | `~/.config/bield-agent/env`, readable only by you | the same |
    | How it runs | The systemd user service `bield-agent` | The LaunchAgent `dev.bield.agent` |
    | Its log | `journalctl --user -u bield-agent` | `~/Library/Logs/bield-agent.log` |
+   | What it has read of [coding sessions](coding.md) | `~/.local/state/bield-agent` | the same |
 
 3. Sends a first heartbeat, and stops if that fails, with the reason.
 4. Starts the service, which restarts the agent if it stops.
@@ -93,7 +94,7 @@ An agent's heartbeat carries its secret, and Bield checks two things: the secret
 
 An agent that gets a 401, 403 or 409 waits 5 minutes before it tries again, because Bield isn't going to change its mind soon. A machine that has only just joined the tailnet may get a 404 for up to ten seconds, until Bield's next look at the tailnet. The agent keeps trying.
 
-Bield refuses an agent on a machine it measures itself, with a 409. If you run Bield on a Linux machine, don't install an agent there.
+Bield refuses an agent on a machine it measures itself, with a 409. If you run Bield on a Linux machine, don't install an agent there. The one thing such a machine can use an agent for is [coding sessions](coding.md), which Bield can't read for itself. Once an admin turns them on for it, Bield lets an agent enroll there, and answers its heartbeats without keeping their metrics, so that agent only reads coding sessions.
 
 ## When a machine doesn't report
 

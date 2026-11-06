@@ -140,6 +140,9 @@ type Retention struct {
 	// ChecksDays is how long the results of checks, and the health score,
 	// last.
 	ChecksDays int `json:"checksDays"`
+	// CodingDays is how long what coding tools used, by the hour, and their
+	// sessions last (#73).
+	CodingDays int `json:"codingDays"`
 }
 
 // Notifications are when Bield sends the notifications that its channels
@@ -219,6 +222,7 @@ const (
 	MaxActivityDays = 365
 	MaxHistoryDays  = 90
 	MaxChecksDays   = 90
+	MaxCodingDays   = 1095
 )
 
 // Keep returns r for the store.
@@ -228,6 +232,7 @@ func (r Retention) Keep() store.Retention {
 		Activity: time.Duration(r.ActivityDays) * day,
 		History:  time.Duration(r.HistoryDays) * day,
 		Checks:   time.Duration(r.ChecksDays) * day,
+		Coding:   time.Duration(r.CodingDays) * day,
 	}
 }
 
@@ -252,7 +257,7 @@ func Defaults() Settings {
 		// ssh.service is sshd.service on some systems. Bield leaves out the
 		// ones a machine doesn't have.
 		WatchedUnits: []string{"ssh.service", "sshd.service", "docker.service", "tailscaled.service", "cron.service"},
-		Retention:    Retention{ActivityDays: 30, HistoryDays: 7, ChecksDays: 7},
+		Retention:    Retention{ActivityDays: 30, HistoryDays: 7, ChecksDays: 7, CodingDays: 365},
 		Notifications: Notifications{
 			Quiet: QuietHours{Start: "22:00", End: "07:00", AllowCritical: true},
 		},
@@ -423,6 +428,7 @@ func (r Retention) Check() error {
 		{"the activity log", r.ActivityDays, MaxActivityDays},
 		{"the history of devices", r.HistoryDays, MaxHistoryDays},
 		{"the results of checks", r.ChecksDays, MaxChecksDays},
+		{"what coding tools used", r.CodingDays, MaxCodingDays},
 	} {
 		if p.got < 1 || p.got > p.max {
 			return fmt.Errorf("the days to keep %s must be from 1 to %d", p.name, p.max)

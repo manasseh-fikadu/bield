@@ -10,6 +10,7 @@
 	import { activeAlerts, onDevice } from '#lib/alerts.js';
 	import AlertActions from '#lib/alerts/AlertActions.svelte';
 	import type { Alert, Device } from '#lib/api/types.js';
+	import DeviceCoding from '#lib/coding/DeviceCoding.svelte';
 	import { levelText, limitsOf } from '#lib/device.js';
 	import AddAgent from '#lib/devices/AddAgent.svelte';
 	import DeviceActions from '#lib/devices/DeviceActions.svelte';
@@ -413,6 +414,7 @@
 		{#if device.measuredBy === 'hub' && (live.snapshot?.collectors ?? []).some((c) => c.name === 'systemd units')}
 			<ServicesCard {units} {containers} {now} />
 		{/if}
+		<DeviceCoding {device} {now} />
 	</div>
 	<AdminOnly>
 		<DeviceSettingsDialog {device} bind:open={editing} />

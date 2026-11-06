@@ -19,6 +19,7 @@ interface Base {
 
 export type PaletteAction =
 	| (Base & { kind: 'terminal' | 'files' | 'docker'; deviceId: string })
+	| (Base & { kind: 'coding' })
 	| (Base & {
 			kind: 'container';
 			deviceId: string;
@@ -65,6 +66,13 @@ export function paletteActions(snapshot: Snapshot | null, admin: boolean): Palet
 			keywords: [d.name, d.dnsName, 'docker', 'containers']
 		});
 	}
+	out.push({
+		id: 'coding',
+		kind: 'coding',
+		label: 'Open coding usage',
+		hint: 'Tokens, cost and limits',
+		keywords: ['coding', 'claude', 'codex', 'opencode', 'pi', 'tokens', 'cost', 'limits', 'ai']
+	});
 	if (!admin) {
 		return out;
 	}
