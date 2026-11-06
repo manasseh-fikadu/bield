@@ -417,13 +417,21 @@ function install(act: Act) {
 	stagger(act, [...act.content.querySelectorAll('li')], sweep, [0, 1]);
 }
 
+/** The releases are read as the line goes by: the words come up, and each change lights. */
+function changelog(act: Act) {
+	copy(act);
+	dressStop(act);
+	stagger(act, [...act.content.querySelectorAll('li')], sweep, [0, 1]);
+}
+
 const sceneOf: Record<string, (act: Act) => void> = {
 	history,
 	docker,
 	shell,
 	alerts,
 	login,
-	install
+	install,
+	changelog
 };
 
 /** The headline drifts back, and the dashboard under it comes flat, as the page starts to move. */
