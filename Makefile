@@ -8,7 +8,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build web dev dev-api dev-web demo demo-api site docs site-demo social test e2e screenshots recording bench load lint types clean
+.PHONY: help build web dev dev-api dev-web demo demo-api site docs site-demo social test e2e screenshots recording bench load lint types prices clean
 
 ## build: build ./bield with the web UI embedded
 build: web
@@ -96,6 +96,10 @@ lint: web/node_modules site/node_modules site/docs-site/node_modules
 ## types: regenerate web/src/lib/api/types.ts from internal/api/types.go
 types:
 	$(GO) tool tygo generate
+
+## prices: refresh the model prices in internal/pricing/prices.json from LiteLLM's list
+prices:
+	$(GO) run ./internal/pricing/gen
 
 ## clean: remove build output
 clean:
