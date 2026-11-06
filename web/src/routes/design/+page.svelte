@@ -30,6 +30,7 @@
 	import PageHeader from '#lib/ui/PageHeader.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
 	import Select from '#lib/ui/Select.svelte';
+	import ShareBar from '#lib/ui/ShareBar.svelte';
 	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import StatusDot from '#lib/ui/StatusDot.svelte';
 	import Switch from '#lib/ui/Switch.svelte';
@@ -283,6 +284,36 @@
 			{#each [42, 86, 97, null] as value, i (i)}
 				<Meter {value} warn={85} crit={95} />
 			{/each}
+		</div>
+	</Card>
+
+	<Card
+		title="Parts of a whole"
+		description="A bar split by value, with a key that says what each part is worth."
+	>
+		<div class="space-y-6 p-4">
+			<ShareBar
+				label="Cost by type"
+				segments={[
+					{ key: 'input', label: 'Input', value: 107.04, color: '#3987e5', text: '$107.04' },
+					{ key: 'read', label: 'Cache read', value: 1748.72, color: '#9085e9', text: '$1,748.72' },
+					{ key: 'write', label: 'Cache write', value: 754.02, color: '#c98500', text: '$754.02' },
+					{ key: 'out', label: 'Output', value: 636.59, color: '#d55181', text: '$636.59' }
+				]}
+			/>
+			<ShareBar
+				label="Cost by speed"
+				segments={[
+					{
+						key: 'standard',
+						label: 'Standard',
+						value: 3231.29,
+						color: '#7d8085',
+						text: '$3,231.29'
+					},
+					{ key: 'fast', label: 'Fast', value: 15.08, color: '#f5b544', text: '$15.08' }
+				]}
+			/>
 		</div>
 	</Card>
 
