@@ -95,6 +95,10 @@ The agent reads a file of `NAME=value` lines, which `~/.config/bield-agent/env` 
 | `SERVER_URL` | none | Bield's address, such as `https://bield.example.ts.net`. Required. |
 | `SECRET` | none | The agent's own secret, which it got when it enrolled. Required, and kept in a file only its user can read. |
 | `INTERVAL` | `15` | Seconds between heartbeats. |
+| `BIELD_SESSION_HOMES` | the agent's home | Home directories that the agent reads [coding sessions](coding.md) in, separated by spaces, such as `/home/alice /root`. It only reads them while an admin has turned coding sessions on for the machine. The install command keeps it when you update. |
+| `SESSIONS_INTERVAL` | `60` | Seconds between reading coding sessions. |
+| `SESSIONS_DAYS` | `90` | How far back the agent reads coding sessions, by when a record was written. |
+| `BIELD_AGENT_STATE` | `~/.local/state/bield-agent` | Where the agent remembers what it has read of the coding sessions, so it never reads a file twice. |
 
 ## For people working on Bield
 
