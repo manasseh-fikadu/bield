@@ -1,0 +1,91 @@
+{
+  "limits": [
+    {
+      "id": "codex:primary",
+      "plan": "free",
+      "resets": 1794910528,
+      "seen": "2026-11-06T18:07:00Z",
+      "status": "ok",
+      "tool": "codex",
+      "used": 18,
+      "window": 10080
+    },
+    {
+      "id": "codex:secondary",
+      "plan": "free",
+      "resets": 1794000000,
+      "seen": "2026-11-06T17:00:11Z",
+      "status": "ok",
+      "tool": "codex",
+      "used": 3,
+      "window": 300
+    }
+  ],
+  "sessions": [
+    {
+      "first": "2026-11-06T17:00:10Z",
+      "id": "019aaaaa-0000-7000-8000-000000000001",
+      "last": "2026-11-06T18:05:00Z",
+      "project": "bield",
+      "tool": "codex"
+    },
+    {
+      "first": "2026-11-06T19:00:09Z",
+      "id": "019aaaaa-0000-7000-8000-000000000002",
+      "last": "2026-11-06T19:00:09Z",
+      "project": "other",
+      "tool": "codex"
+    }
+  ],
+  "tools": [
+    {
+      "status": "ok",
+      "tool": "codex"
+    }
+  ],
+  "usage": [
+    {
+      "cost": 0,
+      "cr": 50,
+      "cw": 0,
+      "hour": "2026-11-06T18",
+      "in": 50,
+      "model": "gpt-5.5-mini",
+      "n": 1,
+      "out": 20,
+      "reason": 0,
+      "session": "019aaaaa-0000-7000-8000-000000000001",
+      "speed": "fast",
+      "tool": "codex"
+    },
+    {
+      "cost": 0,
+      "cr": 2400,
+      "cw": 0,
+      "hour": "2026-11-06T17",
+      "in": 1100,
+      "model": "gpt-5.6-sol",
+      "n": 3,
+      "out": 160,
+      "reason": 40,
+      "session": "019aaaaa-0000-7000-8000-000000000001",
+      "speed": "standard",
+      "tool": "codex"
+    },
+    {
+      "cost": 0,
+      "cr": 500,
+      "cw": 0,
+      "hour": "2026-11-06T19",
+      "in": 200,
+      "model": "gpt-5.6-sol",
+      "n": 1,
+      "out": 20,
+      "reason": 0,
+      "session": "019aaaaa-0000-7000-8000-000000000002",
+      "speed": "standard",
+      "tool": "codex"
+    }
+  ],
+  "v": 1
+}

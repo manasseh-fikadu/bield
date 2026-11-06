@@ -43,11 +43,23 @@ __AGENT_SCRIPT__
 BIELD_AGENT_EOF
 chmod 755 "$BIN_DIR/agent.sh"
 
+# Which home directories the agent reads coding sessions in (BIELD_SESSION_HOMES, separated by
+# spaces) is up to whoever installs it: the one in the environment, else the one an earlier install
+# set, else only the home of the user the agent runs as.
+HOMES_LINE=""
+if [ -n "${BIELD_SESSION_HOMES:-}" ]; then
+  HOMES_LINE=$(printf 'BIELD_SESSION_HOMES=%q' "$BIELD_SESSION_HOMES")
+elif [ -r "$CONF_DIR/env" ]; then
+  HOMES_LINE=$(grep '^BIELD_SESSION_HOMES=' "$CONF_DIR/env" || true)
+fi
+
 # Only this user can read the secret. A new file gets mode 0600, and the
 # rename replaces an older env whatever its mode was.
 (
   umask 077
   printf 'SERVER_URL=%q\nSECRET=%q\nINTERVAL=15\n' "$SERVER_URL" "$SECRET" > "$CONF_DIR/env.new"
+  [ -n "$HOMES_LINE" ] && printf '%s\n' "$HOMES_LINE" >> "$CONF_DIR/env.new"
+  true
 )
 chmod 600 "$CONF_DIR/env.new"
 mv -f "$CONF_DIR/env.new" "$CONF_DIR/env"

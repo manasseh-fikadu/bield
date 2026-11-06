@@ -1,10 +1,11 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 # Bield agent: sends a metrics heartbeat to the hub every INTERVAL seconds.
-# Works on macOS (bash 3.2) and Linux. Needs only curl and standard system tools.
+# Works on macOS (bash 3.2) and Linux. Needs only curl and standard system tools. Reading
+# OpenCode sessions also takes sqlite3 or python3, and is skipped without either.
 set -u
 
-AGENT_VERSION="1.3.1"
+AGENT_VERSION="1.4.0"
 CONF="${BIELD_AGENT_CONF:-$HOME/.config/bield-agent/env}"
 # shellcheck disable=SC1090
 [ -f "$CONF" ] && . "$CONF"
@@ -380,12 +381,718 @@ send_heartbeat() {
     return 1
   }
   STATUS=${out##*$'\n'}
-  case "$STATUS" in 2??) return 0 ;; esac
   body=${out%$'\n'*}
-  # Bield's errors look like {"error":"..."}.
-  msg=$(printf '%s' "$body" | sed -n 's/^{"error":"\(.*\)"}$/\1/p')
+  # Every answer says whether the hub wants coding sessions read: a 2xx with {"coding":{"enabled":true}}
+  # in it when it does, and 204 when it does not. The machine the hub runs on gets a 409 that says so too.
+  case "$STATUS" in
+    2??)
+      case "$body" in *'"coding":{"enabled":true'*) CODING=1 ;; *) CODING=0 ;; esac
+      return 0
+      ;;
+  esac
+  case "$body" in
+    *'"coding":{"enabled":true'*) CODING=1 ;;
+    *'"coding":{"enabled":false'*) CODING=0 ;;
+  esac
+  # Bield's errors look like {"error":"..."}, and may have the coding key after the message.
+  msg=$(printf '%s' "$body" | sed -n -e 's/^{"error":"\(.*\)","coding":{[^}]*}}$/\1/p' -e t -e 's/^{"error":"\(.*\)"}$/\1/p')
   echo "$(date '+%Y-%m-%d %H:%M:%S') heartbeat failed with HTTP $STATUS: ${msg:-$body}" >&2
   return 1
+}
+
+# Coding sessions. When the hub says so (see the heartbeat's answer), the agent reads the files that
+# AI coding tools already write on this machine and reports counts: tokens by model and hour, which
+# sessions ran, and each tool's rate limits. Nothing a person typed or a model answered is read into
+# the report. Claude Code, Codex and Pi write JSONL that awk reads from a saved offset, so a file is
+# never read twice; OpenCode keeps SQLite, which sqlite3, or else python3, reads.
+#
+# The numbers sent are totals as the files show them, not changes: the hub keeps the larger of what
+# it has and what arrives, so sending twice, losing the state below or rescanning is harmless.
+# State, in $SDIR: f/<id>.dat per file read (its first line says how far it was read, the rest is
+# what the awk programs made of it), status.tsv, sent.tsv (what the hub already has), lock/.
+SESSIONS_INTERVAL="${SESSIONS_INTERVAL:-60}"
+SESSIONS_DAYS="${SESSIONS_DAYS:-90}"
+STATE_DIR="${BIELD_AGENT_STATE:-$HOME/.local/state/bield-agent}"
+SDIR="$STATE_DIR/sessions"
+TAB=$'\t'
+
+# Shared by the awk programs below, in the style of USAGE_AWK: POSIX awk only, and no apostrophes
+# in here, because the programs sit in single quotes. A program reads what its last run left for
+# this file (S state, R usage, M session and L limit lines), then @@DATA, then new lines of the
+# file, and prints the same kinds of lines again. A usage row is a total for a session, a model, a
+# speed and an hour (UTC, YYYY-MM-DDTHH). in is uncached input, cr cache reads, cw cache writes and
+# out output with reasoning in it; reason is the part of out that was reasoning.
+# shellcheck disable=SC2016
+SESS_AWK='
+function clean(s) { gsub(/[\001-\037\177"\\]/, "", s); return s }
+function base(p) { gsub(/\/+$/, "", p); sub(/.*\//, "", p); return substr(clean(p), 1, 80) }
+# The number after the first "key": in s, or 0.
+function numafter(s, key,    i) {
+  i = index(s, "\"" key "\":")
+  return i ? substr(s, i + length(key) + 3, 24) + 0 : 0
+}
+# The string after the first "key":" in s, up to its closing quote. Ids, models and times have no
+# escapes in them. It is "" if there is none.
+function strafter(s, key,    i, r) {
+  i = index(s, "\"" key "\":\"")
+  if (!i) return ""
+  r = substr(s, i + length(key) + 4, 400)
+  i = index(r, "\"")
+  return i ? substr(r, 1, i - 1) : ""
+}
+function okts(t) { return t ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]/ }
+# Milliseconds since the epoch of a time such as 2026-11-01T07:59:33.587Z.
+function tsms(t,    y, m, d, era, yoe, doy, days) {
+  y = substr(t, 1, 4) + 0; m = substr(t, 6, 2) + 0; d = substr(t, 9, 2) + 0
+  if (m <= 2) y--
+  era = int(y / 400); yoe = y - era * 400
+  doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
+  days = era * 146097 + yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy - 719468
+  return ((days * 24 + substr(t, 12, 2)) * 60 + substr(t, 15, 2)) * 60000 + substr(t, 18, 2) * 1000 + (substr(t, 20, 1) == "." ? substr(t, 21, 3) : 0)
+}
+# Adds one request to its row, and the session it belongs to to the sessions.
+function add(sess, model, speed, ts, i, cr, cw, o, re, cost,    h, k) {
+  h = substr(ts, 1, 13)
+  if (h < cutoff || sess == "" || model == "") return
+  k = sess "\t" model "\t" speed "\t" h
+  if (!(k in RN)) { RK[++nk] = k; RI[k] = RC[k] = RW[k] = RO[k] = RR[k] = RN[k] = RM[k] = 0 }
+  RI[k] += i; RC[k] += cr; RW[k] += cw; RO[k] += o; RR[k] += re; RN[k]++; RM[k] += cost
+  ts = substr(ts, 1, 19) "Z"
+  if (!(sess in MF)) { MS[++ns] = sess; MF[sess] = ts; ML[sess] = ts }
+  if (ts < MF[sess]) MF[sess] = ts
+  if (ts > ML[sess]) ML[sess] = ts
+}
+function project(sess, p) { if (p != "" && MP[sess] == "") MP[sess] = p }
+# Keeps the newest sighting of each limit.
+function limit(id, window, used, resets, status, plan, seen) {
+  if ((id in LS) && seen < LS[id]) return
+  if (!(id in LS)) LK[++nl] = id
+  LS[id] = seen; LW[id] = window; LU[id] = used; LR[id] = resets; LT[id] = status; LP[id] = plan
+}
+!data && $0 == "@@DATA" { data = 1; next }
+!data {
+  split($0, f, "\t")
+  if (f[1] == "S") ST[f[2]] = f[3]
+  else if (f[1] == "R") {
+    k = f[3] "\t" f[4] "\t" f[5] "\t" f[6]
+    RK[++nk] = k; RI[k] = f[7] + 0; RC[k] = f[8] + 0; RW[k] = f[9] + 0; RO[k] = f[10] + 0; RR[k] = f[11] + 0; RN[k] = f[12] + 0; RM[k] = f[13] + 0
+  } else if (f[1] == "M") {
+    if (!(f[3] in MF)) { MS[++ns] = f[3]; MF[f[3]] = f[5]; ML[f[3]] = f[6] }
+    MP[f[3]] = f[4]
+  } else if (f[1] == "L") limit(f[3], f[4], f[5], f[6], f[7], f[8], f[9])
+  next
+}
+data { parse($0) }
+END {
+  for (k in ST) printf "S\t%s\t%s\n", k, ST[k]
+  for (j = 1; j <= nk; j++) {
+    k = RK[j]; split(k, f, "\t")
+    printf "R\t%s\t%s\t%s\t%s\t%s\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\n", tool, f[1], f[2], f[3], f[4], RI[k], RC[k], RW[k], RO[k], RR[k], RN[k], RM[k]
+  }
+  for (j = 1; j <= ns; j++) printf "M\t%s\t%s\t%s\t%s\t%s\n", tool, MS[j], MP[MS[j]], MF[MS[j]], ML[MS[j]]
+  for (j = 1; j <= nl; j++) printf "L\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", tool, LK[j], LW[LK[j]], LU[LK[j]], LR[LK[j]], LT[LK[j]], LP[LK[j]], LS[LK[j]]
+}
+'
+
+# Claude Code: ~/.claude/projects/**/*.jsonl, sub-agents included. Each response is written on
+# several lines in a row, all with the whole usage, so only the first of a run counts. The keys of
+# a line come in two orders, but message and usage are always laid out the same way.
+CLAUDE_AWK='
+function parse(l,    m, rest, p, u, us, mt, tail, head, ts, sess, model, id, req, key, cost, q, qt, qw) {
+  if (index(l, "\"type\":\"assistant\"") == 0) return
+  m = index(l, "\"message\":{")
+  if (!m) return
+  tail = substr(l, length(l) > 3000 ? length(l) - 2999 : 1)
+  head = substr(l, 1, 400)
+  ts = strafter(head, "timestamp")
+  if (ts == "") ts = strafter(tail, "timestamp")
+  if (!okts(ts)) return
+  # Claude only writes limits when one is hit: the window and when it ends.
+  q = index(l, "\"quotaLimits\":{")
+  if (q) {
+    q = substr(l, q, 400)
+    if (strafter(q, "status") == "rejected") {
+      qt = strafter(q, "rateLimitType")
+      qw = qt == "five_hour" ? 300 : (qt == "seven_day" ? 10080 : 0)
+      if (qt != "") limit(clean(qt), qw, "", numafter(q, "resetsAt"), "rejected", "", substr(ts, 1, 19) "Z")
+    }
+  }
+  mt = substr(l, m + 11, 300)
+  model = strafter(mt, "model")
+  if (model == "" || model == "<synthetic>") return
+  rest = substr(l, m)
+  p = index(rest, "\"stop_reason\":")
+  if (!p) return
+  rest = substr(rest, p)
+  u = index(rest, "\"usage\":{")
+  if (!u) return
+  id = strafter(mt, "id"); req = strafter(tail, "requestId")
+  key = id ":" req
+  if (key != ":" && key == ST["last"]) return
+  ST["last"] = key
+  us = substr(rest, u, 6000)
+  sess = strafter(tail, "sessionId")
+  cost = numafter(tail, "costUSD")
+  add(clean(sess), clean(model), index(us, "\"speed\":\"fast\"") ? "fast" : "standard", ts, numafter(us, "input_tokens"), numafter(us, "cache_read_input_tokens"), numafter(us, "cache_creation_input_tokens"), numafter(us, "output_tokens"), 0, int(cost * 1000000 + 0.5))
+  project(clean(sess), base(strafter(tail, "cwd")))
+}
+'
+
+# Codex: ~/.codex/sessions/**/*.jsonl. The model comes from the latest turn_context and the speed
+# from the latest thread_settings_applied. A token_count carries the counters of the whole session
+# and of the last request; the whole-session ones are only used to spot a repeated event, since they
+# start over now and then. Input includes what was cached. A forked session begins with a burst of
+# copied history that the parent already counted, which ends at the first gap of a second.
+CODEX_AWK='
+function parse(l,    h, pl, ts, lt, tt, sig, ls, i, c, w, o, re, rl, pi, ps, id, plan) {
+  h = substr(l, 1, 260)
+  if (index(h, "\"type\":\"turn_context\"")) {
+    pl = substr(l, index(l, "\"payload\":{"), 3000)
+    if (strafter(pl, "model") != "") ST["model"] = clean(strafter(pl, "model"))
+    return
+  }
+  if (index(h, "\"type\":\"session_meta\"")) {
+    if (ST["meta"] == "") {
+      ST["meta"] = 1
+      pl = substr(l, index(l, "\"payload\":{"), 3000)
+      id = strafter(pl, "id")
+      if (id != "") ST["sess"] = clean(id)
+      project(ST["sess"], base(strafter(pl, "cwd")))
+      ts = strafter(h, "timestamp")
+      if (okts(ts) && (index(l, "\"forked_from_id\":\"") || index(l, "\"parent_thread_id\":\""))) { ST["supp"] = 1; ST["anchor"] = tsms(ts) }
+    }
+    return
+  }
+  if (index(h, "\"payload\":{\"type\":\"thread_settings_applied\"")) {
+    i = strafter(l, "service_tier")
+    ST["speed"] = (i == "priority" || i == "fast" || i == "ultrafast") ? "fast" : "standard"
+    return
+  }
+  if (index(h, "\"payload\":{\"type\":\"token_count\"") == 0) return
+  ts = strafter(h, "timestamp")
+  if (!okts(ts)) return
+  # The limits come with every event, even ones with no usage.
+  rl = index(l, "\"rate_limits\":{")
+  if (rl) {
+    rl = substr(l, rl, 1200)
+    id = strafter(rl, "limit_id"); plan = strafter(rl, "plan_type")
+    for (c = 1; c <= 2; c++) {
+      pi = index(rl, c == 1 ? "\"primary\":{" : "\"secondary\":{")
+      if (!pi) continue
+      ps = substr(rl, pi, 200)
+      w = numafter(ps, "window_minutes")
+      if (w > 0 && id != "") limit(clean(id) (c == 1 ? ":primary" : ":secondary"), w, sprintf("%.2f", numafter(ps, "used_percent")), numafter(ps, "resets_at"), "ok", clean(plan), substr(ts, 1, 19) "Z")
+    }
+  }
+  lt = index(l, "\"last_token_usage\":{"); tt = index(l, "\"total_token_usage\":{")
+  if (!lt || !tt || ST["model"] == "") return
+  sig = substr(l, tt, lt - tt)
+  if (ST["supp"] == 1) {
+    if (tsms(ts) - ST["anchor"] < 1000) { ST["anchor"] = tsms(ts); ST["sig"] = sig; return }
+    ST["supp"] = 0; ST["sig"] = ""
+  }
+  ls = substr(l, lt, 400)
+  i = numafter(ls, "input_tokens"); o = numafter(ls, "output_tokens")
+  if (i + o == 0 || sig == ST["sig"]) { ST["sig"] = sig; return }
+  ST["sig"] = sig
+  c = numafter(ls, "cached_input_tokens"); w = numafter(ls, "cache_write_input_tokens"); re = numafter(ls, "reasoning_output_tokens")
+  i = i - c - w; if (i < 0) i = 0
+  add(ST["sess"] != "" ? ST["sess"] : clean(fsess), ST["model"], ST["speed"] == "fast" ? "fast" : "standard", ts, i, c, w, o, re, 0)
+}
+'
+
+# Pi: ~/.pi/agent/sessions/**/*.jsonl. A session line names the session; message and usage lines
+# carry the counters and the cost Pi worked out. Written from Pi source and made-up files: no Pi was
+# at hand to try it on.
+PI_AWK='
+function parse(l,    t, ts, u, us, mt, prov, model, id, cost, role) {
+  if (index(l, "{\"type\":\"session\"")) {
+    if (strafter(l, "id") != "") ST["sess"] = clean(strafter(l, "id"))
+    if (strafter(l, "cwd") != "") ST["proj"] = base(strafter(l, "cwd"))
+    return
+  }
+  u = index(l, "\"usage\":{")
+  if (!u || ST["sess"] == "") return
+  ts = strafter(substr(l, 1, 400), "timestamp")
+  if (!okts(ts)) return
+  id = strafter(substr(l, 1, 400), "id")
+  if (id != "" && id == ST["last"]) return
+  ST["last"] = id
+  mt = substr(l, 1, u)
+  role = strafter(mt, "role")
+  prov = strafter(mt, "provider"); model = strafter(mt, "responseModel")
+  if (model == "") model = strafter(mt, "model")
+  if (role == "assistant" && model != "" && prov != "") model = prov "/" model
+  else if (model == "" || role == "toolResult") model = "tools-summaries"
+  us = substr(l, u, 600)
+  t = index(us, "\"cost\":{")
+  cost = t ? numafter(substr(us, t), "total") : 0
+  if (t) us = substr(us, 1, t - 1)
+  add(ST["sess"], clean(model), "standard", ts, numafter(us, "input"), numafter(us, "cacheRead"), numafter(us, "cacheWrite"), numafter(us, "output"), numafter(us, "reasoning"), int(cost * 1000000 + 0.5))
+  project(ST["sess"], ST["proj"])
+}
+'
+
+# The report is made in two steps. The first adds up what every file said (a session can have
+# several files, and so can its sub-agents) and keeps only what the hub does not have yet, unless
+# all is 1; it also leaves the full totals in agg, which becomes sent.tsv once the hub has them.
+# The second step, after sort, writes the request bodies.
+# shellcheck disable=SC2016
+REPORT1_AWK='
+function sev(t) { return t == "ok" ? 0 : 1 }
+BEGIN {
+  while ((getline line < sent) > 0) SENT[line] = 1
+  close(sent)
+}
+$1 == "T" { if (!($2 in TS) || sev($3) > sev(TS[$2])) TS[$2] = $3; next }
+$1 == "R" {
+  k = $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6
+  if (!(k in N)) { RK[++nk] = k; for (c = 7; c <= 13; c++) V[k, c] = 0 }
+  N[k] = 1
+  for (c = 7; c <= 13; c++) V[k, c] += $c
+  next
+}
+$1 == "M" {
+  k = $2 "\t" $3
+  if (!(k in MF)) { MK[++nm] = k; MF[k] = $5; ML[k] = $6; MP[k] = "" }
+  if ($5 < MF[k]) MF[k] = $5
+  if ($6 > ML[k]) ML[k] = $6
+  if (MP[k] == "") MP[k] = $4
+  next
+}
+$1 == "L" {
+  k = $2 "\t" $3
+  if (!(k in LS) || $9 >= LS[k]) { if (!(k in LS)) LK[++nl] = k; LS[k] = $9; LV[k] = $4 "\t" $5 "\t" $6 "\t" $7 "\t" $8 "\t" $9 }
+}
+function out(line,    dirty) {
+  print line > agg
+  dirty = all || !(line in SENT)
+  return dirty
+}
+END {
+  # The tools and limits are small, so one change sends them all.
+  for (t in TS) { tl[++nt] = "T\t" t "\t" TS[t]; if (out(tl[nt])) chg = 1 }
+  for (j = 1; j <= nl; j++) { ll[j] = "L\t" LK[j] "\t" LV[LK[j]]; if (out(ll[j])) chg = 1 }
+  if (chg) { for (j = 1; j <= nt; j++) print tl[j]; for (j = 1; j <= nl; j++) print ll[j] }
+  for (j = 1; j <= nk; j++) {
+    k = RK[j]; line = "U\t" k
+    for (c = 7; c <= 13; c++) line = line sprintf("\t%.0f", V[k, c])
+    if (out(line)) print line
+  }
+  for (j = 1; j <= nm; j++) {
+    k = MK[j]; line = "S\t" k "\t" MP[k] "\t" MF[k] "\t" ML[k]
+    if (out(line)) print line
+  }
+  close(agg)
+}
+'
+
+# shellcheck disable=SC2016
+REPORT2_AWK='
+function chunk(    f, s, i, first) {
+  # A report that is shown is a whole document even when it is empty.
+  if (mode != "print" && ((nu + ns == 0 && n > 0) || nu + ns + nl + nt == 0)) return
+  s = "{\"v\":1,\"tools\":[" (n == 0 ? tj : "") "],\"sessions\":["
+  for (i = 1; i <= ns; i++) s = s (i > 1 ? "," : "") sj[i]
+  s = s "],\"usage\":["
+  for (i = 1; i <= nu; i++) s = s (i > 1 ? "," : "") uj[i]
+  s = s "],\"limits\":[" (n == 0 ? lj : "") "]}"
+  n++
+  if (mode == "print") print s
+  else { f = outdir "/chunk." n ".json"; print s > f; close(f) }
+  nu = 0; ns = 0
+}
+$1 == "T" { tj = tj (tj == "" ? "" : ",") sprintf("{\"tool\":\"%s\",\"status\":\"%s\"}", $2, $3); nt++; next }
+$1 == "L" {
+  lj = lj (lj == "" ? "" : ",") sprintf("{\"tool\":\"%s\",\"id\":\"%s\",\"window\":%d,\"used\":%s,\"resets\":%.0f,\"status\":\"%s\",\"plan\":\"%s\",\"seen\":\"%s\"}", $2, $3, $4, $5 == "" ? "null" : $5, $6, $7, $8, $9)
+  nl++; next
+}
+$1 == "U" {
+  uj[++nu] = sprintf("{\"tool\":\"%s\",\"session\":\"%s\",\"model\":\"%s\",\"speed\":\"%s\",\"hour\":\"%s\",\"in\":%s,\"cr\":%s,\"cw\":%s,\"out\":%s,\"reason\":%s,\"n\":%s,\"cost\":%.6f}", $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 / 1000000)
+  if (mode != "print" && nu >= maxrows) chunk()
+  next
+}
+$1 == "S" {
+  sj[++ns] = sprintf("{\"tool\":\"%s\",\"id\":\"%s\",\"project\":\"%s\",\"first\":\"%s\",\"last\":\"%s\"}", $2, $3, $4, $5, $6)
+  if (mode != "print" && ns >= maxrows) chunk()
+}
+END { chunk() }
+'
+
+# Python reads OpenCode when there is no sqlite3 (Debian servers often have python3 and no sqlite3).
+OC_PY='import sqlite3, sys, urllib.parse
+c = sqlite3.connect("file:" + urllib.parse.quote(sys.argv[1]) + "?mode=ro", uri=True, timeout=2)
+for q in sys.argv[2:]:
+    for r in c.execute(q):
+        print("\t".join("" if v is None else str(v) for v in r))'
+
+if stat -c %s /dev/null >/dev/null 2>&1; then STAT_GNU=1; else STAT_GNU=0; fi
+sess_size() { if [ "$STAT_GNU" = 1 ]; then stat -c %s "$1" 2>/dev/null; else stat -f %z "$1" 2>/dev/null; fi; }
+sess_mtime() { if [ "$STAT_GNU" = 1 ]; then stat -c %Y "$1" 2>/dev/null; else stat -f %m "$1" 2>/dev/null; fi; }
+# The UTC hour of a Unix time, as YYYY-MM-DDTHH. BSD date, which macOS has, takes -r; its -d is
+# something else, so it is not tried there.
+sess_hour() {
+  if [ "$OS" = Darwin ]; then
+    date -u -r "$1" '+%Y-%m-%dT%H'
+  else
+    date -u -d "@$1" '+%Y-%m-%dT%H' 2>/dev/null || date -u -r "$1" '+%Y-%m-%dT%H'
+  fi
+}
+
+sessions_init() {
+  local now
+  mkdir -p "$SDIR/f" || return 1
+  chmod 700 "$STATE_DIR" "$SDIR" 2>/dev/null
+  now=$(date +%s)
+  SESS_CUTOFF=$(sess_hour $((now - SESSIONS_DAYS * 86400)))
+  SESS_CUTOFF_MS=$(((now - SESSIONS_DAYS * 86400) * 1000))
+}
+
+# Prints "tool<TAB>directory" for every place that holds sessions. BIELD_SESSION_HOMES lists the
+# home directories to read, separated by spaces; it is $HOME if not set. The tools own variables
+# (CLAUDE_CONFIG_DIR and so on) only apply to the home of the user the agent runs as.
+sess_dirs() {
+  local home own c x p d
+  for home in ${BIELD_SESSION_HOMES:-$HOME}; do
+    own=0
+    [ "$home" = "$HOME" ] && own=1
+    c="$home/.claude"
+    [ "$own" = 1 ] && [ -n "${CLAUDE_CONFIG_DIR:-}" ] && c="$CLAUDE_CONFIG_DIR"
+    [ -d "$c/projects" ] && printf 'claude\t%s\n' "$c/projects"
+    x="$home/.codex"
+    [ "$own" = 1 ] && [ -n "${CODEX_HOME:-}" ] && x="$CODEX_HOME"
+    [ -d "$x/sessions" ] && printf 'codex\t%s\n' "$x/sessions"
+    p="$home/.pi/agent"
+    [ "$own" = 1 ] && [ -n "${PI_CODING_AGENT_DIR:-}" ] && p="$PI_CODING_AGENT_DIR"
+    d="$p/sessions"
+    [ "$own" = 1 ] && [ -n "${PI_CODING_AGENT_SESSION_DIR:-}" ] && d="$PI_CODING_AGENT_SESSION_DIR"
+    [ -d "$d" ] && printf 'pi\t%s\n' "$d"
+    x="$home/.local/share"
+    [ "$own" = 1 ] && [ -n "${XDG_DATA_HOME:-}" ] && x="$XDG_DATA_HOME"
+    [ -d "$x/opencode" ] && printf 'opencode\t%s\n' "$x/opencode"
+  done
+  return 0
+}
+
+# "size mtime path" of the JSONL files under a directory that changed within SESSIONS_DAYS.
+sess_list() {
+  if [ "$STAT_GNU" = 1 ]; then
+    find "$1" -type f -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat -c '%s %Y %n' {} + 2>/dev/null
+  else
+    find "$1" -type f -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat -f '%z %m %N' {} + 2>/dev/null
+  fi
+}
+
+# The file in $SDIR/f that holds what is known about a source file. Its name comes from a checksum
+# of the path; the first line of the file says which path it is, so a clash gets another name.
+sess_dat() {
+  local a b id first
+  read -r a b _ <<EOF
+$(printf '%s' "$1" | cksum)
+EOF
+  id="$a-$b"
+  while [ -f "$SDIR/f/$id.dat" ]; do
+    IFS=$'\t' read -r _ first _ < "$SDIR/f/$id.dat"
+    [ "$first" = "$1" ] && break
+    id="$id-c"
+  done
+  printf '%s/f/%s.dat' "$SDIR" "$id"
+}
+
+# The lines of a file that can matter to the awk program of a tool, so that awk sees a few
+# percent of what the file holds.
+sess_filter() {
+  case "$1" in
+    claude) grep -a -F -e '"usage":{' -e '"quotaLimits":{' ;;
+    codex) grep -a -F -e '"session_meta"' -e '"turn_context"' -e '"token_count"' -e '"thread_settings_applied"' ;;
+    *) grep -a -F -e '"usage":{' -e '{"type":"session"' ;;
+  esac
+}
+sess_prog() {
+  case "$1" in
+    claude) printf '%s' "$CLAUDE_AWK" ;;
+    codex) printf '%s' "$CODEX_AWK" ;;
+    *) printf '%s' "$PI_AWK" ;;
+  esac
+}
+
+# A checksum of the first 512 bytes of a file, or of the first n if n is less.
+sess_guard() {
+  local n="$2"
+  [ "$n" -gt 512 ] && n=512
+  head -c "$n" "$1" 2>/dev/null | cksum | tr ' ' -
+}
+
+# Reads what is new in one JSONL file: from where the last run stopped to the last complete line,
+# so a line that is still being written is read next time. A file that shrank, or begins
+# differently, is read again from the start.
+sess_scan_file() {
+  local tool="$1" size="$2" path="$3" dat off hd nhead last plen size2 consumed have fsess rc
+  dat=$(sess_dat "$path")
+  off=0
+  hd=""
+  have=0
+  if [ -f "$dat" ]; then
+    IFS=$'\t' read -r _ _ off _ hd < "$dat"
+    have=1
+  fi
+  # The first bytes of the part that was read tell a file that grew from one that was written
+  # again: they do not change when a file grows.
+  if [ "$have" = 1 ] && [ "${off:-0}" -gt 0 ]; then
+    nhead=$(sess_guard "$path" "$off")
+    if [ "$size" -lt "$off" ] || [ "$nhead" != "$hd" ]; then
+      have=0
+      off=0
+    fi
+  fi
+  [ "$have" = 1 ] || off=0
+  last=$(tail -c 1 "$path" 2>/dev/null | od -An -tx1 | tr -d ' \n')
+  plen=0
+  [ "$last" != 0a ] && plen=$(tail -n 1 "$path" 2>/dev/null | wc -c | tr -d ' ')
+  # A file that grew meanwhile is left for next time.
+  size2=$(sess_size "$path")
+  [ "$size2" = "$size" ] || return 0
+  consumed=$((size - plen))
+  [ "$consumed" -ge "$off" ] || consumed=$off
+  fsess=${path##*/}
+  fsess=${fsess%.jsonl}
+  [ "${#fsess}" -gt 36 ] && fsess=${fsess: -36}
+  {
+    [ "$have" = 1 ] && tail -n +2 "$dat"
+    printf '@@DATA\n'
+    [ "$consumed" -gt "$off" ] && tail -c +$((off + 1)) "$path" | head -c $((consumed - off)) | sess_filter "$tool"
+  } | LC_ALL=C awk -v tool="$tool" -v cutoff="$SESS_CUTOFF" -v fsess="$fsess" "$SESS_AWK$(sess_prog "$tool")" > "$dat.new"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    rm -f "$dat.new"
+    printf '%s\tunreadable\n' "$tool" >> "$SDIR/status.new"
+    return 1
+  fi
+  nhead=$(sess_guard "$path" "$consumed")
+  { printf 'O\t%s\t%s\t%s\t%s\n' "$path" "$consumed" "$size" "$nhead"; cat "$dat.new"; } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
+  rm -f "$dat.new"
+}
+
+# Runs SQL statements on a database and prints the rows, tab separated: with sqlite3 if there is
+# one, else with python3. Returns 3 if there is neither.
+sess_sql() {
+  local db="$1" s sql="" out
+  shift
+  if command -v sqlite3 >/dev/null 2>&1; then
+    for s in "$@"; do sql="$sql$s;"; done
+    out=$(sqlite3 -readonly -cmd '.timeout 2000' -separator "$TAB" "$db" "$sql" 2>/dev/null) && { printf '%s\n' "$out"; return 0; }
+  fi
+  if command -v python3 >/dev/null 2>&1; then
+    out=$(python3 -I -c "$OC_PY" "$db" "$@" 2>/dev/null) && { printf '%s\n' "$out"; return 0; }
+    return 1
+  fi
+  command -v sqlite3 >/dev/null 2>&1 && return 1
+  return 3
+}
+
+# What OpenCode saved: D (session, directory), U (session, model, hour, in, cr, cw, out, reason,
+# requests, cost in millionths of a dollar) and S (session, first, last) lines. OpenCode keeps one
+# row per message, with its tokens in JSON, in session_message or, in older versions, message.
+# Input is uncached, output leaves reasoning out, and a cost of 0 means OpenCode did not know it.
+sess_oc_rows() {
+  local db="$1" tables tbl cond dirq t="data" f all
+  tables=$(sess_sql "$db" "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_message', 'message', 'session_v2', 'session')") || return $?
+  if printf '%s\n' "$tables" | grep -qx session_message; then
+    tbl=session_message
+    cond="type = 'assistant'"
+  elif printf '%s\n' "$tables" | grep -qx message; then
+    tbl=message
+    cond="json_extract(data, '\$.role') = 'assistant'"
+  else
+    return 0
+  fi
+  if printf '%s\n' "$tables" | grep -qx session_v2; then
+    dirq="SELECT 'D', id, directory FROM session_v2"
+  elif printf '%s\n' "$tables" | grep -qx session; then
+    dirq="SELECT 'D', id, directory FROM session"
+  else
+    dirq="SELECT 'D', '', ''"
+  fi
+  # A message that is still being written has no tokens yet, and is not a request.
+  all="COALESCE(json_extract($t, '\$.tokens.input'), 0) + COALESCE(json_extract($t, '\$.tokens.cache.read'), 0)
+       + COALESCE(json_extract($t, '\$.tokens.cache.write'), 0) + COALESCE(json_extract($t, '\$.tokens.output'), 0)
+       + COALESCE(json_extract($t, '\$.tokens.reasoning'), 0)"
+  f="FROM $tbl WHERE $cond AND time_created >= $SESS_CUTOFF_MS AND ($all) > 0"
+  sess_sql "$db" "$dirq" \
+    "SELECT 'U', session_id, COALESCE(json_extract($t, '\$.model.id'), json_extract($t, '\$.modelID'), ''),
+       strftime('%Y-%m-%dT%H', time_created / 1000, 'unixepoch'),
+       SUM(COALESCE(json_extract($t, '\$.tokens.input'), 0)),
+       SUM(COALESCE(json_extract($t, '\$.tokens.cache.read'), 0)),
+       SUM(COALESCE(json_extract($t, '\$.tokens.cache.write'), 0)),
+       SUM(COALESCE(json_extract($t, '\$.tokens.output'), 0) + COALESCE(json_extract($t, '\$.tokens.reasoning'), 0)),
+       SUM(COALESCE(json_extract($t, '\$.tokens.reasoning'), 0)), COUNT(*),
+       CAST(ROUND(SUM(CASE WHEN COALESCE(json_extract($t, '\$.cost'), 0) > 0 THEN json_extract($t, '\$.cost') ELSE 0 END) * 1000000) AS INTEGER)
+     $f GROUP BY 2, 3, 4" \
+    "SELECT 'S', session_id, strftime('%Y-%m-%dT%H:%M:%SZ', MIN(time_created) / 1000, 'unixepoch'),
+       strftime('%Y-%m-%dT%H:%M:%SZ', MAX(time_created) / 1000, 'unixepoch') $f GROUP BY 2"
+}
+
+# Reads every OpenCode database in a directory again when it changed, or changed lately (the
+# time stamps are only to the second). What comes out is already a total, so no offset is kept.
+sess_opencode() {
+  local db dat sig m1 m2 now out rc osig
+  for db in "$1"/opencode.db "$1"/opencode-*.db; do
+    [ -f "$db" ] || continue
+    dat=$(sess_dat "$db")
+    now=$(date +%s)
+    m1=$(sess_mtime "$db")
+    m2=$(sess_mtime "$db-wal")
+    [ "${m2:-0}" -gt "${m1:-0}" ] && m1=$m2
+    sig="$(sess_size "$db") $(sess_mtime "$db") $(sess_size "$db-wal") ${m2:-}"
+    if [ -f "$dat" ]; then
+      IFS=$'\t' read -r _ _ osig < "$dat"
+      if [ "$osig" = "$sig" ] && [ $((now - ${m1:-0})) -gt 120 ]; then
+        printf 'opencode\tok\n' >> "$SDIR/status.new"
+        continue
+      fi
+    fi
+    out=$(sess_oc_rows "$db")
+    rc=$?
+    case "$rc" in
+      0) ;;
+      3) printf 'opencode\tneeds-sqlite\n' >> "$SDIR/status.new"; continue ;;
+      *) printf 'opencode\tunreadable\n' >> "$SDIR/status.new"; continue ;;
+    esac
+    printf 'opencode\tok\n' >> "$SDIR/status.new"
+    {
+      printf 'O\t%s\t%s\n' "$db" "$sig"
+      printf '%s\n' "$out" | LC_ALL=C awk -F '\t' -v cutoff="$SESS_CUTOFF" '
+        function clean(s) { gsub(/[\001-\037\177"\\]/, "", s); return s }
+        function base(p) { gsub(/\/+$/, "", p); sub(/.*\//, "", p); return substr(clean(p), 1, 80) }
+        $1 == "D" { DIR[$2] = $3; next }
+        $1 == "U" && $3 != "" && $4 >= cutoff {
+          printf "R\topencode\t%s\t%s\tstandard\t%s\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\n", clean($2), clean($3), $4, $5, $6, $7, $8, $9, $10, $11
+          HAS[$2] = 1
+        }
+        $1 == "S" { FI[$2] = $3; LA[$2] = $4 }
+        END { for (s in FI) if (s in HAS) printf "M\topencode\t%s\t%s\t%s\t%s\n", clean(s), base(DIR[s]), FI[s], LA[s] }'
+    } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
+  done
+}
+
+# Reads whatever changed since the last run, in every place there are sessions.
+sess_collect() {
+  local tool dir size path
+  sessions_init || return 1
+  : > "$SDIR/status.new"
+  : > "$SDIR/cand.tsv"
+  while IFS=$'\t' read -r tool dir; do
+    [ -n "$tool" ] || continue
+    if [ "$tool" = opencode ]; then
+      sess_opencode "$dir"
+      continue
+    fi
+    printf '%s\tok\n' "$tool" >> "$SDIR/status.new"
+    sess_list "$dir" | while read -r size _ path; do
+      printf '%s\t%s\t%s\n' "$tool" "$size" "$path"
+    done >> "$SDIR/cand.tsv"
+  done <<EOF
+$(sess_dirs)
+EOF
+  # The files whose size is not what it was when they were last read.
+  { grep -h '^O' "$SDIR"/f/*.dat 2>/dev/null; printf '@@\n'; cat "$SDIR/cand.tsv"; } |
+    awk -F '\t' '$0 == "@@" { c = 1; next } !c { SZ[$2] = $4; next } !($3 in SZ) || SZ[$3] != $2' > "$SDIR/todo.tsv"
+  while IFS=$'\t' read -r tool size path; do
+    sess_scan_file "$tool" "$size" "$path"
+  done < "$SDIR/todo.tsv"
+  mv -f "$SDIR/status.new" "$SDIR/status.tsv"
+  # What a file said stays until it is older than the history that is kept.
+  find "$SDIR/f" -name '*.dat' -mtime "+$SESSIONS_DAYS" -exec rm -f {} + 2>/dev/null
+  return 0
+}
+
+# Makes the report from what is known: "print" shows all of it as one JSON document; "post" writes
+# what the hub lacks as request bodies, $SDIR/chunk.N.json, and leaves the new totals in agg.new.
+sess_report() {
+  local mode="$1" all=0
+  [ "$mode" = print ] && all=1
+  rm -f "$SDIR"/chunk.*.json
+  : > "$SDIR/agg.new"
+  { awk '{ print "T\t" $0 }' "$SDIR/status.tsv" 2>/dev/null; cat "$SDIR"/f/*.dat 2>/dev/null; } |
+    LC_ALL=C awk -F '\t' -v sent="$SDIR/sent.tsv" -v agg="$SDIR/agg.new" -v all="$all" "$REPORT1_AWK" |
+    LC_ALL=C sort |
+    LC_ALL=C awk -F '\t' -v mode="$mode" -v outdir="$SDIR" -v maxrows=400 "$REPORT2_AWK"
+}
+
+# Sends the chunks. The hub has the totals only once every chunk went through, so only then
+# do they become what is known to be sent.
+sess_post() {
+  local c out status body
+  for c in "$SDIR"/chunk.*.json; do
+    [ -f "$c" ] || continue
+    out=$(printf 'header = "Authorization: Bearer %s"\n' "$SECRET" |
+      curl -sS -m 30 -K - -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -H 'X-Bield: agent' \
+        --data-binary "@$c" "$SERVER_URL/api/agent/sessions") || {
+      echo "$(date '+%Y-%m-%d %H:%M:%S') coding sessions: couldn't reach $SERVER_URL" >&2
+      return 1
+    }
+    status=${out##*$'\n'}
+    body=${out%$'\n'*}
+    case "$status" in
+      2??) ;;
+      404)
+        # An older hub. It won't learn the new route in a minute.
+        echo $(($(date +%s) + 600)) > "$SDIR/backoff"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') coding sessions: this hub doesn't take them, so the agent asks again in 10 minutes" >&2
+        return 1
+        ;;
+      *)
+        echo "$(date '+%Y-%m-%d %H:%M:%S') coding sessions: HTTP $status: $(printf '%s' "$body" | cut -c 1-200)" >&2
+        return 1
+        ;;
+    esac
+  done
+  mv -f "$SDIR/agg.new" "$SDIR/sent.tsv"
+}
+
+sess_lock() {
+  local pid
+  if ! mkdir "$SDIR/lock" 2>/dev/null; then
+    pid=$(cat "$SDIR/lock/pid" 2>/dev/null)
+    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then return 1; fi
+    rm -rf "$SDIR/lock"
+    mkdir "$SDIR/lock" 2>/dev/null || return 1
+  fi
+  printf '%s' "$$" > "$SDIR/lock/pid"
+}
+
+# One round: read what is new, and send what the hub does not have.
+sessions_once() {
+  local b
+  sessions_init || return 1
+  b=$(cat "$SDIR/backoff" 2>/dev/null)
+  [ -n "$b" ] && [ "$b" -gt "$(date +%s)" ] 2>/dev/null && return 0
+  sess_lock || return 0
+  # shellcheck disable=SC2064
+  trap "rm -rf '$SDIR/lock'" EXIT
+  sess_collect || return 1
+  sess_report post
+  if ls "$SDIR"/chunk.*.json >/dev/null 2>&1; then sess_post; else mv -f "$SDIR/agg.new" "$SDIR/sent.tsv"; fi
+}
+
+CODING=0
+NEXT_SCAN=0
+SCAN_PID=""
+# After a heartbeat that said coding is on, starts a round in the background, niced and not more
+# often than SESSIONS_INTERVAL, so that a long first read never makes a heartbeat late.
+start_sessions() {
+  local now
+  [ "$CODING" = 1 ] || return 0
+  now=$(date +%s)
+  [ "$now" -ge "$NEXT_SCAN" ] || return 0
+  if [ -n "$SCAN_PID" ] && kill -0 "$SCAN_PID" 2>/dev/null; then return 0; fi
+  NEXT_SCAN=$((now + SESSIONS_INTERVAL))
+  if command -v nice >/dev/null 2>&1; then
+    nice -n 19 "${BASH:-/bin/bash}" "$0" --sessions-once &
+  else
+    "${BASH:-/bin/bash}" "$0" --sessions-once &
+  fi
+  SCAN_PID=$!
 }
 
 if [ "${1:-}" = "--print" ]; then
@@ -399,10 +1106,26 @@ if [ "${1:-}" = "--once" ]; then
   exit $?
 fi
 
+# Reads the sessions on this machine and shows the report instead of sending it. All of it, as
+# the files say now; BIELD_AGENT_STATE says where to keep what it has read.
+if [ "${1:-}" = "--sessions-print" ]; then
+  sess_collect && sess_report print
+  exit $?
+fi
+
+# One round of reading and sending, as the loop below starts it in the background.
+if [ "${1:-}" = "--sessions-once" ]; then
+  sessions_once
+  exit $?
+fi
+
+# shellcheck disable=SC2064
+trap '[ -n "$SCAN_PID" ] && kill "$SCAN_PID" 2>/dev/null' EXIT
 while true; do
   delay="$INTERVAL"
   # A hub that refuses this agent, such as after an admin revoked it, won't
   # change its mind in 15 seconds, so ask every 5 minutes instead.
   send_heartbeat || case "$STATUS" in 401 | 403 | 409) delay=300 ;; esac
+  start_sessions
   sleep "$delay"
 done

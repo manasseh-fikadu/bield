@@ -36,5 +36,5 @@ if [ -r "$CONF_DIR/env" ] && command -v curl >/dev/null; then
   esac
 fi
 
-rm -rf "$BIN_DIR" "$CONF_DIR"
+rm -rf "$BIN_DIR" "$CONF_DIR" "$STATE_DIR"
 echo "Removed $NAME."

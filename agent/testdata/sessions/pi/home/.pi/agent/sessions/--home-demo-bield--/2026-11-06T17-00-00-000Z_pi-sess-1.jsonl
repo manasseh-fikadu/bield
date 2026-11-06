@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"pi-sess-1","timestamp":"2026-11-06T17:00:00.000Z","cwd":"/home/demo/bield"}
+{"type":"message","id":"m1","parentId":null,"timestamp":"2026-11-06T17:00:05.000Z","message":{"role":"user","content":"PROMPT-LEAK-pi user"}}
+{"type":"message","id":"m2","parentId":"m1","timestamp":"2026-11-06T17:00:09.000Z","message":{"role":"assistant","content":[{"type":"text","text":"PROMPT-LEAK-pi assistant"}],"provider":"openai","model":"gpt-5.5","usage":{"input":100,"output":40,"cacheRead":300,"cacheWrite":10,"totalTokens":450,"cost":{"input":0.001,"output":0.002,"cacheRead":0.0003,"cacheWrite":0.0001,"total":0.0123}}}}
+{"type":"message","id":"m3","parentId":"m2","timestamp":"2026-11-06T18:20:00.000Z","message":{"role":"toolResult","content":"PROMPT-LEAK-pi tool","usage":{"input":5,"output":6,"cacheRead":0,"cacheWrite":0,"cost":{"total":0}}}}
+{"type":"branch_summary","id":"m4","timestamp":"2026-11-06T18:30:00.000Z","usage":{"input":7,"output":8,"cacheRead":9,"cacheWrite":0,"cost":{"total":0}}}
