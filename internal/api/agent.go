@@ -34,9 +34,14 @@ func (h *handler) heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if historyID == store.HubID && h.opts.Feed.measuresHub() {
-		// The agent still has to know whether to report its coding tools,
-		// which Bield can't measure itself.
-		h.writeJSON(w, r, http.StatusConflict, agentRefusal{Error: measuresItself, Coding: &codingFlag{Enabled: h.codingEnabled(r, historyID)}})
+		if h.codingEnabled(r, historyID) {
+			// An agent that's here to read the coding tools, which Bield
+			// can't do itself. Its metrics are Bield's own to measure, so
+			// the heartbeat is answered and left out.
+			h.writeJSON(w, r, http.StatusOK, heartbeatReply{Coding: codingFlag{Enabled: true}})
+			return
+		}
+		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: measuresItself})
 		return
 	}
 
@@ -76,6 +81,13 @@ func (h *handler) heartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// refusesAgent reports whether a machine can't have an agent, because Bield
+// runs on it and measures it itself. It can if an admin turned on coding
+// tools for it, which only an agent can read.
+func (h *handler) refusesAgent(r *http.Request, historyID string) bool {
+	return historyID == store.HubID && h.opts.Feed.measuresHub() && !h.codingEnabled(r, historyID)
 }
 
 // Why a machine can't have an agent, or not yet.
@@ -135,7 +147,7 @@ func (h *handler) installAgent(w http.ResponseWriter, r *http.Request) {
 		h.notFound(w, r)
 		return
 	}
-	if historyID == store.HubID && h.opts.Feed.measuresHub() {
+	if h.refusesAgent(r, historyID) {
 		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: measuresItself})
 		return
 	}
@@ -254,7 +266,7 @@ func (h *handler) enroll(w http.ResponseWriter, r *http.Request) {
 		h.writeJSON(w, r, http.StatusNotFound, ErrorBody{Error: notOnTailnet + "; try again in a few seconds"})
 		return
 	}
-	if historyID == store.HubID && h.opts.Feed.measuresHub() {
+	if h.refusesAgent(r, historyID) {
 		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: measuresItself})
 		return
 	}

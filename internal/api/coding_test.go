@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -229,9 +230,10 @@ func TestCoding_refusals(t *testing.T) {
 	}
 }
 
-// The machine Bield runs on is refused heartbeats when Bield measures it, but
-// it can still say how its coding tools are going, so the refusal tells its
-// agent whether to.
+// The machine Bield runs on is measured by Bield, so it can't have an agent,
+// unless an admin turns on coding tools for it, which only an agent can read.
+// Then its agent is there for them alone: Bield answers its heartbeats and
+// leaves their metrics out.
 func TestCoding_hub(t *testing.T) {
 	t.Parallel()
 	prices, _ := pricing.Parse([]byte(codingPrices))
@@ -242,20 +244,32 @@ func TestCoding_hub(t *testing.T) {
 		Host: func() hostmetrics.Reading { return hostmetrics.Reading{} },
 	})
 	h := api.New(opts)
-	secret := enrolled(t, st, "bield")
 
-	rec := sendBeat(t, h, bieldIP, secret, laptopBeat)
-	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"enabled":false`) {
-		t.Fatalf("a heartbeat from the hub = %d %s, want 409 that says coding is off", rec.Code, rec.Body)
+	// Until then, it's turned away as it always was.
+	rec := sendAs(t, h, http.MethodPost, "/api/agent/enroll", bieldIP, newCode(t, st, time.Now()), "")
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("enrolling the hub = %d %s, want 409", rec.Code, rec.Body)
+	}
+	if rec := sendBeat(t, h, bieldIP, "unknown", laptopBeat); rec.Code == http.StatusOK {
+		t.Fatalf("a heartbeat from the hub with coding off = %d %s", rec.Code, rec.Body)
 	}
 	if rec := send(t, h, http.MethodPut, "/api/devices/bield/coding", laptopIP, `{"enabled":true}`); rec.Code != http.StatusOK {
 		t.Fatalf("turning it on for the hub = %d %s", rec.Code, rec.Body)
 	}
-	rec = sendBeat(t, h, bieldIP, secret, laptopBeat)
-	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), `"enabled":true`) || !strings.Contains(rec.Body.String(), `"error"`) {
-		t.Fatalf("a heartbeat from the hub = %d %s, want 409 that says coding is on", rec.Code, rec.Body)
+
+	rec = sendAs(t, h, http.MethodPost, "/api/agent/enroll", bieldIP, newCode(t, st, time.Now()), "")
+	var secret api.AgentSecret
+	if err := json.Unmarshal(rec.Body.Bytes(), &secret); err != nil || rec.Code != http.StatusOK || secret.Secret == "" {
+		t.Fatalf("enrolling the hub with coding on = %d %s, want a secret", rec.Code, rec.Body)
 	}
-	rec = sendAs(t, h, http.MethodPost, "/api/agent/sessions", bieldIP, secret, codingReport(time.Now(), "codex", "s1", "gpt-x", "standard"))
+	rec = sendBeat(t, h, bieldIP, secret.Secret, laptopBeat)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"enabled":true`) {
+		t.Fatalf("a heartbeat from the hub = %d %s, want 200 that says coding is on", rec.Code, rec.Body)
+	}
+	if reports := opts.Agents.Reports(); len(reports) != 0 {
+		t.Errorf("Bield kept a report of its own machine from an agent: %v", reports)
+	}
+	rec = sendAs(t, h, http.MethodPost, "/api/agent/sessions", bieldIP, secret.Secret, codingReport(time.Now(), "codex", "s1", "gpt-x", "standard"))
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("a report from the hub = %d %s, want 204", rec.Code, rec.Body)
 	}
@@ -264,6 +278,14 @@ func TestCoding_hub(t *testing.T) {
 	// A million tokens of each kind at 2, 8, 0.2 and 2 dollars.
 	if want := 2 + 8 + 0.2 + 2; !near(sum.Totals.Cost.Total, want) || sum.Tools[0].Tool != "codex" {
 		t.Errorf("cost = %v, want %v; tools %+v", sum.Totals.Cost.Total, want, sum.Tools)
+	}
+
+	// Turning it off turns the agent away again.
+	if rec := send(t, h, http.MethodPut, "/api/devices/bield/coding", laptopIP, `{"enabled":false}`); rec.Code != http.StatusOK {
+		t.Fatalf("turning it off for the hub = %d %s", rec.Code, rec.Body)
+	}
+	if rec := sendBeat(t, h, bieldIP, secret.Secret, laptopBeat); rec.Code != http.StatusConflict {
+		t.Errorf("a heartbeat from the hub after turning it off = %d %s, want 409", rec.Code, rec.Body)
 	}
 }
 

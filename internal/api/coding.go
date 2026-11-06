@@ -36,13 +36,6 @@ type heartbeatReply struct {
 	Coding codingFlag `json:"coding"`
 }
 
-// agentRefusal is the answer to an agent that Bield turns away, with the one
-// thing it can still tell it.
-type agentRefusal struct {
-	Error  string      `json:"error"`
-	Coding *codingFlag `json:"coding,omitempty"`
-}
-
 // codingEnabled reports whether a device's coding tools are watched. If Bield
 // can't tell, it says they aren't, and logs why.
 func (h *handler) codingEnabled(r *http.Request, historyID string) bool {
