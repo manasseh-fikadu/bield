@@ -4,6 +4,19 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- Coding usage: what Claude Code, Codex, OpenCode and Pi used on each machine, as tokens, an estimate of what the same tokens would cost on the model makers' APIs, and the limits the tools report. It shows on a machine's page and on a new Coding page under Devices. An admin turns it on for each machine, and it needs the agent updated to 1.4.0, which reads the tools' session files and sends only counts, model names, times and project folder names.
+- The machine Bield runs on can have an agent that reads only the coding tools, once an admin turns coding usage on for it.
+
+### Changed
+
+- Settings has a retention for coding usage, 365 days by default.
+
+### Security
+
+- Updated klauspost/compress to v1.20.2, for GO-2026-6865, a panic on two-block frames.
+
 ## 0.1.1 - 2026-11-05
 
 This release fixes what an outside review of v0.1.0 found. Update the agent from its page in Bield, to get its fix.
