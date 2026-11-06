@@ -121,7 +121,9 @@ func (d *Demo) codingHistory(m *machine, prof codingProfile, span time.Duration)
 				last = hour.Add(time.Duration(30+u(key+6)*29) * time.Minute)
 			}
 			if used {
-				last = minTime(last, d.start.Add(-time.Minute))
+				// Only the session that is made to be still going is active when the demo
+				// starts, whatever time of day that is.
+				last = minTime(last, d.start.Add(-10*time.Minute))
 				first = minTime(first, last)
 				r.Sessions = append(r.Sessions, store.CodingSession{Tool: tool, ID: id, Project: project, First: first, Last: last})
 			}
