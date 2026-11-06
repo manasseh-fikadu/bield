@@ -32,4 +32,4 @@ Start with the [README](../README.md) for what Bield is and a two-minute quickst
 | [FAQ](faq.md) | Common questions and what to check when something doesn't work |
 | [Benchmarks](benchmark.md) | What Bield costs with 200 devices and 90 days of history |
 
-The threat model and how to report a vulnerability are in [SECURITY.md](../SECURITY.md). To work on Bield, see [CONTRIBUTING.md](../CONTRIBUTING.md).
+What changed in each release is in the [changelog](../CHANGELOG.md). The threat model and how to report a vulnerability are in [SECURITY.md](../SECURITY.md). To work on Bield, see [CONTRIBUTING.md](../CONTRIBUTING.md).
