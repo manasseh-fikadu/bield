@@ -172,3 +172,26 @@ func TestOpen_dropsAgentToken(t *testing.T) {
 		t.Errorf("kv keys after migrating = %q, want only who_can_view", got)
 	}
 }
+
+// The demo seeds enrollments from days ago. A code made then has expired by the clock, so the
+// store's prune may delete it before it's used. It makes the code now and enrolls the agent as of
+// then, which only needs the code to be live at the time it's enrolled.
+func TestStore_EnrollAsOfAnEarlierTime(t *testing.T) {
+	t.Parallel()
+	s := openStore(t, filepath.Join(t.TempDir(), "bield.db"), nil)
+	then := time.Now().Add(-3 * 24 * time.Hour)
+	code, _, err := s.NewEnrollmentCode(t.Context(), "alice@example.com", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret, e, err := s.Enroll(t.Context(), code, "laptop", then)
+	if err != nil {
+		t.Fatalf("Enroll() as of 3 days ago error = %v", err)
+	}
+	if !e.At.Equal(then) || e.By != "alice@example.com" {
+		t.Errorf("Enroll() = %+v, want it as of %v", e, then)
+	}
+	if got, err := s.EnrolledNode(t.Context(), secret); err != nil || got != "laptop" {
+		t.Errorf("EnrolledNode() = %q, %v, want laptop", got, err)
+	}
+}
