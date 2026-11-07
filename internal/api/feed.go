@@ -168,9 +168,16 @@ func (f *Feed) Run(ctx context.Context) {
 	gap := time.NewTimer(0)
 	defer gap.Stop()
 	sampleHealth := false
-	for {
+	for first := true; ; first = false {
 		builtAt := time.Now()
-		p := f.publish(ctx)
+		// A request that came before Run started may have built the first snapshot
+		// already, and building another now would only send it twice.
+		var p *published
+		if first {
+			p = f.latest(ctx)
+		} else {
+			p = f.publish(ctx)
+		}
 		if sampleHealth && p != nil {
 			f.recordHealth(ctx, p.snap)
 			sampleHealth = false
@@ -263,6 +270,16 @@ func (f *Feed) latest(ctx context.Context) *published {
 	f.mu.Lock()
 	p := f.cur
 	f.mu.Unlock()
+	if p != nil {
+		return p
+	}
+	// If one is being built, it is the first, so wait for it instead of building
+	// another, which every client of the stream would then get as well.
+	f.buildMu.Lock()
+	f.mu.Lock()
+	p = f.cur
+	f.mu.Unlock()
+	f.buildMu.Unlock()
 	if p != nil {
 		return p
 	}

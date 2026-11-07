@@ -414,3 +414,26 @@ func TestSnapshotRoute_fresh(t *testing.T) {
 		t.Errorf("last event ID = %d after, %d before, want the activity log's new line in it", after.LastEventID, before.LastEventID)
 	}
 }
+
+// A feed that starts after a request built the first snapshot doesn't build
+// another at once, which a client of the stream would get as a second event.
+func TestStream_feedStartedAfterTheFirstSnapshot(t *testing.T) {
+	st := testStore(t)
+	synctest.Test(t, func(t *testing.T) {
+		tn := testTailnet()
+		opts := withStore(t, tn, st, api.Options{})
+		opts.Feed = api.NewFeed(api.FeedOptions{Tailnet: opts.Snapshot, Store: st})
+		events := openStream(t, tn, api.New(opts), laptopIP, true)
+		synctest.Wait()
+		nextSnapshot(t, events)
+
+		go opts.Feed.Run(t.Context())
+		time.Sleep(api.FeedHeartbeat / 2)
+		synctest.Wait()
+		select {
+		case e := <-events:
+			t.Fatalf("got event %+v before anything changed, want the one snapshot", e)
+		default:
+		}
+	})
+}
