@@ -1,6 +1,6 @@
 <script lang="ts">
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import Code from '@lucide/svelte/icons/code';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Info from '@lucide/svelte/icons/info';
 	import { resolve } from '$app/paths';
 	import { Poll } from '#lib/docker/poll.svelte.js';
@@ -175,8 +175,8 @@
 	<ArrowLeft class="size-3.5" /> Devices
 </a>
 <PageHeader
-	title="Coding usage"
-	description="What the AI coding tools on your machines used: tokens, what that would cost on the model makers' APIs, and where their limits stand."
+	title="AI usage"
+	description="What the AI tools on your machines used, for coding or anything else: tokens, what that would cost on the model makers' APIs, and where their limits stand."
 >
 	{#snippet actions()}
 		<Segmented bind:value={range} options={codingRanges} label="Time range" />
@@ -186,9 +186,9 @@
 {#if poll.error && !summary}
 	<Card>
 		<ErrorState
-			title="Couldn't load coding usage"
+			title="Couldn't load AI usage"
 			message={poll.error}
-			icon={Code}
+			icon={Sparkles}
 			onretry={() => poll.reload()}
 		/>
 	</Card>
@@ -201,12 +201,12 @@
 {:else if empty}
 	<Card>
 		{#if watched.length === 0}
-			<EmptyState title="No coding tools are watched yet" icon={Code}>
+			<EmptyState title="No AI tools are watched yet" icon={Sparkles}>
 				Open a machine on the <a
 					href={resolve('/devices')}
 					class="text-fg underline decoration-line-heavy underline-offset-4">Devices</a
 				>
-				page and turn on <span class="text-fg">Watch coding tools</span>. Its agent then reads the
+				page and turn on <span class="text-fg">Watch AI tools</span>. Its agent then reads the
 				session files of Claude Code, Codex, OpenCode and Pi once a minute and reports counts of
 				tokens. Prompts and replies never leave the machine. It needs agent 1.4.0 or newer, which
 				<a
@@ -215,8 +215,8 @@
 				> installs and updates.
 			</EmptyState>
 		{:else}
-			<EmptyState title="No coding sessions in the last {codingRangeName(range)}" icon={Code}>
-				Bield watches the coding tools on {plural(watched.length, 'machine')}: {watched
+			<EmptyState title="No AI sessions in the last {codingRangeName(range)}" icon={Sparkles}>
+				Bield watches the AI tools on {plural(watched.length, 'machine')}: {watched
 					.map((d) => nameOf(d.deviceId))
 					.join(', ')}. Their agents report once a minute, so the first numbers come soon after a
 				session runs. They need agent 1.4.0 or newer. Try a longer range if you were away.

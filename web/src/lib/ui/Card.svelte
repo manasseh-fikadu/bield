@@ -3,6 +3,8 @@
 	import type { Snippet } from 'svelte';
 
 	interface Props {
+		/** Lets a link on the page jump to the card. */
+		id?: string;
 		title?: string;
 		description?: string;
 		/** Buttons or links at the right of the header. */
@@ -13,10 +15,10 @@
 		bodyClass?: string;
 	}
 
-	let { title, description, actions, children, class: className, bodyClass }: Props = $props();
+	let { id, title, description, actions, children, class: className, bodyClass }: Props = $props();
 </script>
 
-<section class={['overflow-hidden card', className]}>
+<section {id} class={['overflow-hidden card', className]}>
 	{#if title || actions}
 		<header class="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
 			<div class="min-w-0">

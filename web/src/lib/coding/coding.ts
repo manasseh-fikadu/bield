@@ -1,5 +1,5 @@
-// How the UI shows what the coding tools (Claude Code, Codex, OpenCode, Pi) on
-// the tailnet's machines used: tokens, what they'd cost on the model makers'
+// How the UI shows what the AI tools (Claude Code, Codex, OpenCode, Pi) on the
+// tailnet's machines used: tokens, what they'd cost on the model makers'
 // APIs, and where the tools' limits stand. All of it is worked out by the hub;
 // this is words, numbers and colors.
 
@@ -32,10 +32,24 @@ export function codingRangeName(range: CodingRange): string {
 	];
 }
 
+/** What a device's page says about its AI usage card, at the top, where it is out of sight. */
+export interface Glance {
+	/** Whether an admin turned watching on. */
+	enabled: boolean;
+	/** Whether there is anything to show. */
+	hasData: boolean;
+	/** The estimated cost over the card's range. */
+	cost: number;
+	/** How many sessions are going now. */
+	live: number;
+	/** The card's range, such as "7 days". */
+	range: string;
+}
+
 /** What a chart plots. */
 export type Metric = 'cost' | 'tokens';
 
-/** The agent version that reports coding tools. */
+/** The agent version that reports AI tools' usage. */
 export const minAgentVersion = '1.4.0';
 
 const toolNames: Record<string, string> = {
@@ -52,13 +66,14 @@ export function toolName(tool: string): string {
 
 const toolColors: Record<string, string> = {
 	claude: '#d95926',
-	codex: '#dde7f3',
+	// Not the near-white of a lit lamp, which a tool's color would be taken for.
+	codex: '#199e70',
 	opencode: '#3987e5',
 	pi: '#9085e9'
 };
 
 /** Colors for the tools this version doesn't know, which stay the same for a tool. */
-const spare = ['#c98500', '#d55181', '#199e70', '#e66767'];
+const spare = ['#c98500', '#d55181', '#14a3b8', '#e66767'];
 
 /** A tool's color in charts, which stays the same for the tool whichever page it's on. */
 export function toolColor(tool: string): string {

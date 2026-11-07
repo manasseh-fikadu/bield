@@ -428,7 +428,7 @@ func (r Retention) Check() error {
 		{"the activity log", r.ActivityDays, MaxActivityDays},
 		{"the history of devices", r.HistoryDays, MaxHistoryDays},
 		{"the results of checks", r.ChecksDays, MaxChecksDays},
-		{"what coding tools used", r.CodingDays, MaxCodingDays},
+		{"what AI tools used", r.CodingDays, MaxCodingDays},
 	} {
 		if p.got < 1 || p.got > p.max {
 			return fmt.Errorf("the days to keep %s must be from 1 to %d", p.name, p.max)

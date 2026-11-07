@@ -58,7 +58,7 @@ func (h *handler) codingSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !h.codingEnabled(r, historyID) {
-		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: "an admin hasn't turned on watching coding tools for this device, so Bield ignores the report"})
+		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: "an admin hasn't turned on watching AI tools for this device, so Bield ignores the report"})
 		return
 	}
 	var rep coding.Report
@@ -116,7 +116,7 @@ func (h *handler) setDeviceCoding(w http.ResponseWriter, r *http.Request) {
 	if body.Enabled {
 		verb = "Turned on"
 	}
-	h.logAction(r, EventKindDevice, d.ID, verb+" watching the coding tools on "+h.deviceName(r, d.ID))
+	h.logAction(r, EventKindDevice, d.ID, verb+" watching the AI tools on "+h.deviceName(r, d.ID))
 	h.writeJSON(w, r, http.StatusOK, body)
 }
 

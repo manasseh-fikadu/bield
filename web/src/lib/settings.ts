@@ -72,8 +72,8 @@ export const retention: {
 	},
 	{
 		key: 'codingDays',
-		label: "Coding tools' usage",
-		description: 'The tokens and cost of coding sessions, by the hour, and the sessions.',
+		label: "AI tools' usage",
+		description: 'The tokens and cost of AI tool sessions, by the hour, and the sessions.',
 		max: 1095
 	}
 ];
@@ -167,7 +167,9 @@ export function retentionProblem(r: RetentionSettings): string {
 	for (const info of retention) {
 		const days = r[info.key];
 		if (!Number.isInteger(days) || days < 1 || days > info.max) {
-			return `Keep the ${info.label.toLowerCase()} for 1 to ${info.max} days.`;
+			// A label that starts with an acronym, such as AI, keeps its capitals.
+			const label = /^[A-Z][a-z]/.test(info.label) ? info.label.toLowerCase() : info.label;
+			return `Keep the ${label} for 1 to ${info.max} days.`;
 		}
 	}
 	return '';

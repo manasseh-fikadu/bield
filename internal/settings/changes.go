@@ -91,7 +91,7 @@ func Changes(before, after Settings) []string {
 		{"activity log", br2.ActivityDays, ar2.ActivityDays},
 		{"device history", br2.HistoryDays, ar2.HistoryDays},
 		{"check results", br2.ChecksDays, ar2.ChecksDays},
-		{"coding tools' usage", br2.CodingDays, ar2.CodingDays},
+		{"AI tools' usage", br2.CodingDays, ar2.CodingDays},
 	} {
 		if f.before != f.now {
 			keep = append(keep, fmt.Sprintf("%s %s → %s", f.label, days(f.before), days(f.now)))
