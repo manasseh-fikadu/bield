@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.2.0 - 2026-11-07
+
+This release adds what your coding tools use on each machine. Update the agent from its page in Bield, to get the new one (1.4.0), and turn coding usage on for the machines you want it from.
+
 ### Added
 
 - Coding usage: what Claude Code, Codex, OpenCode and Pi used on each machine, as tokens, an estimate of what the same tokens would cost on the model makers' APIs, and the limits the tools report. It shows on a machine's page and on a new Coding page under Devices. An admin turns it on for each machine, and it needs the agent updated to 1.4.0, which reads the tools' session files and sends only counts, model names, times and project folder names.
@@ -12,6 +16,8 @@ What changed in each release of Bield, newest first. The [landing page](https://
 ### Changed
 
 - Settings has a retention for coding usage, 365 days by default.
+
+- Updated the Tailscale library (tailscale.com) to v1.104.4.
 
 ### Security
 
