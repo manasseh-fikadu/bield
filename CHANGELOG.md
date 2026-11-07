@@ -4,6 +4,15 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Changed
+
+- Coding usage is now called AI usage, since Claude Code, Codex and the others get used for more than code. The machine's page has a link under its name, with the cost and how many sessions are live, that jumps down to the card, which sat out of sight at the bottom.
+- A session that is going now says Live on the right of its row. It had a white lamp next to the tool's own dot, and Codex's dot was the same white. A tool's color is a square now and a lamp always means a status, and Codex is green.
+
+### Fixed
+
+- On the machine Bield runs on, the AI usage card kept saying Install the agent after the agent was installed and reporting. It asks for the agent only until the first numbers arrive.
+
 ## 0.2.0 - 2026-11-07
 
 This release adds what your coding tools use on each machine. Update the agent from its page in Bield, to get the new one (1.4.0), and turn coding usage on for the machines you want it from.

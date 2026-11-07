@@ -22,7 +22,7 @@ To see exactly what a machine would send, run the script with `--print`. It writ
 SERVER_URL=http://127.0.0.1 SECRET=x bash agent.sh --print
 ```
 
-The agent doesn't read file contents or the environment of the processes it lists. The one exception is [coding sessions](coding.md), which an admin turns on for each machine, and which makes the agent read the session files of AI coding tools and send counts from them. It runs nothing that Bield sends back, since all it looks at in Bield's answer is whether the heartbeat was accepted, the error text if it wasn't, and whether to read coding sessions.
+The agent doesn't read file contents or the environment of the processes it lists. The one exception is [AI usage](coding.md), which an admin turns on for each machine, and which makes the agent read the session files of AI tools such as Claude Code and Codex and send counts from them. It runs nothing that Bield sends back, since all it looks at in Bield's answer is whether the heartbeat was accepted, the error text if it wasn't, and whether to read coding sessions.
 
 ## Installing it
 
@@ -94,7 +94,7 @@ An agent's heartbeat carries its secret, and Bield checks two things: the secret
 
 An agent that gets a 401, 403 or 409 waits 5 minutes before it tries again, because Bield isn't going to change its mind soon. A machine that has only just joined the tailnet may get a 404 for up to ten seconds, until Bield's next look at the tailnet. The agent keeps trying.
 
-Bield refuses an agent on a machine it measures itself, with a 409. If you run Bield on a Linux machine, don't install an agent there. The one thing such a machine can use an agent for is [coding sessions](coding.md), which Bield can't read for itself. Once an admin turns them on for it, Bield lets an agent enroll there, and answers its heartbeats without keeping their metrics, so that agent only reads coding sessions.
+Bield refuses an agent on a machine it measures itself, with a 409. If you run Bield on a Linux machine, don't install an agent there. The one thing such a machine can use an agent for is [AI usage](coding.md), which Bield can't read for itself. Once an admin turns it on for that machine, Bield lets an agent enroll there, and answers its heartbeats without keeping their metrics, so that agent only reads the AI tools' sessions.
 
 ## When a machine doesn't report
 
