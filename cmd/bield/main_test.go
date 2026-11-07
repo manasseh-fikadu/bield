@@ -20,6 +20,10 @@ func TestRun(t *testing.T) {
 		{name: "help", args: []string{"help"}, wantStdout: "Usage: bield"},
 		{name: "unknown command", args: []string{"bogus"}, wantErr: errUsage, wantStderr: `unknown command "bogus"`},
 		{name: "version", args: []string{"version"}, wantStdout: buildVersion() + "\n"},
+		{name: "help for a command", args: []string{"help", "alerts", "ack"}, wantStdout: "Usage: bield alerts ack <id>"},
+		// Flags that every command takes may come first.
+		{name: "flags before a command", args: []string{"--json", "--url", "http://127.0.0.1:1", "whoami"}, wantErr: exitError(1), wantStderr: `"error":"can't reach Bield`},
+		{name: "flags before a missing command", args: []string{"--json"}, wantErr: errUsage, wantStderr: "unknown command"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

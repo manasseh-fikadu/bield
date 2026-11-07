@@ -135,6 +135,7 @@ func (h *handler) routes(rt *router) {
 	rt.read("GET /api/health", anyone, h.health)
 	rt.read("GET /api/me", anyone, h.me)
 	rt.read("GET /api/stream", viewers, h.stream)
+	rt.read("GET /api/snapshot", viewers, h.snapshot)
 
 	rt.read("GET /api/devices/{id}/history", viewers, h.deviceHistory)
 	rt.read("GET /api/devices/{id}/usage", viewers, h.deviceUsage)

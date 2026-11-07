@@ -23,22 +23,40 @@ type Event struct {
 	DeviceID string
 	// Actor is the login of who did it, or "" if Bield saw it happen.
 	Actor string
+	// Via is how the actor's request reached Bield when it wasn't the web
+	// app, such as "cli", or "" for the web app.
+	Via string
 }
 
-// AddEvents adds events to the activity log, in order.
+type viaKey struct{}
+
+// WithVia returns a context that marks the events with an actor that are added
+// with it as having come via something other than the web app, such as "cli".
+// The API sets it on each request, so the code that handles a request, such as
+// the alerts engine, needn't know where the request came from.
+func WithVia(ctx context.Context, via string) context.Context {
+	return context.WithValue(ctx, viaKey{}, via)
+}
+
+// AddEvents adds events to the activity log, in order. An event with an actor
+// that doesn't say how it came gets the via that ctx carries (see WithVia).
 func (s *Store) AddEvents(ctx context.Context, events ...Event) error {
 	if len(events) == 0 {
 		return nil
 	}
+	via, _ := ctx.Value(viaKey{}).(string)
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		stmt, err := tx.PrepareContext(ctx,
-			"INSERT INTO events (ts, level, kind, message, device_id, actor) VALUES (?, ?, ?, ?, ?, ?)")
+			"INSERT INTO events (ts, level, kind, message, device_id, actor, via) VALUES (?, ?, ?, ?, ?, ?, ?)")
 		if err != nil {
 			return err
 		}
 		defer func() { _ = stmt.Close() }()
 		for _, e := range events {
-			if _, err := stmt.ExecContext(ctx, e.At.UnixMilli(), e.Level, e.Kind, e.Message, nullString(e.DeviceID), e.Actor); err != nil {
+			if e.Actor != "" && e.Via == "" {
+				e.Via = via
+			}
+			if _, err := stmt.ExecContext(ctx, e.At.UnixMilli(), e.Level, e.Kind, e.Message, nullString(e.DeviceID), e.Actor, e.Via); err != nil {
 				return err
 			}
 		}
@@ -86,7 +104,7 @@ func (s *Store) Events(ctx context.Context, q EventQuery) ([]Event, error) {
 	for _, k := range q.HideKinds {
 		where, args = append(where, "kind != ?"), append(args, k)
 	}
-	query := "SELECT id, ts, level, kind, message, device_id, actor FROM events"
+	query := "SELECT id, ts, level, kind, message, device_id, actor, via FROM events"
 	if len(where) > 0 {
 		// The conditions are constants, with placeholders for the values.
 		query += " WHERE " + strings.Join(where, " AND ") //nolint:gosec // G202: see above.
@@ -104,7 +122,7 @@ func (s *Store) Events(ctx context.Context, q EventQuery) ([]Event, error) {
 			at     int64
 			device sql.NullString
 		)
-		if err := rows.Scan(&e.ID, &at, &e.Level, &e.Kind, &e.Message, &device, &e.Actor); err != nil {
+		if err := rows.Scan(&e.ID, &at, &e.Level, &e.Kind, &e.Message, &device, &e.Actor, &e.Via); err != nil {
 			return nil, fmt.Errorf("read the activity log: %w", err)
 		}
 		e.At, e.DeviceID = time.UnixMilli(at), device.String

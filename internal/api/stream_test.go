@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
@@ -356,4 +357,83 @@ func findDevice(t *testing.T, s api.Snapshot, id string) api.Device {
 	}
 	t.Fatalf("no device %q in the snapshot", id)
 	return api.Device{}
+}
+
+// GET /api/snapshot answers with the snapshot the stream sends first, without
+// what only admins see for a viewer, and not at all for anyone else.
+func TestSnapshotRoute(t *testing.T) {
+	t.Parallel()
+	tn := testTailnet()
+	status, err := tn.Status(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	status.Tailnet = "example.com"
+	tn.SetStatus(*status)
+	h := api.New(withTailnet(t, tn, api.Options{Version: "v1.2.3"}))
+
+	var admin, viewer api.Snapshot
+	get(t, h, "/api/snapshot", laptopIP, &admin)
+	get(t, h, "/api/snapshot", phoneIP, &viewer)
+	if admin.Hub.Tailnet != "example.com" || viewer.Hub.Tailnet != "" {
+		t.Errorf("tailnet name = %q for an admin and %q for a viewer, want it for the admin only", admin.Hub.Tailnet, viewer.Hub.Tailnet)
+	}
+	want := []string{"bield", "server", "laptop", "phone", "tablet"}
+	if got := deviceIDs(admin); !slices.Equal(got, want) {
+		t.Errorf("admin's devices = %q, want %q", got, want)
+	}
+	if got := deviceIDs(viewer); !slices.Equal(got, want) {
+		t.Errorf("viewer's devices = %q, want %q", got, want)
+	}
+	for name, from := range map[string]netip.Addr{"a tagged device": serverIP, "someone with no role": tabletIP, "a stranger": strangerIP} {
+		if rec := serve(h, newRequest(t, http.MethodGet, "/api/snapshot", from)); rec.Code != http.StatusForbidden {
+			t.Errorf("GET /api/snapshot from %s = %d, want %d", name, rec.Code, http.StatusForbidden)
+		}
+	}
+}
+
+// A change made a moment ago is in the snapshot a caller asks for next, and in
+// the first one a stream sends, without waiting for the next to be built.
+func TestSnapshotRoute_fresh(t *testing.T) {
+	t.Parallel()
+	h, _, _, id := openAlert(t)
+	var before api.Snapshot
+	get(t, h, "/api/snapshot", phoneIP, &before)
+	if len(before.Alerts) != 1 || before.Alerts[0].State != api.AlertStateOpen {
+		t.Fatalf("alerts before = %+v, want the one open alert", before.Alerts)
+	}
+	if rec := send(t, h, http.MethodPut, fmt.Sprintf("/api/alerts/%d/ack", id), laptopIP, ""); rec.Code != http.StatusOK {
+		t.Fatalf("PUT ack = %d %s", rec.Code, rec.Body)
+	}
+	var after api.Snapshot
+	get(t, h, "/api/snapshot", phoneIP, &after)
+	if len(after.Alerts) != 1 || after.Alerts[0].State != api.AlertStateAcknowledged {
+		t.Errorf("alerts after = %+v, want the alert acknowledged", after.Alerts)
+	}
+	if after.LastEventID <= before.LastEventID {
+		t.Errorf("last event ID = %d after, %d before, want the activity log's new line in it", after.LastEventID, before.LastEventID)
+	}
+}
+
+// A feed that starts after a request built the first snapshot doesn't build
+// another at once, which a client of the stream would get as a second event.
+func TestStream_feedStartedAfterTheFirstSnapshot(t *testing.T) {
+	st := testStore(t)
+	synctest.Test(t, func(t *testing.T) {
+		tn := testTailnet()
+		opts := withStore(t, tn, st, api.Options{})
+		opts.Feed = api.NewFeed(api.FeedOptions{Tailnet: opts.Snapshot, Store: st})
+		events := openStream(t, tn, api.New(opts), laptopIP, true)
+		synctest.Wait()
+		nextSnapshot(t, events)
+
+		go opts.Feed.Run(t.Context())
+		time.Sleep(api.FeedHeartbeat / 2)
+		synctest.Wait()
+		select {
+		case e := <-events:
+			t.Fatalf("got event %+v before anything changed, want the one snapshot", e)
+		default:
+		}
+	})
 }

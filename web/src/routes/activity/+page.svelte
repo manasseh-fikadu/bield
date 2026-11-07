@@ -185,7 +185,7 @@
 										>
 									{/if}
 									{#if e.actor}
-										· by {e.actor}
+										· by {e.actor}{e.via === 'cli' ? ' with the CLI' : ''}
 									{/if}
 								</p>
 							</div>

@@ -227,7 +227,7 @@ func (h *handler) listEvents(w http.ResponseWriter, r *http.Request) {
 	for _, e := range events[:min(len(events), limit)] {
 		out.Events = append(out.Events, Event{
 			ID: e.ID, At: e.At, Level: EventLevel(e.Level), Kind: EventKind(e.Kind),
-			Message: e.Message, DeviceID: e.DeviceID, Actor: e.Actor,
+			Message: e.Message, DeviceID: e.DeviceID, Actor: e.Actor, Via: e.Via,
 		})
 	}
 	h.writeJSON(w, r, http.StatusOK, out)
