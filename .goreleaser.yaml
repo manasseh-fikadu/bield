@@ -82,29 +82,36 @@ changelog:
 release:
   # A tag like v0.1.0-rc.1 is a pre-release.
   prerelease: auto
-  # Written by hand for v0.2.1, and above the generated changelog. Rewrite the
+  # Written by hand for v0.3.0, and above the generated changelog. Rewrite the
   # lists for the next release, since they say what was run for this one.
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release renames coding usage to [AI usage](https://github.com/manasseh-fikadu/bield/blob/main/docs/coding.md), since Claude Code, Codex and the others get used for more than code, and fixes how its card looks on a machine's page:
+    This release adds [a command line](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md), for people and for AI agents such as Claude Code and Codex. It is the same `bield` file as the server: `bield connect https://bield.example.ts.net` on a laptop that is on your tailnet, and then `bield status`, `bield devices`, `bield alerts ack 5`, `bield docker restart nas web --yes` and about forty more, with the roles the web app has. There is nothing to log in to, because Bield sees who you are through Tailscale.
 
-    - A link under the machine's name jumps down to the card, which sat out of sight at the bottom. The link shows the cost and how many sessions are live.
-    - A session that is going now says Live on the right of its row. It had a lamp beside the tool's own dot, and Codex's dot was the same near-white as the lamp. A tool's color is a square now, a round lamp always means a status, and Codex is green.
-    - On the machine Bield runs on, the card asks you to install the agent only until the agent's first numbers arrive. It kept asking after the agent was installed.
+    - Every command takes `--json`, never asks a question, and exits with a code that says what went wrong. A command that stops, deletes or overwrites something does nothing without `--yes`.
+    - A refusal says why, and what to do: from a tagged server, from Bield's own machine, with no role, or as a viewer.
+    - The activity log says when a change came from the command line.
+    - Bield adds a column to the activity log when it starts, so you don't need to do anything. A snapshot now also includes a change made a moment ago, and a page that connected while Bield was starting is no longer sent its first snapshot twice.
 
-    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines.
+    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. An agent on a tagged server, in CI or on the machine Bield runs on can't use the command line yet, since Bield doesn't know who they are. Scoped tokens for them are the next step.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - The new card in the demo, at a desktop width and a phone's: with a session that is live, on a machine that isn't watched, and on the machine Bield runs on with and without a reporting agent. The link at the top moved the card into view at both widths.
-    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo, which follows the new link.
+    - The commands against a fake tailnet in Go tests: each role, each kind of refusal, `--yes`, the follow modes, and `bield connect`. Docker and files go through a stub server.
+    - The commands by hand against the demo.
+    - A Bield in host mode on a real tailnet, asked from the machine it runs on: the command line says that machine is anonymous and what to do.
+    - `bield whoami` and `bield settings` against a Bield v0.2.1 from a machine on a real tailnet, where they ran as the signed-in admin. The commands that need the new snapshot route say that the Bield is too old.
+    - The new migration's SQL on a copy of a running v0.2.1's database, with Python's sqlite3: it adds the column, leaves the 472 activity lines as they were, and the integrity check passes.
 
     ### What has not been run
 
-    - Upgrading from v0.2.0 to this release.
+    - Upgrading from v0.2.1 to this release in place, and Bield's own start-up on a v0.2.1 database. Only the migration's SQL was run on a copy, and the tests run the migration on a new database.
+    - The Docker and file commands against a real machine. The demo turns them off.
+    - The command line on a Mac, and the zsh and fish completion scripts. Only bash was checked, and only its syntax.
+    - The new command line on a second machine of a real tailnet, against this release's Bield.
     - What the [v0.2.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.2.0) list under "What has not been run", which is coding usage on a Mac, OpenCode read with the `sqlite3` command, and Pi on a real install. Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
