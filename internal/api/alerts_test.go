@@ -604,3 +604,56 @@ func TestSnapshot_keyExpiryAdvice(t *testing.T) {
 		})
 	}
 }
+
+// A change made with the command line is marked in the activity log: an
+// alert's ack and note, which the alerts engine logs without the request, and
+// a container action. The same change from the web app isn't.
+func TestEvents_viaCLI(t *testing.T) {
+	t.Parallel()
+	h, _, _, id := openAlert(t)
+	path := fmt.Sprintf("/api/alerts/%d", id)
+
+	cli := newRequestBody(t, http.MethodPut, path+"/ack", laptopIP, strings.NewReader(""))
+	cli.Header.Set("User-Agent", api.CLIUserAgent+"/0.3.0")
+	if rec := serve(h, cli); rec.Code != http.StatusOK {
+		t.Fatalf("PUT ack from the CLI = %d %s", rec.Code, rec.Body)
+	}
+	cli = newRequestBody(t, http.MethodPost, path+"/notes", laptopIP, strings.NewReader(`{"text":"On it"}`))
+	cli.Header.Set("User-Agent", api.CLIUserAgent+"/0.3.0")
+	if rec := serve(h, cli); rec.Code != http.StatusCreated {
+		t.Fatalf("POST note from the CLI = %d %s", rec.Code, rec.Body)
+	}
+	// A browser, and a client that only looks like the CLI's name.
+	for _, ua := range []string{"Mozilla/5.0", "bield-cli-fake/1", ""} {
+		web := newRequestBody(t, http.MethodDelete, path+"/ack", laptopIP, strings.NewReader(""))
+		web.Header.Set("User-Agent", ua)
+		if rec := serve(h, web); rec.Code != http.StatusOK {
+			t.Fatalf("DELETE ack from %q = %d %s", ua, rec.Code, rec.Body)
+		}
+	}
+
+	var list api.EventList
+	get(t, h, "/api/events?kind=alert", laptopIP, &list)
+	var got []string
+	for _, e := range list.Events {
+		if e.Actor == alice {
+			got = append(got, e.Via+": "+e.Message)
+		}
+	}
+	slices.Reverse(got)
+	want := []string{
+		"cli: Acknowledged: Disk 90% full on bield",
+		"cli: Wrote a note on: Disk 90% full on bield",
+	}
+	if len(got) < 2 || !slices.Equal(got[:2], want) {
+		t.Errorf("events by alice = %q, want the first two %q", got, want)
+	}
+	for _, line := range got[2:] {
+		if !strings.HasPrefix(line, ": ") {
+			t.Errorf("event %q from a browser is marked as coming from the CLI", line)
+		}
+	}
+	if len(got) != 5 {
+		t.Errorf("events by alice = %q, want 5", got)
+	}
+}

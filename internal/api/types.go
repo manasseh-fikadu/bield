@@ -1254,7 +1254,23 @@ type Event struct {
 	DeviceID string `json:"deviceId,omitempty"`
 	// Actor is the login of who did it, if someone did. Only admins get it.
 	Actor string `json:"actor,omitempty" bield:"secret"`
+	// Via is how the actor's request reached Bield when it wasn't the web app:
+	// ViaCLI for the command line. It's what the client says in its
+	// User-Agent, so it labels the event and proves nothing.
+	Via string `json:"via,omitempty"`
 }
+
+// The values of Event.Via.
+const (
+	// ViaCLI is a change made with the bield command line (#49).
+	ViaCLI = "cli"
+)
+
+// CLIUserAgent is the name the bield command line gives itself in its
+// User-Agent header, followed by a slash and its version, such as
+// "bield-cli/0.3.0". Bield marks the changes it makes as coming from the
+// command line.
+const CLIUserAgent = "bield-cli"
 
 // EventLevel says how an event went.
 type EventLevel string

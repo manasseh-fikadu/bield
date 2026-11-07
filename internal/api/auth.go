@@ -19,6 +19,15 @@ import (
 // make a signed-in browser change anything.
 const CSRFHeader = "X-Bield"
 
+// viaOf returns how r reached Bield, for the activity log: ViaCLI if it came
+// from the command line, as its User-Agent says, and "" otherwise.
+func viaOf(r *http.Request) string {
+	if name, _, _ := strings.Cut(r.UserAgent(), "/"); name == CLIUserAgent {
+		return ViaCLI
+	}
+	return ""
+}
+
 // caller is who sent a request, as Tailscale says, and what Bield lets them do.
 type caller struct {
 	// who is nil for an anonymous caller.
@@ -92,7 +101,8 @@ func (h *handler) guard(next http.Handler) http.Handler {
 			return
 		}
 		c := h.identify(r.Context(), r.RemoteAddr, self.ID)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), callerKey{}, c)))
+		ctx := store.WithVia(context.WithValue(r.Context(), callerKey{}, c), viaOf(r))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

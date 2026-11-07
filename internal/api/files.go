@@ -494,7 +494,7 @@ func (h *handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	id, who := r.PathValue("id"), callerOf(r).who.LoginName
 	// Batched by the folder the upload goes to, so a folder of files is one line
 	// however deep it goes.
-	h.audit.upload(h, store.Event{Kind: string(EventKindFiles), DeviceID: id, Actor: who}, h.deviceName(r, id), dir, up.Name, up.Size)
+	h.audit.upload(h, store.Event{Kind: string(EventKindFiles), DeviceID: id, Actor: who, Via: viaOf(r)}, h.deviceName(r, id), dir, up.Name, up.Size)
 	h.writeJSON(w, r, http.StatusOK, FileUpload{Path: up.Path, Name: up.Name, Size: up.Size})
 }
 
