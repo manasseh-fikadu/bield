@@ -61,9 +61,9 @@ type Server struct {
 
 // New starts the API for the length of the test. Each function in change can
 // change the options before it starts, such as to fake Docker.
-func New(t testing.TB, change ...func(*api.Options)) *Server {
-	t.Helper()
-	ctx := t.Context()
+func New(tb testing.TB, change ...func(*api.Options)) *Server {
+	tb.Helper()
+	ctx := tb.Context()
 	tn := tailnettest.New(tailnet.Status{
 		State:   tailnet.StateRunning,
 		Tailnet: "example.com",
@@ -77,20 +77,20 @@ func New(t testing.TB, change ...func(*api.Options)) *Server {
 			{ID: "tablet", HostName: "carol-tablet", DNSName: "carol-tablet.example.ts.net", IPs: []netip.Addr{TabletIP}, Owner: Carol, Online: true, OS: "iOS"},
 		},
 	})
-	t.Cleanup(func() { _ = tn.Close() })
+	tb.Cleanup(func() { _ = tn.Close() })
 
-	st, err := store.Open(ctx, filepath.Join(t.TempDir(), "bield.db"), store.Options{})
+	st, err := store.Open(ctx, filepath.Join(tb.TempDir(), "bield.db"), store.Options{})
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
-	t.Cleanup(func() { _ = st.Close() })
+	tb.Cleanup(func() { _ = st.Close() })
 	for login, role := range map[string]store.Role{Alice: store.Admin, Bob: store.Viewer} {
 		if _, err := st.SetRole(ctx, login, role); err != nil {
-			t.Fatal(err)
+			tb.Fatal(err)
 		}
 	}
 	if _, err := st.SetWhoCanView(ctx, store.Listed); err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 
 	snapshot := func() tailnet.Snapshot {
@@ -102,9 +102,9 @@ func New(t testing.TB, change ...func(*api.Options)) *Server {
 	runner := checks.NewRunner(st, checks.Options{Dial: tn.Dial})
 	reg := agents.NewRegistry(st, nil)
 	fleet := docker.NewFleet(nil, nil)
-	t.Cleanup(fleet.Close)
+	tb.Cleanup(fleet.Close)
 	feed := api.NewFeed(api.FeedOptions{
-		Tailnet: snapshot, Agents: reg, Checks: runner, Alerts: engine, Store: st, Settings: prefs,
+		Version: "v0.0.0-test", Tailnet: snapshot, Agents: reg, Checks: runner, Alerts: engine, Store: st, Settings: prefs,
 	})
 	opts := api.Options{
 		Version:  "v0.0.0-test",
@@ -116,7 +116,7 @@ func New(t testing.TB, change ...func(*api.Options)) *Server {
 		Usage:    usage.NewRecorder(st, nil),
 		Checks:   runner,
 		Alerts:   engine,
-		SSH:      ssh.NewManager(ssh.Options{KeyDir: t.TempDir(), Store: st, Tailnet: snapshot, Dial: tn.Dial}),
+		SSH:      ssh.NewManager(ssh.Options{KeyDir: tb.TempDir(), Store: st, Tailnet: snapshot, Dial: tn.Dial}),
 		Docker:   fleet,
 		Settings: prefs,
 		Notify:   notify.NewDispatcher(notify.Options{Store: st, Open: engine.Open, Settings: prefs}),
@@ -129,10 +129,10 @@ func New(t testing.TB, change ...func(*api.Options)) *Server {
 	srv := &http.Server{Handler: api.New(opts), ReadHeaderTimeout: 10 * time.Second}
 	ln, _, err := tn.Listen(ctx)
 	if err != nil {
-		t.Fatal(err)
+		tb.Fatal(err)
 	}
 	go func() { _ = srv.Serve(ln) }()
-	t.Cleanup(func() { _ = srv.Close() })
+	tb.Cleanup(func() { _ = srv.Close() })
 	return &Server{Tailnet: tn, Store: st, Alerts: engine, Feed: feed, Checks: runner, Options: opts}
 }
 

@@ -34,7 +34,7 @@ func TestParseURL(t *testing.T) {
 		{in: "  bield  ", want: "https://bield"},
 		{in: "", wantErr: "no Bield address"},
 		{in: "ftp://bield", wantErr: "isn't a Bield address"},
-		{in: "https://user:pw@bield", wantErr: "isn't a Bield address"},
+		{in: "https://user:pw@bield", wantErr: "isn't a Bield address"}, //nolint:gosec // G101: a made-up address.
 		{in: "https://", wantErr: "isn't a Bield address"},
 	} {
 		u, err := client.ParseURL(tt.in)
@@ -126,7 +126,7 @@ func TestClient_explain(t *testing.T) {
 	// An error that isn't a refusal comes back as it is.
 	_, err := admin.Alert(t.Context(), 999)
 	var e *client.Error
-	if !errors.As(err, &e) || !e.NotFound() || admin.Explain(t.Context(), err) != err {
+	if !errors.As(err, &e) || !e.NotFound() || !errors.Is(admin.Explain(t.Context(), err), err) {
 		t.Errorf("Alert(999) error = %v, want a 404 that Explain leaves as it is", err)
 	}
 }

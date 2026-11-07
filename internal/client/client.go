@@ -52,7 +52,10 @@ func New(opts Options) (*Client, error) {
 	}
 	hc := opts.HTTP
 	if hc == nil {
-		tr := http.DefaultTransport.(*http.Transport).Clone() //nolint:forcetypeassert // The default is always a *http.Transport.
+		tr := &http.Transport{Proxy: http.ProxyFromEnvironment}
+		if def, ok := http.DefaultTransport.(*http.Transport); ok {
+			tr = def.Clone()
+		}
 		tr.ResponseHeaderTimeout = 30 * time.Second
 		hc = &http.Client{Transport: tr}
 	}
@@ -159,11 +162,10 @@ func (c *Client) send(req *http.Request) (*http.Response, error) {
 		if ctxErr := req.Context().Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) {
-			var opErr *net.OpError
-			var dnsErr *net.DNSError
-			if errors.As(err, &opErr) || errors.As(err, &dnsErr) {
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			_, isOp := errors.AsType[*net.OpError](err)
+			_, isDNS := errors.AsType[*net.DNSError](err)
+			if isOp || isDNS {
 				return nil, &UnreachableError{URL: c.URL(), Err: urlErr.Err}
 			}
 		}
