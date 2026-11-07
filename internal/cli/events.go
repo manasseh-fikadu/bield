@@ -61,15 +61,11 @@ func runEvents(c *Call) error {
 	if err != nil {
 		return err
 	}
-	snap, err := c.Snapshot()
-	if err != nil {
-		return err
-	}
 	// The API lists the newest first. A log reads the other way.
 	events := slices.Clone(page.Events)
 	slices.Reverse(events)
 	if c.Bool("follow") {
-		return followEvents(c, q, events, snap.LastEventID)
+		return followEvents(c, q, events)
 	}
 	return c.Print(page, func(v *View) {
 		if len(events) == 0 {
@@ -85,7 +81,7 @@ func runEvents(c *Call) error {
 	})
 }
 
-func followEvents(c *Call, q client.EventsQuery, first []api.Event, lastSeen int64) error {
+func followEvents(c *Call, q client.EventsQuery, first []api.Event) error {
 	cl, err := c.Client()
 	if err != nil {
 		return err
@@ -98,6 +94,7 @@ func followEvents(c *Call, q client.EventsQuery, first []api.Event, lastSeen int
 		eventLine(v, e)
 		return v.err
 	}
+	var lastSeen int64
 	for _, e := range first {
 		if err := emit(e); err != nil {
 			return err
