@@ -61,7 +61,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		fmt.Fprint(stderr, usageMessage())
 		return errUsage
 	}
-	if cli.Has(args[0]) {
+	if cli.Handles(args) {
 		return runCLI(ctx, args, stdout, stderr)
 	}
 	switch args[0] {

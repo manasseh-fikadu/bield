@@ -93,6 +93,13 @@ func Has(name string) bool {
 	return slices.ContainsFunc(commands, func(c *Command) bool { return c.words()[0] == name })
 }
 
+// Handles reports whether args run a command of this package. Unlike Has, it
+// looks past the flags every command takes, so "--json devices" is one.
+func Handles(args []string) bool {
+	_, rest, err := extractGlobals(args)
+	return err == nil && len(rest) > 0 && Has(rest[0])
+}
+
 // Names returns the first word of each command, once, in the order of the help.
 func Names() []string {
 	var out []string
