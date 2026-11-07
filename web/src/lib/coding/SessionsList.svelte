@@ -1,14 +1,15 @@
 <!--
-	Recent coding sessions, the latest first: the tool, the machine and the
-	models it used, its tokens and cost, and when it last did anything. A
-	lamp lights for one that is going now. The folder it worked in is only
-	there for admins.
+	Recent sessions of the AI tools, the latest first: the tool, the machine and
+	the models it used, its tokens and cost, and when it last did anything. One
+	that is going now says Live. The folder it worked in is only there for
+	admins.
 -->
 <script lang="ts">
 	import type { CodingSession } from '#lib/api/types.js';
 	import { ago } from '#lib/format.js';
-	import StatusDot from '#lib/ui/StatusDot.svelte';
-	import { compactTokens, dollars, modelsText, toolColor, toolName } from './coding.js';
+	import { compactTokens, dollars, modelsText, toolName } from './coding.js';
+	import Live from './Live.svelte';
+	import ToolMark from './ToolMark.svelte';
 
 	interface Props {
 		sessions: CodingSession[];
@@ -27,14 +28,9 @@
 <ul class="divide-y divide-line">
 	{#each shown as s (`${s.deviceId}:${s.tool}:${s.id}`)}
 		<li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
-			<span class="flex w-3 shrink-0 justify-center">
-				{#if s.active}
-					<StatusDot status="online" breathe={false} />
-				{/if}
-			</span>
 			<span class="flex min-w-0 flex-1 basis-56 flex-col">
 				<span class="flex min-w-0 items-center gap-2">
-					<span class="size-2 shrink-0 rounded-full" style:background={toolColor(s.tool)}></span>
+					<ToolMark tool={s.tool} />
 					<span class="truncate text-[13px] text-fg">{toolName(s.tool)}</span>
 					{#if s.project}
 						<span class="truncate font-mono text-[12px] text-fg-muted">{s.project}</span>
@@ -49,8 +45,12 @@
 					>{compactTokens(s.tokens.total)}</span
 				>
 				<span class="w-16 text-right font-mono text-[13px] text-fg">{dollars(s.cost)}</span>
-				<span class="w-16 text-right text-[12px] text-fg-faint">
-					{s.active ? 'now' : ago(s.last, now)}
+				<span class="flex w-16 justify-end text-[12px] text-fg-faint">
+					{#if s.active}
+						<Live />
+					{:else}
+						{ago(s.last, now)}
+					{/if}
 				</span>
 			</span>
 		</li>
