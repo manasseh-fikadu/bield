@@ -141,7 +141,8 @@ func Run(ctx context.Context, env Env, args []string) int {
 		return report(env, g, usagef(cmd, "%s %s; add --yes if you mean it (bield never asks)", cmd.Name, cmd.destructiveNote()))
 	}
 	// A command that follows has no timeout. It runs until Ctrl-C.
-	if !(cmd.Stream && vals["follow"] == "true") && g.timeout > 0 {
+	following := cmd.Stream && vals["follow"] == "true"
+	if !following && g.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, g.timeout)
 		defer cancel()
