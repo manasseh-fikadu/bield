@@ -82,34 +82,30 @@ changelog:
 release:
   # A tag like v0.1.0-rc.1 is a pre-release.
   prerelease: auto
-  # Written by hand for v0.2.0, and above the generated changelog. Rewrite the
+  # Written by hand for v0.2.1, and above the generated changelog. Rewrite the
   # lists for the next release, since they say what was run for this one.
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release adds coding usage: what Claude Code, Codex, OpenCode and Pi used on each machine, as tokens, an estimate of what the same tokens would cost on the model makers' APIs, and the limits the tools report. It shows on a machine's page and on a new Coding page under Devices. [Coding usage](https://github.com/manasseh-fikadu/bield/blob/main/docs/coding.md) says how it counts.
+    This release renames coding usage to [AI usage](https://github.com/manasseh-fikadu/bield/blob/main/docs/coding.md), since Claude Code, Codex and the others get used for more than code, and fixes how its card looks on a machine's page:
 
-    - An admin turns it on for each machine, and it needs the agent updated to 1.4.0. Update the agent from its page in Bield. The agent reads the tools' session files and sends only counts, model names, times and project folder names, never what was said.
-    - The hub keeps the numbers (365 days by default, in Settings), because Claude Code deletes its files after about 30 days.
-    - The machine Bield runs on can have an agent that reads only the coding tools.
-    - The Tailscale library is updated, and so is klauspost/compress, for GO-2026-6865.
+    - A link under the machine's name jumps down to the card, which sat out of sight at the bottom. The link shows the cost and how many sessions are live.
+    - A session that is going now says Live on the right of its row. It had a lamp beside the tool's own dot, and Codex's dot was the same near-white as the lamp. A tool's color is a square now, a round lamp always means a status, and Codex is green.
+    - On the machine Bield runs on, the card asks you to install the agent only until the agent's first numbers arrive. It kept asking after the agent was installed.
+
+    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - The agent and the hub together on a Linux server (Debian, amd64) with real Claude Code, Codex and OpenCode files on it. The totals for Codex (tokens, estimated cost, the fast tier's premium) and for OpenCode were the same as the ones T3 Code's Usage page shows for those files. Claude Code's are lower, since its files go after 30 days and the other page keeps its own copy.
-    - Codex's limits, read from the real session files on that server. Claude Code's "limit reached" notices were only tried on sample files.
-    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo. A test runs the real agent script against the hub's real handler, with sample session files of each tool.
+    - The new card in the demo, at a desktop width and a phone's: with a session that is live, on a machine that isn't watched, and on the machine Bield runs on with and without a reporting agent. The link at the top moved the card into view at both widths.
+    - Go and web tests on every change, against a fake tailnet and a fake SSH server, and a browser smoke test of the demo, which follows the new link.
 
     ### What has not been run
 
-    - Coding usage on a Mac. The agent for it runs under macOS's bash 3.2 and BSD awk, and that has not been tried with these tools.
-    - OpenCode's data read with the `sqlite3` command. The server it was run on only had python3, which the agent uses when there is no `sqlite3`.
-    - Pi on a real install. Its reader was written from its documented session format and tried on sample files.
-    - Antigravity, Gemini CLI, Cursor and other tools. They aren't read yet ([#75](https://github.com/manasseh-fikadu/bield/issues/75) lists what's missing).
-    - Upgrading from v0.1.1 to this release.
-    - What the [v0.1.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.1.0) list under "What has not been run". Nothing in this release changes that.
+    - Upgrading from v0.2.0 to this release.
+    - What the [v0.2.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.2.0) list under "What has not been run", which is coding usage on a Mac, OpenCode read with the `sqlite3` command, and Pi on a real install. Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |

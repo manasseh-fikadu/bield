@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.2.1 - 2026-11-07
+
+This release renames coding usage to AI usage and fixes how its card looks. The agent doesn't change, so there's nothing to update on your machines.
+
 ### Changed
 
 - Coding usage is now called AI usage, since Claude Code, Codex and the others get used for more than code. The machine's page has a link under its name, with the cost and how many sessions are live, that jumps down to the card, which sat out of sight at the bottom.
