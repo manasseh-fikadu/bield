@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
@@ -388,5 +389,28 @@ func TestSnapshotRoute(t *testing.T) {
 		if rec := serve(h, newRequest(t, http.MethodGet, "/api/snapshot", from)); rec.Code != http.StatusForbidden {
 			t.Errorf("GET /api/snapshot from %s = %d, want %d", name, rec.Code, http.StatusForbidden)
 		}
+	}
+}
+
+// A change made a moment ago is in the snapshot a caller asks for next, and in
+// the first one a stream sends, without waiting for the next to be built.
+func TestSnapshotRoute_fresh(t *testing.T) {
+	t.Parallel()
+	h, _, _, id := openAlert(t)
+	var before api.Snapshot
+	get(t, h, "/api/snapshot", phoneIP, &before)
+	if len(before.Alerts) != 1 || before.Alerts[0].State != api.AlertStateOpen {
+		t.Fatalf("alerts before = %+v, want the one open alert", before.Alerts)
+	}
+	if rec := send(t, h, http.MethodPut, fmt.Sprintf("/api/alerts/%d/ack", id), laptopIP, ""); rec.Code != http.StatusOK {
+		t.Fatalf("PUT ack = %d %s", rec.Code, rec.Body)
+	}
+	var after api.Snapshot
+	get(t, h, "/api/snapshot", phoneIP, &after)
+	if len(after.Alerts) != 1 || after.Alerts[0].State != api.AlertStateAcknowledged {
+		t.Errorf("alerts after = %+v, want the alert acknowledged", after.Alerts)
+	}
+	if after.LastEventID <= before.LastEventID {
+		t.Errorf("last event ID = %d after, %d before, want the activity log's new line in it", after.LastEventID, before.LastEventID)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/agents"
@@ -116,6 +117,10 @@ type Feed struct {
 	lastEventID int64
 	// started is when the feed was made, which is about when Bield started.
 	started time.Time
+
+	// dirty is set by Poke and cleared when a snapshot is built, so a caller
+	// can tell that what they changed isn't in the latest snapshot yet.
+	dirty atomic.Bool
 
 	mu  sync.Mutex
 	cur *published
@@ -232,10 +237,24 @@ func (f *Feed) drain() {
 // Poke makes Run build a new snapshot soon, such as after an admin changes a
 // device's settings.
 func (f *Feed) Poke() {
+	f.dirty.Store(true)
 	select {
 	case f.poked <- struct{}{}:
 	default:
 	}
+}
+
+// fresh returns the latest snapshot, or builds a new one first if something
+// was changed since the latest was built. A caller that changed something a
+// moment ago, such as the command line, then sees it, instead of waiting for
+// the next snapshot, which is up to a second away.
+func (f *Feed) fresh(ctx context.Context) *published {
+	if f.dirty.Load() {
+		if p := f.publish(ctx); p != nil {
+			return p
+		}
+	}
+	return f.latest(ctx)
 }
 
 // latest returns the latest snapshot, building the first one if there's
@@ -255,6 +274,9 @@ func (f *Feed) latest(ctx context.Context) *published {
 func (f *Feed) publish(ctx context.Context) *published {
 	f.buildMu.Lock()
 	defer f.buildMu.Unlock()
+	// Before anything is read, so a change made while this builds still marks
+	// the snapshot as behind.
+	f.dirty.Store(false)
 	src := sources{version: f.opts.Version, demo: f.opts.Demo, tailnet: f.opts.Tailnet()}
 	if f.opts.Host != nil {
 		h := f.opts.Host()

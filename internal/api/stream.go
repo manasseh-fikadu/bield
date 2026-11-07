@@ -24,9 +24,10 @@ const (
 
 // snapshot answers GET /api/snapshot with the latest Snapshot, the one the
 // stream sends first, as plain JSON. It's for callers that don't hold a stream
-// open, such as the command line. Viewers get it without what only admins see.
+// open, such as the command line. It includes what was changed a moment ago.
+// Viewers get it without what only admins see.
 func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) {
-	p := h.opts.Feed.latest(r.Context())
+	p := h.opts.Feed.fresh(r.Context())
 	if p == nil {
 		h.fail(w, r, "build a snapshot", errors.New("the first snapshot couldn't be encoded"))
 		return
@@ -42,7 +43,7 @@ func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) {
 // changes, so that the client reconnects and is checked again.
 func (h *handler) stream(w http.ResponseWriter, r *http.Request) {
 	c := callerOf(r)
-	p := h.opts.Feed.latest(r.Context())
+	p := h.opts.Feed.fresh(r.Context())
 	if p == nil {
 		h.fail(w, r, "build a snapshot", errors.New("the first snapshot couldn't be encoded"))
 		return
