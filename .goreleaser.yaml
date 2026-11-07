@@ -104,10 +104,11 @@ release:
     - The commands by hand against the demo.
     - A Bield in host mode on a real tailnet, asked from the machine it runs on: the command line says that machine is anonymous and what to do.
     - `bield whoami` and `bield settings` against a Bield v0.2.1 from a machine on a real tailnet, where they ran as the signed-in admin. The commands that need the new snapshot route say that the Bield is too old.
+    - The new migration's SQL on a copy of a running v0.2.1's database, with Python's sqlite3: it adds the column, leaves the 472 activity lines as they were, and the integrity check passes.
 
     ### What has not been run
 
-    - Upgrading from v0.2.1 to this release. The new column is added by a migration that the tests run on a new database.
+    - Upgrading from v0.2.1 to this release in place, and Bield's own start-up on a v0.2.1 database. Only the migration's SQL was run on a copy, and the tests run the migration on a new database.
     - The Docker and file commands against a real machine. The demo turns them off.
     - The command line on a Mac, and the zsh and fish completion scripts. Only bash was checked, and only its syntax.
     - The new command line on a second machine of a real tailnet, against this release's Bield.
