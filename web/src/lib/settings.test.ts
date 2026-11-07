@@ -72,7 +72,7 @@ describe('retention', () => {
 		expect(retentionProblem({ ...kept, historyDays: 91 })).toContain('device history');
 		expect(retentionProblem({ ...kept, activityDays: 0 })).toContain('activity log');
 		expect(retentionProblem({ ...kept, checksDays: 90.5 })).toContain('check results');
-		expect(retentionProblem({ ...kept, codingDays: 1096 })).toContain("coding tools' usage");
+		expect(retentionProblem({ ...kept, codingDays: 1096 })).toContain("AI tools' usage");
 		expect(retentionProblem({ ...kept, codingDays: 1095 })).toBe('');
 	});
 

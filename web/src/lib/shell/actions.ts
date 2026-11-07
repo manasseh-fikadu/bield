@@ -69,7 +69,7 @@ export function paletteActions(snapshot: Snapshot | null, admin: boolean): Palet
 	out.push({
 		id: 'coding',
 		kind: 'coding',
-		label: 'Open coding usage',
+		label: 'Open AI usage',
 		hint: 'Tokens, cost and limits',
 		keywords: ['coding', 'claude', 'codex', 'opencode', 'pi', 'tokens', 'cost', 'limits', 'ai']
 	});

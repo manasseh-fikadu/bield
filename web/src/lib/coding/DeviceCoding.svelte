@@ -1,8 +1,9 @@
 <!--
-	The coding tools on one device (Claude Code, Codex, OpenCode, Pi): what
-	they used, over a day or a week, and where their limits stand. An admin
-	turns watching them on here. Until then the device's agent doesn't read
-	their files at all. It loads again every minute.
+	The AI tools on one device (Claude Code, Codex, OpenCode, Pi): what they
+	used, over a day or a week, and where their limits stand. An admin turns
+	watching them on here. Until then the device's agent doesn't read their
+	files at all. It loads again every minute. The device page links to it from
+	its top, with what `glance` says.
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
@@ -26,8 +27,10 @@
 		minAgentVersion,
 		sourceHint,
 		versionBefore,
-		type CodingRange
+		type CodingRange,
+		type Glance
 	} from './coding.js';
+	import Live from './Live.svelte';
 	import SessionsList from './SessionsList.svelte';
 	import SourceNotes from './SourceNotes.svelte';
 	import ToolList from './ToolList.svelte';
@@ -36,9 +39,11 @@
 		device: Device;
 		/** The time to read limits and ages at, in Unix milliseconds. */
 		now: number;
+		/** What the page's top says about this card, kept up to date from here. */
+		glance?: Glance | null;
 	}
 
-	let { device, now }: Props = $props();
+	let { device, now, glance = $bindable(null) }: Props = $props();
 
 	const ranges: { value: CodingRange; label: string }[] = [
 		{ value: '24h', label: '24h' },
@@ -58,6 +63,7 @@
 	$effect(() => poll.start());
 
 	const summary = $derived(poll.data);
+	const rangeLabel = $derived(ranges.find((r) => r.value === range)?.label ?? range);
 
 	// What an admin just chose, until the hub's answer to the next load says
 	// so too, so the switch doesn't jump back while it's on its way.
@@ -70,9 +76,7 @@
 			await setDeviceCoding(
 				deviceId,
 				next,
-				next
-					? `Watching the coding tools on ${name}`
-					: `Stopped watching the coding tools on ${name}`
+				next ? `Watching the AI tools on ${name}` : `Stopped watching the AI tools on ${name}`
 			);
 			await poll.reload();
 		} catch {
@@ -83,7 +87,8 @@
 	}
 
 	// The machine Bield runs on is measured by Bield itself, so its agent is
-	// there only to read the coding tools' files.
+	// there only to read the AI tools' files. Bield doesn't list that agent
+	// (it keeps none of its heartbeats), so it is known by what it has sent.
 	const builtIn = $derived(device.measuredBy === 'hub');
 	const agentVersion = $derived(device.agent?.version);
 	const tooOld = $derived(!!agentVersion && versionBefore(agentVersion, minAgentVersion));
@@ -92,13 +97,26 @@
 	);
 	const limits = $derived(summary ? (limitGroups(summary, now, () => name)[0]?.rows ?? []) : []);
 	const active = $derived(summary?.sessions.filter((s) => s.active).length ?? 0);
+	const reported = $derived(hasData || !!summary?.sources.length);
 	const hasNotes = $derived(!!summary?.sources.some((s) => sourceHint(s, 'this machine')));
 	const builtInNote =
-		"Bield measures this machine itself; the agent only reads coding tools' sessions.";
+		"Bield measures this machine itself, so an agent here is only for reading the AI tools' sessions.";
+
+	$effect(() => {
+		glance = summary
+			? {
+					enabled: summary.enabled,
+					hasData,
+					cost: summary.totals.cost.total,
+					live: active,
+					range: rangeLabel
+				}
+			: null;
+	});
 	const claudeNoLimit = $derived(limits.some((r) => r.tool === 'claude' && r.state === 'none'));
 </script>
 
-<Card title="Coding tools" class="lg:col-span-2">
+<Card id="ai-usage" title="AI usage" class="scroll-mt-16 lg:col-span-2">
 	{#snippet actions()}
 		{#if enabled}
 			<Segmented bind:value={range} options={ranges} label="Time range" />
@@ -107,7 +125,7 @@
 			<label class="ml-2 flex items-center gap-2 text-[13px] text-fg-muted">
 				Watch
 				<Switch
-					label="Watch coding tools on {name}"
+					label="Watch AI tools on {name}"
 					bind:checked={() => enabled, (v) => void toggle(v)}
 					disabled={!summary && !poll.error}
 				/>
@@ -125,7 +143,7 @@
 		</div>
 	{:else if poll.error && !summary}
 		<p class="flex flex-wrap items-center gap-x-3 px-4 py-4 text-[13px] text-fg-muted">
-			Couldn't load the coding tools: {poll.error}
+			Couldn't load the AI usage: {poll.error}
 			<button
 				type="button"
 				class="text-fg underline underline-offset-4"
@@ -138,9 +156,9 @@
 				{#if hasData}
 					Watching is off, so Bield isn't counting anything new. What it counted stays.
 				{:else}
-					Bield can count the tokens that Claude Code, Codex, OpenCode and Pi use on {name}, and
-					what they'd cost, from the session files they write. Prompts and replies never leave the
-					machine.
+					Bield can count the tokens that Claude Code, Codex, OpenCode and Pi use on {name}, for
+					anything they're used for, and what they'd cost, from the session files they write.
+					Prompts and replies never leave the machine.
 				{/if}
 			</p>
 			<AdminOnly>
@@ -162,34 +180,25 @@
 			</AdminOnly>
 		</div>
 	{:else}
-		{#if builtIn && (!device.agent || tooOld)}
+		{#if builtIn && !reported}
 			<!-- Bield measures this machine, so it has no agent unless an admin adds one for this. -->
 			<div
 				class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-2.5"
 			>
 				<p class="min-w-0 flex-1 basis-72 text-[13px] leading-5 text-fg-muted">
-					{builtInNote}
-					{#if tooOld}
-						Its agent is version {agentVersion}, which doesn't report them. {minAgentVersion} or newer
-						does.
-					{/if}
+					{builtInNote} Nothing has come from it yet.
 				</p>
 				<AdminOnly>
-					<AddAgent
-						{device}
-						label={tooOld ? 'Update the agent' : 'Install the agent'}
-						variant="primary"
-						size="xs"
-					/>
+					<AddAgent {device} label="Install the agent" variant="primary" size="xs" />
 				</AdminOnly>
 			</div>
-		{:else if !device.agent || tooOld}
+		{:else if !builtIn && (!device.agent || tooOld)}
 			<p class="border-b border-line px-4 py-2.5 text-[13px] leading-5 text-fg-muted">
 				{#if tooOld}
-					The agent on {name} is version {agentVersion}, which doesn't report coding tools. Update
-					it to {minAgentVersion} or newer from the
+					The agent on {name} is version {agentVersion}, which doesn't report AI tools. Update it to {minAgentVersion}
+					or newer from the
 				{:else}
-					{name} has no agent to read the coding tools. Install one from the
+					{name} has no agent to read the AI tools. Install one from the
 				{/if}
 				<a
 					href={resolve('/devices/agents')}
@@ -222,7 +231,7 @@
 						<dd class="mt-1 truncate font-mono text-[20px] leading-6.5 text-fg">
 							{summary.totals.sessions}
 							{#if active}
-								<span class="text-[12px] text-fg-subtle">{active} active</span>
+								<Live label="{active} live" class="ml-1 font-sans text-[12px] text-fg-muted" />
 							{/if}
 						</dd>
 					</div>
@@ -258,13 +267,13 @@
 				<a
 					href={resolve('/devices/coding')}
 					class="text-fg-muted underline decoration-line-heavy underline-offset-4 hover:text-fg"
-					>Coding usage on every device</a
+					>AI usage on every device</a
 				>
 			</p>
-		{:else}
+		{:else if !builtIn || reported}
 			<p class="px-4 py-4 text-[13px] leading-5 text-fg-muted">
-				Nothing yet. The agent reads the coding tools' files once a minute, after its next
-				heartbeat, so the first numbers come soon after a session runs here.
+				Nothing yet. The agent reads the AI tools' files once a minute, after its next heartbeat, so
+				the first numbers come soon after a session runs here.
 			</p>
 		{/if}
 	{/if}

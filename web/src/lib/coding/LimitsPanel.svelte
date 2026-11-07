@@ -9,7 +9,8 @@
 	import type { CodingSummary } from '#lib/api/types.js';
 	import EmptyState from '#lib/ui/EmptyState.svelte';
 	import Meter from '#lib/ui/Meter.svelte';
-	import { limitGroups, toolColor } from './coding.js';
+	import { limitGroups } from './coding.js';
+	import ToolMark from './ToolMark.svelte';
 
 	interface Props {
 		summary: CodingSummary;
@@ -45,8 +46,7 @@
 					{#each g.rows as r (r.key)}
 						<li class="grid gap-x-4 gap-y-2 px-4 py-3 sm:grid-cols-[14rem_minmax(0,1fr)]">
 							<div class="flex min-w-0 items-center gap-2">
-								<span class="size-2 shrink-0 rounded-full" style:background={toolColor(r.tool)}
-								></span>
+								<ToolMark tool={r.tool} />
 								<span class="truncate text-[13px] text-fg">{r.title}</span>
 								{#if r.plan}
 									<span class="shrink-0 font-mono text-[11px] text-fg-faint">{r.plan}</span>

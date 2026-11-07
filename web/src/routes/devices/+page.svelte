@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Bot from '@lucide/svelte/icons/bot';
-	import Code from '@lucide/svelte/icons/code';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Monitor from '@lucide/svelte/icons/monitor';
 	import { resolve } from '$app/paths';
 	import type { Status } from '#lib/api/types.js';
@@ -45,7 +45,7 @@
 >
 	{#snippet actions()}
 		<a href={resolve('/devices/coding')} class={buttonClass()}>
-			<Code class="size-3.5" /> Coding
+			<Sparkles class="size-3.5" /> AI usage
 		</a>
 		<a href={resolve('/devices/agents')} class={buttonClass()}>
 			<Bot class="size-3.5" /> Agents

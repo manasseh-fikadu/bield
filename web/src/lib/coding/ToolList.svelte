@@ -5,7 +5,8 @@
 <script lang="ts">
 	import type { CodingTool, CodingTotals } from '#lib/api/types.js';
 	import { plural } from '#lib/format.js';
-	import { compactTokens, dollars, share, toolColor, toolName, type Metric } from './coding.js';
+	import { compactTokens, dollars, share, toolName, type Metric } from './coding.js';
+	import ToolMark from './ToolMark.svelte';
 
 	interface Props {
 		tools: CodingTool[];
@@ -25,7 +26,7 @@
 		<li>
 			<div class="flex items-baseline justify-between gap-3">
 				<span class="flex min-w-0 items-center gap-2">
-					<span class="size-2 shrink-0 rounded-full" style:background={toolColor(t.tool)}></span>
+					<ToolMark tool={t.tool} />
 					<span class={['truncate text-fg', compact ? 'text-[13px]' : 'text-[14px]']}>
 						{toolName(t.tool)}
 					</span>

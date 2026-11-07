@@ -10,6 +10,8 @@
 	import { activeAlerts, onDevice } from '#lib/alerts.js';
 	import AlertActions from '#lib/alerts/AlertActions.svelte';
 	import type { Alert, Device } from '#lib/api/types.js';
+	import AIUsageLink from '#lib/coding/AIUsageLink.svelte';
+	import type { Glance } from '#lib/coding/coding.js';
 	import DeviceCoding from '#lib/coding/DeviceCoding.svelte';
 	import { levelText, limitsOf } from '#lib/device.js';
 	import AddAgent from '#lib/devices/AddAgent.svelte';
@@ -58,6 +60,8 @@
 	);
 
 	let editing = $state(false);
+	// What the AI usage card says, for the link at the top.
+	let glance: Glance | null = $state(null);
 	let range: HistoryRange = $state('7d');
 	let usageOpen = $state(false);
 	let usageMetric: UsageMetric = $state('cpu');
@@ -149,6 +153,7 @@
 					.filter(Boolean)
 					.join(' · ')}{device.self ? ' · this hub' : ''}
 			</p>
+			<AIUsageLink {glance} />
 		</div>
 		<div class="flex flex-wrap items-center gap-1.5">
 			<DeviceActions {device} />
@@ -414,7 +419,7 @@
 		{#if device.measuredBy === 'hub' && (live.snapshot?.collectors ?? []).some((c) => c.name === 'systemd units')}
 			<ServicesCard {units} {containers} {now} />
 		{/if}
-		<DeviceCoding {device} {now} />
+		<DeviceCoding {device} {now} bind:glance />
 	</div>
 	<AdminOnly>
 		<DeviceSettingsDialog {device} bind:open={editing} />

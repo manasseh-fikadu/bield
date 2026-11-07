@@ -49,7 +49,7 @@ for (const [path, heading] of [
 	['/checks', 'Checks'],
 	['/docker', /^\d+ of \d+ running/],
 	['/activity', 'Activity'],
-	['/devices/coding', 'Coding usage'],
+	['/devices/coding', 'AI usage'],
 	['/settings', 'Settings']
 ] as const) {
 	test(`${path} loads without errors`, async ({ page }) => {
@@ -91,7 +91,7 @@ test('a device page shows its numbers and what it can do', async ({ page }) => {
 	expect(problems).toEqual([]);
 });
 
-test('the coding page adds up what the coding tools used, and a device has a card', async ({
+test('the AI usage page adds up what the AI tools used, and a device has a card', async ({
 	page
 }) => {
 	const problems = await visit(page, '/devices/coding');
@@ -105,7 +105,13 @@ test('the coding page adds up what the coding tools used, and a device has a car
 
 	await visit(page, '/devices');
 	await deviceLink(page, 'MacBook Pro').click();
-	await expect(page.getByRole('heading', { name: 'Coding tools' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'AI usage' })).toBeVisible();
+
+	// The card is far down the page, so a link under the device's name says it's there and jumps to it.
+	const jump = page.locator('a[href="#ai-usage"]');
+	await expect(jump).toBeVisible();
+	await jump.click();
+	await expect(page.getByRole('heading', { name: 'AI usage' })).toBeInViewport();
 	expect(problems).toEqual([]);
 });
 

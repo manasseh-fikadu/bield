@@ -1,16 +1,16 @@
-# Coding sessions
+# AI usage
 
-If you use AI coding tools on your machines, Bield can show how much each one used: tokens, an estimate of what they would cost, and how close the tools say they are to their limits. It works for Claude Code, Codex, OpenCode and Pi, and it needs nothing from the tools themselves. The [agent](agent.md) reads the files they already write and sends Bield counts.
+If you use AI tools on your machines, for coding or for anything else they're used for, Bield can show how much each one used: tokens, an estimate of what they would cost, and how close the tools say they are to their limits. It works for Claude Code, Codex, OpenCode and Pi, and it needs nothing from the tools themselves. The [agent](agent.md) reads the files they already write and sends Bield counts.
 
-It's off until an admin turns it on for a machine, and it needs agent 1.4.0 or newer on that machine. That includes the machine Bield runs on: Bield measures that one itself and has no agent there, but once you turn coding tools on for it, it can have one that reads only the coding tools.
+It's off until an admin turns it on for a machine, and it needs agent 1.4.0 or newer on that machine. That includes the machine Bield runs on: Bield measures that one itself and has no agent there, but once you turn it on for that machine, it can have one that reads only the AI tools. Until that agent has sent its first numbers, the machine's card has an **Install the agent** button.
 
 ## Turning it on
 
-Open the machine's page, find the **Coding** card, and switch on **Watch coding tools**. Only admins can. The machine's next heartbeat tells its agent to start, and the first numbers arrive within a couple of minutes. Update the agent first if the machine runs an older one (**Update** on the [Agents page](agent.md#the-agents-page)).
+Open the machine's page, find the **AI usage** card, and switch on **Watch**. Only admins can. The card is far down the page, so a link under the machine's name, **AI usage**, jumps to it, and says what it holds: the cost, and how many sessions are live. The machine's next heartbeat tells its agent to start, and the first numbers arrive within a couple of minutes. Update the agent first if the machine runs an older one (**Update** on the [Agents page](agent.md#the-agents-page)).
 
 The first time, the agent reads the files that are still on the machine, up to 90 days of them, so history shows at once instead of starting from zero. Turning it off stops the reading and keeps what Bield counted.
 
-The **Coding** page, under **Devices**, adds up every machine that's watched.
+The **AI usage** page, under **Devices**, adds up every machine that's watched. A session that's going now says **Live**.
 
 ## What the agent reads
 
@@ -71,7 +71,7 @@ Viewers see the totals, the charts and the limits. Admins also see the names of 
 
 ## How long it's kept
 
-Bield keeps the hourly numbers for 365 days. **Settings**, **Retention**, **Coding tools' usage** changes that, up to three years. The numbers are a few kilobytes a day for each machine.
+Bield keeps the hourly numbers for 365 days. **Settings**, **Retention**, **AI tools' usage** changes that, up to three years. The numbers are a few kilobytes a day for each machine.
 
 ## Tools Bield doesn't read
 
@@ -80,7 +80,7 @@ Antigravity's conversation files are in a format that the agent, which is a shel
 ## When nothing shows up
 
 - Check the machine's agent is 1.4.0 or newer and reporting, on the [Agents page](agent.md#the-agents-page).
-- Check **Watch coding tools** is on for the machine.
+- Check **Watch** is on for the machine.
 - Run `bash ~/.local/share/bield-agent/agent.sh --sessions-print` on the machine. If it prints a report with sessions, the files are being read and the problem is the way to Bield, which the agent's log says.
 - The tool may keep its files somewhere else. Say where in `BIELD_SESSION_HOMES`, or with the tool's own variable.
 - For OpenCode on a machine that has neither `sqlite3` nor Python 3, install one of them.
