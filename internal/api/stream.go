@@ -22,6 +22,18 @@ const (
 	streamWriteTimeout = 5 * time.Second
 )
 
+// snapshot answers GET /api/snapshot with the latest Snapshot, the one the
+// stream sends first, as plain JSON. It's for callers that don't hold a stream
+// open, such as the command line. Viewers get it without what only admins see.
+func (h *handler) snapshot(w http.ResponseWriter, r *http.Request) {
+	p := h.opts.Feed.latest(r.Context())
+	if p == nil {
+		h.fail(w, r, "build a snapshot", errors.New("the first snapshot couldn't be encoded"))
+		return
+	}
+	h.writeJSON(w, r, http.StatusOK, p.snap)
+}
+
 // stream answers GET /api/stream with server-sent events: a "snapshot" event
 // with the latest Snapshot as soon as it opens, and then each new one the
 // Feed publishes. If the client accepts gzip, the stream is one gzip stream,

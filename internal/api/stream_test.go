@@ -357,3 +357,36 @@ func findDevice(t *testing.T, s api.Snapshot, id string) api.Device {
 	t.Fatalf("no device %q in the snapshot", id)
 	return api.Device{}
 }
+
+// GET /api/snapshot answers with the snapshot the stream sends first, without
+// what only admins see for a viewer, and not at all for anyone else.
+func TestSnapshotRoute(t *testing.T) {
+	t.Parallel()
+	tn := testTailnet()
+	status, err := tn.Status(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	status.Tailnet = "example.com"
+	tn.SetStatus(*status)
+	h := api.New(withTailnet(t, tn, api.Options{Version: "v1.2.3"}))
+
+	var admin, viewer api.Snapshot
+	get(t, h, "/api/snapshot", laptopIP, &admin)
+	get(t, h, "/api/snapshot", phoneIP, &viewer)
+	if admin.Hub.Tailnet != "example.com" || viewer.Hub.Tailnet != "" {
+		t.Errorf("tailnet name = %q for an admin and %q for a viewer, want it for the admin only", admin.Hub.Tailnet, viewer.Hub.Tailnet)
+	}
+	want := []string{"bield", "server", "laptop", "phone", "tablet"}
+	if got := deviceIDs(admin); !slices.Equal(got, want) {
+		t.Errorf("admin's devices = %q, want %q", got, want)
+	}
+	if got := deviceIDs(viewer); !slices.Equal(got, want) {
+		t.Errorf("viewer's devices = %q, want %q", got, want)
+	}
+	for name, from := range map[string]netip.Addr{"a tagged device": serverIP, "someone with no role": tabletIP, "a stranger": strangerIP} {
+		if rec := serve(h, newRequest(t, http.MethodGet, "/api/snapshot", from)); rec.Code != http.StatusForbidden {
+			t.Errorf("GET /api/snapshot from %s = %d, want %d", name, rec.Code, http.StatusForbidden)
+		}
+	}
+}
