@@ -22,8 +22,8 @@ type Command struct {
 	// Destructive says it deletes, stops or overwrites something, so it
 	// does nothing without --yes.
 	Destructive bool
-	// Stream says it can stay open and print as things happen, so it has no
-	// timeout and isn't something to call and wait for.
+	// Stream says it has a --follow flag, which keeps it open to print as
+	// things happen. A run that follows has no timeout.
 	Stream bool
 	// Min and Max are how many arguments it takes. Max below 0 is any number.
 	Min, Max int

@@ -4,6 +4,16 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- A command line for people, scripts and AI agents. `bield connect` saves where Bield is, and then `bield status`, `bield devices`, `bield alerts ack 5`, `bield docker restart nas web --yes`, `bield files put` and the like do what the web app does, with the same roles. There is nothing to log in to: Bield sees who you are through Tailscale. Every command takes `--json`, never asks a question, and exits with a code that says what went wrong. See [The command line](docs/cli.md).
+- The activity log says when a change came from the command line: *by alice@example.com with the CLI*.
+- `GET /api/snapshot`, the first event of the stream as plain JSON, for callers that don't hold a stream open.
+
+### Changed
+
+- A snapshot, and the first one a stream sends, now includes a change made a moment ago, instead of the one from up to a second before.
+
 ## 0.2.1 - 2026-11-07
 
 This release renames coding usage to AI usage and fixes how its card looks. The agent doesn't change, so there's nothing to update on your machines.

@@ -16,6 +16,7 @@ Bield is a self-hosted control plane for the machines on your tailnet. It's one 
 - **Docker.** Containers, logs, live stats, images, volumes and networks on any machine Bield can reach, and start, stop and restart.
 - **Terminal and files.** A shell in the browser, which keeps running in tmux after you close the tab, and a file manager that edits and previews ([SSH access](docs/ssh.md)).
 - **Roles and a log.** Admins and read-only viewers, decided by tailnet identity, and an activity log of who did what.
+- **A command line.** `bield devices`, `bield alerts ack 5` and the rest, for people, scripts and AI agents, with `--json` everywhere and the same roles as the web app ([The command line](docs/cli.md)).
 
 <p>
   <img src="docs/images/device.png" alt="A device's page, with metrics, an alert and history charts" width="49%">
@@ -111,6 +112,7 @@ Bield has had an outside review, and v0.1.1 fixes what it found. It's a young pr
 | [Tailscale](docs/tailscale.md), [Headscale](docs/headscale.md) | Joining the tailnet, signing in, admins and viewers |
 | [The agent](docs/agent.md) | Per-machine metrics |
 | [SSH access](docs/ssh.md) | Terminals, files and Docker on other machines |
+| [The command line](docs/cli.md) | `bield devices`, `bield alerts ack`, for people, scripts and AI agents |
 | [Notifications](docs/notifications.md) | Where alerts go, and when |
 | [Settings](docs/settings.md) | Every setting, with its default |
 | [Configuration reference](docs/configuration.md) | Every flag and environment variable |

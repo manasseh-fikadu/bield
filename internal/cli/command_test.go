@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -99,6 +101,29 @@ func TestCommandsTable(t *testing.T) {
 		}
 		if c.Max >= 0 && c.Max < c.Min {
 			t.Errorf("command %q takes at most %d arguments but at least %d", c.Name, c.Max, c.Min)
+		}
+	}
+}
+
+// docs/cli.md names every command, so a new one can't be left out of it.
+func TestDocsNameEveryCommand(t *testing.T) {
+	t.Parallel()
+	doc, err := os.ReadFile("../../docs/cli.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(doc)
+	for _, c := range commands {
+		words := c.words()
+		// A group, such as "alerts ack, unack and snooze", is written with its first
+		// word and the last word of the name, so look for both.
+		if !strings.Contains(text, "bield "+words[0]) || !strings.Contains(text, words[len(words)-1]) {
+			t.Errorf("docs/cli.md doesn't mention the command %q", c.Name)
+		}
+	}
+	for _, flag := range []string{"--json", "--yes", "--timeout", "--url", "--follow"} {
+		if !strings.Contains(text, flag) {
+			t.Errorf("docs/cli.md doesn't mention %s", flag)
 		}
 	}
 }
