@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -309,12 +310,19 @@ func TestHost_Watch(t *testing.T) {
 		defer h.Close()
 
 		a := h.Watch("aaaa1111")
-		first := <-a.C
+		// The stream starts as the viewer joins, so on a busy machine its
+		// first sample can come before the join. It is in Recent then, and
+		// the viewer has missed nothing. Time doesn't pass in the bubble
+		// until this goroutine waits, so there are never more than two.
+		seen := slices.Clone(a.Recent)
+		for len(seen) < 2 {
+			seen = append(seen, <-a.C)
+		}
+		first, second := seen[0], seen[1]
 		if first.CPU != nil {
 			// A streamed sample from this fake has no precpu, so the first has no rate.
 			t.Errorf("first CPU = %s, want none", show(first.CPU))
 		}
-		second := <-a.C
 		if !near(second.CPU, 25) || !second.At.After(first.At) {
 			t.Errorf("second = %+v, want 25%% CPU a second later", second)
 		}
@@ -347,7 +355,8 @@ func TestHost_Watch(t *testing.T) {
 		time.Sleep(20 * time.Second)
 		synctest.Wait()
 		d := h.Watch("aaaa1111")
-		if len(d.Recent) != 0 {
+		// The new stream may have sent its first sample before the viewer joined.
+		if len(d.Recent) > 1 {
 			t.Errorf("after the stream closed, a new viewer has %d recent samples, want a new stream", len(d.Recent))
 		}
 		d.Close()
