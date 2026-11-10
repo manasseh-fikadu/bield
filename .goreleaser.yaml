@@ -82,36 +82,36 @@ changelog:
 release:
   # A tag like v0.1.0-rc.1 is a pre-release.
   prerelease: auto
-  # Written by hand for v0.3.0, and above the generated changelog. Rewrite the
+  # Written by hand for v0.4.0, and above the generated changelog. Rewrite the
   # lists for the next release, since they say what was run for this one.
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release adds [a command line](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md), for people and for AI agents such as Claude Code and Codex. It is the same `bield` file as the server: `bield connect https://bield.example.ts.net` on a laptop that is on your tailnet, and then `bield status`, `bield devices`, `bield alerts ack 5`, `bield docker restart nas web --yes` and about forty more, with the roles the web app has. There is nothing to log in to, because Bield sees who you are through Tailscale.
+    This release adds [an MCP server](https://github.com/manasseh-fikadu/bield/blob/main/docs/mcp.md) for AI agents such as Claude Code, Codex and Cursor, and fixes installing the agent on machines whose login has no systemd session, such as DietPi over Dropbear.
 
-    - Every command takes `--json`, never asks a question, and exits with a code that says what went wrong. A command that stops, deletes or overwrites something does nothing without `--yes`.
-    - A refusal says why, and what to do: from a tagged server, from Bield's own machine, with no role, or as a viewer.
-    - The activity log says when a change came from the command line.
-    - Bield adds a column to the activity log when it starts, so you don't need to do anything. A snapshot now also includes a change made a moment ago, and a page that connected while Bield was starting is no longer sent its first snapshot twice.
+    - `bield mcp` runs next to the agent and gives it typed tools, made from the command line's commands, with the roles the web app has. `claude mcp add bield -- bield mcp` sets it up in Claude Code.
+    - It is read-only unless you start it with `--allow-changes`, and the activity log says when a change came from MCP.
+    - Installing the agent as root now makes a system service, which needs no login session and keeps running after you log out. Other users get their running systemd found for them. If systemd can't run the agent, the installer says what to do before it changes anything, instead of leaving a machine that sent one heartbeat and went quiet.
+    - Re-running the install as root replaces a user service left by an older install, so a machine doesn't end up with two agents.
 
-    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. An agent on a tagged server, in CI or on the machine Bield runs on can't use the command line yet, since Bield doesn't know who they are. Scoped tokens for them are the next step.
+    The agent itself doesn't change (it's still 1.4.0), so there's nothing to update on machines where it already runs. There is no database change. An MCP client on a tagged server, in CI or on the machine Bield runs on can't use `bield mcp` yet, since Bield doesn't know who they are. Scoped tokens for them are still to come.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - The commands against a fake tailnet in Go tests: each role, each kind of refusal, `--yes`, the follow modes, and `bield connect`. Docker and files go through a stub server.
-    - The commands by hand against the demo.
-    - A Bield in host mode on a real tailnet, asked from the machine it runs on: the command line says that machine is anonymous and what to do.
-    - `bield whoami` and `bield settings` against a Bield v0.2.1 from a machine on a real tailnet, where they ran as the signed-in admin. The commands that need the new snapshot route say that the Bield is too old.
-    - The new migration's SQL on a copy of a running v0.2.1's database, with Python's sqlite3: it adds the column, leaves the 472 activity lines as they were, and the integrity check passes.
+    - `bield mcp` with Claude Code against the demo: read-only, it listed the devices, found the failing check and read its history with no shell command, and saw only read-only tools. With `--allow-changes` it acknowledged an alert, and the event said it came from MCP.
+    - The same agent, read-only, against a real Bield on a real tailnet.
+    - The MCP server over stdio with a fake tailnet in Go tests, and the tools that need a machine against a stub server.
+    - The agent installer in a Debian 12 container with real systemd and a stand-in for Bield, logged in with no session: as root (service running, heartbeats continuing after a restart, reinstall, uninstall), as a user with no session (refused before enrolling), as a user with lingering on, and as root over an older user service.
 
     ### What has not been run
 
-    - Upgrading from v0.2.1 to this release in place, and Bield's own start-up on a v0.2.1 database. Only the migration's SQL was run on a copy, and the tests run the migration on a new database.
-    - The Docker and file commands against a real machine. The demo turns them off.
-    - The command line on a Mac, and the zsh and fish completion scripts. Only bash was checked, and only its syntax.
-    - The new command line on a second machine of a real tailnet, against this release's Bield.
+    - The agent installer on a real Raspberry Pi or on DietPi.
+    - Codex and Cursor against `bield mcp`. Its setup for them follows their documented config.
+    - The Docker and file tools called by an agent against a real machine.
+    - Upgrading from v0.3.0 to this release in place.
+    - What the [v0.3.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.3.0) list for the command line on a Mac and the zsh and fish completion scripts. Nothing in this release changes that.
     - What the [v0.2.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.2.0) list under "What has not been run", which is coding usage on a Mac, OpenCode read with the `sqlite3` command, and Pi on a real install. Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
