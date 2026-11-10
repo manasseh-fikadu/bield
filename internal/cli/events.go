@@ -19,7 +19,7 @@ func eventCommands() []*Command {
 			{Name: "kind", Arg: "kind", Usage: "only one kind: device, agent, alert, check, container, access, settings, ssh, terminal, files"},
 			{Name: "device", Arg: "device", Usage: "only events about one device"},
 			{Name: "before", Arg: "id", Kind: Int, Usage: "show events from before this ID, for an earlier page"},
-			{Name: "follow", Short: 'f', Kind: Bool, Usage: "keep running, and print each new event"},
+			{Name: "follow", Short: 'f', Kind: Bool, CLIOnly: true, Usage: "keep running, and print each new event"},
 		},
 	}}
 }
@@ -37,8 +37,11 @@ func eventLine(v *View, e api.Event) {
 	by := ""
 	if e.Actor != "" {
 		by = v.Paint(dim, "  by "+e.Actor)
-		if e.Via == api.ViaCLI {
+		switch e.Via {
+		case api.ViaCLI:
 			by += v.Paint(dim, " with the CLI")
+		case api.ViaMCP:
+			by += v.Paint(dim, " with MCP")
 		}
 	}
 	v.Printf("%s  %-9s %s%s\n", v.Paint(dim, clock(e.At)), e.Kind, text, by)

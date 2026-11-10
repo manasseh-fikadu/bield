@@ -96,11 +96,14 @@ fix what it finds.
 
 A change made with the command line is in the activity log with the person's login, and says it came from the command line: *Acknowledged: Disk 90% full on NAS, by alice@example.com with the CLI*. The command line says so in its `User-Agent`, `bield-cli/<version>`. Bield takes the client's word for that, since it only labels the line: who did it is Tailscale's answer, and no client can change that.
 
+## MCP
+
+`bield mcp` is a server for AI agents that take typed tools and not shell commands. Its tools are made from these commands, and it is read-only unless you start it with `--allow-changes`. See [MCP server for AI agents](mcp.md).
+
 ## What it doesn't do yet
 
 - **API tokens.** Everything above acts as a person on the tailnet. A server, a CI job or an agent that should have less access than its owner has no way in yet. Scoped tokens are the next step.
 - **Running a command on a device**, and an interactive terminal. The browser terminal does that, and giving an agent the same is a decision that needs its own approval step and its own record.
-- **An MCP server**, for agents that take typed tools and not shell commands. It will use the same client as this.
 - **Reaching Bield from a machine that isn't on the tailnet**, such as a container with no Tailscale.
 
 Bield and `bield` should be the same version. A newer command line talking to an older Bield says so when the older one lacks what it needs.

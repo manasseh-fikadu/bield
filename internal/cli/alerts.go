@@ -15,10 +15,10 @@ func alertCommands() []*Command {
 	return []*Command{
 		{
 			Name: "alerts", Run: runAlerts, Stream: true,
-			Summary: "list the alerts that are open, or follow them as they change",
+			Summary: "list the alerts that are open",
 			What:    "Open alerts include the ones acknowledged or snoozed. --resolved lists the ones that cleared in the last 30 days.",
 			Flags: []Flag{
-				{Name: "follow", Short: 'f', Kind: Bool, Usage: "keep running, and print each alert as it opens, changes or resolves"},
+				{Name: "follow", Short: 'f', Kind: Bool, CLIOnly: true, Usage: "keep running, and print each alert as it opens, changes or resolves"},
 				{Name: "resolved", Kind: Bool, Usage: "list resolved alerts instead, the latest first"},
 				{Name: "limit", Arg: "n", Kind: Int, Default: "30", Usage: "how many resolved alerts to list"},
 				{Name: "before", Arg: "id", Kind: Int, Usage: "list resolved alerts from before this ID, for the next page"},

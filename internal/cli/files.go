@@ -16,19 +16,21 @@ import (
 func fileCommands() []*Command {
 	return []*Command{
 		{
-			Name: "files ls", Args: "<device> [path]", Min: 1, Max: 2, Admin: true, Run: runFilesLs,
+			Name: "files ls", Args: "<device> [path]", Min: 1, Max: 2, Admin: true, ReadOnly: true, Run: runFilesLs,
 			Summary: "list a folder on a device",
 			What:    "Bield logs in to the device over SSH as the user an admin set up. Without a path, it's that user's home folder.",
 		},
-		{Name: "files cat", Args: "<device> <path>", Min: 2, Max: 2, Admin: true, Run: runFilesCat, Summary: "print a file on a device"},
+		{Name: "files cat", Args: "<device> <path>", Min: 2, Max: 2, Admin: true, ReadOnly: true, Run: runFilesCat, Summary: "print a file on a device"},
 		{
 			Name: "files get", Args: "<device> <path> [local]", Min: 2, Max: 3, Admin: true, Run: runFilesGet,
+			NoTool:  "it saves to a path on the machine running the server; files_cat returns a text file's contents",
 			Summary: "download a file from a device",
 			What:    "The file is saved in the current folder under its own name, unless you name where. It won't replace a file that is there, unless you say --overwrite.",
 			Flags:   []Flag{{Name: "overwrite", Kind: Bool, Usage: "replace the local file if there is one"}},
 		},
 		{
 			Name: "files put", Args: "<device> <local> [folder]", Min: 2, Max: 3, Admin: true, Run: runFilesPut,
+			NoTool:  "it would let a tool call send any local file to a device; files_write takes the text it writes",
 			Summary: "upload a file to a folder on a device",
 			What: "Without a folder, it goes to the home folder of the user Bield logs in as. A local file called - is read from standard input, " +
 				"and needs --name. A file that is already there is not replaced, unless you say --overwrite or --rename.",
@@ -40,6 +42,7 @@ func fileCommands() []*Command {
 		},
 		{
 			Name: "files write", Args: "<device> <path>", Min: 2, Max: 2, Admin: true, Destructive: true, Run: runFilesWrite,
+			Stdin:   "the new text of the file",
 			Summary: "replace a text file on a device with standard input",
 			What:    "For config files and scripts, up to the size the web editor opens. Use files put for anything else.",
 			Flags:   []Flag{{Name: "create", Kind: Bool, Usage: "make the file if it isn't there"}},

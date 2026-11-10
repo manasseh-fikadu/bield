@@ -13,6 +13,7 @@ func basicCommands() []*Command {
 	return []*Command{
 		{
 			Name: "connect", Args: "[url]", Max: 1, Run: runConnect,
+			NoTool:  "it saves an address on this machine, which the person setting up the server does once",
 			Summary: "save where Bield is, and check that it answers",
 			What: "Bield's address is the MagicDNS name of its node, such as https://bield.example.ts.net. " +
 				"This machine has to be on the same tailnet. Without an address, it shows the one in use.",

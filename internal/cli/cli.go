@@ -142,7 +142,7 @@ func Run(ctx context.Context, env Env, args []string) int {
 	}
 	// A command that follows has no timeout. It runs until Ctrl-C.
 	following := cmd.Stream && vals["follow"] == "true"
-	if !following && g.timeout > 0 {
+	if !following && !cmd.Serves && g.timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, g.timeout)
 		defer cancel()
@@ -167,45 +167,52 @@ func report(env Env, g globals, err error) int {
 	if errors.Is(err, context.Canceled) {
 		return 130
 	}
+	f := describe(err)
+	if g.json {
+		_ = json.NewEncoder(env.Stderr).Encode(f) //nolint:errchkjson // A write to stderr that fails has nowhere to be reported.
+		return f.Code
+	}
+	fmt.Fprintf(env.Stderr, "bield: %s\n", f.Error)
+	if f.Hint != "" {
+		fmt.Fprintf(env.Stderr, "  %s\n", capitalize(f.Hint))
+	}
+	var ue *usageError
+	if errors.As(err, &ue) && ue.cmd != nil {
+		fmt.Fprintf(env.Stderr, "\nUsage: bield %s\n", ue.cmd.usageLine())
+	}
+	return f.Code
+}
+
+// failure is what bield says about an error, to a script or an MCP client.
+type failure struct {
+	Error  string `json:"error"`
+	Hint   string `json:"hint,omitempty"`
+	Status int    `json:"status,omitempty"`
+	Code   int    `json:"code"`
+}
+
+// describe works out what to say about an error and the exit code for it.
+func describe(err error) failure {
+	f := failure{Error: err.Error(), Code: ExitFailed}
 	var (
-		code = ExitFailed
-		msg  = err.Error()
-		hint string
-		stat int
-		ue   *usageError
-		ce   *client.Error
+		ue *usageError
+		ce *client.Error
 	)
 	switch {
 	case errors.As(err, &ue):
-		code = ExitUsage
+		f.Code = ExitUsage
 	case errors.As(err, &ce):
-		msg, hint, stat = ce.Message, ce.Hint, ce.Status
+		f.Error, f.Hint, f.Status = ce.Message, ce.Hint, ce.Status
 		switch {
 		case ce.NotFound():
-			code = ExitNotFound
+			f.Code = ExitNotFound
 		case ce.Denied():
-			code = ExitDenied
+			f.Code = ExitDenied
 		}
 	case errors.Is(err, context.DeadlineExceeded):
-		msg = "timed out; Bield didn't answer in time (change this with --timeout)"
+		f.Error = "timed out; Bield didn't answer in time (change this with --timeout)"
 	}
-	if g.json {
-		_ = json.NewEncoder(env.Stderr).Encode(struct { //nolint:errchkjson // A write to stderr that fails has nowhere to be reported.
-			Error  string `json:"error"`
-			Hint   string `json:"hint,omitempty"`
-			Status int    `json:"status,omitempty"`
-			Code   int    `json:"code"`
-		}{msg, hint, stat, code})
-		return code
-	}
-	fmt.Fprintf(env.Stderr, "bield: %s\n", msg)
-	if hint != "" {
-		fmt.Fprintf(env.Stderr, "  %s\n", capitalize(hint))
-	}
-	if ue != nil && ue.cmd != nil {
-		fmt.Fprintf(env.Stderr, "\nUsage: bield %s\n", ue.cmd.usageLine())
-	}
-	return code
+	return f
 }
 
 func capitalize(s string) string {
