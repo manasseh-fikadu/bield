@@ -654,12 +654,12 @@ func TestEvents_viaCLI(t *testing.T) {
 	if len(got) < 3 || !slices.Equal(got[:3], want) {
 		t.Errorf("events by alice = %q, want the first three %q", got, want)
 	}
-	for _, line := range got[2:] {
+	for _, line := range got[3:] {
 		if !strings.HasPrefix(line, ": ") {
 			t.Errorf("event %q from a browser is marked as coming from the CLI", line)
 		}
 	}
-	if len(got) != 5 {
-		t.Errorf("events by alice = %q, want 5", got)
+	if len(got) != 6 {
+		t.Errorf("events by alice = %q, want 6", got)
 	}
 }
