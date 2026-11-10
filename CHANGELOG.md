@@ -8,6 +8,11 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 - `bield mcp`, an MCP server for AI agents such as Claude Code, Codex and Cursor. Its tools are made from the command line's commands, with the same roles. It is read-only unless you start it with `--allow-changes`, and the activity log says *with MCP* for the changes it makes. See [MCP server for AI agents](docs/mcp.md).
 
+### Fixed
+
+- Installing the agent failed with "Failed to connect to user scope bus" on machines where the login has no systemd session, such as DietPi over Dropbear, leaving a machine that sent one heartbeat and then went quiet. As root the agent now installs as a system service, which also keeps running after you log out. Other users get their running systemd found for them, or a message that says what to do before anything has changed on the machine.
+- The agent installer stopped with an error at the very end when `USER` wasn't set.
+
 ## 0.3.0 - 2026-11-07
 
 This release adds a command line. The agent doesn't change, so there's nothing to update on your machines. Bield adds a column to the activity log when it starts, which needs no action from you.
