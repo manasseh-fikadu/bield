@@ -268,7 +268,8 @@
 				<p class="p-4 text-[13px] text-fg-muted">
 					On {device.name}, its log says why: on macOS,
 					<code class="font-mono text-[12px]">~/Library/Logs/bield-agent.log</code>, and on Linux,
-					<code class="font-mono text-[12px]">journalctl --user -u bield-agent</code>.
+					<code class="font-mono text-[12px]">journalctl --user -u bield-agent</code>, or
+					<code class="font-mono text-[12px]">journalctl -u bield-agent</code> if root installed it.
 				</p>
 			</Card>
 		</div>

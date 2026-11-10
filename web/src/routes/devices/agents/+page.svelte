@@ -178,7 +178,9 @@
 				On macOS it runs as a LaunchAgent, which logs to
 				<code class="font-mono text-[12px]">~/Library/Logs/bield-agent.log</code>. On Linux it's a
 				systemd user service:
-				<code class="font-mono text-[12px]">journalctl --user -u bield-agent</code>.
+				<code class="font-mono text-[12px]">journalctl --user -u bield-agent</code>, or a system
+				service if root installed it:
+				<code class="font-mono text-[12px]">journalctl -u bield-agent</code>.
 			</p>
 			<AdminOnly>
 				<AgentUninstall />

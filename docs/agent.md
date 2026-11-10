@@ -47,14 +47,16 @@ Bield writes the address into the command from the **Public URL** setting if you
    | --- | --- | --- |
    | The script | `~/.local/share/bield-agent/agent.sh` | `~/Library/Application Support/bield-agent/agent.sh` |
    | Its settings and secret | `~/.config/bield-agent/env`, readable only by you | the same |
-   | How it runs | The systemd user service `bield-agent` | The LaunchAgent `dev.bield.agent` |
-   | Its log | `journalctl --user -u bield-agent` | `~/Library/Logs/bield-agent.log` |
+   | How it runs | The systemd user service `bield-agent`, or the system service of that name if you install it as root | The LaunchAgent `dev.bield.agent` |
+   | Its log | `journalctl --user -u bield-agent`, or `journalctl -u bield-agent` as root | `~/Library/Logs/bield-agent.log` |
    | What it has read of [coding sessions](coding.md) | `~/.local/state/bield-agent` | the same |
 
 3. Sends a first heartbeat, and stops if that fails, with the reason.
 4. Starts the service, which restarts the agent if it stops.
 
-On Linux, a user service stops when the user logs out, unless lingering is on. The installer reminds you: `sudo loginctl enable-linger $USER`.
+On Linux, a user service stops when the user logs out, unless lingering is on. The installer reminds you: `sudo loginctl enable-linger $USER`. A system service keeps running.
+
+A user service also needs a systemd session, which some logins don't start, such as Dropbear's on DietPi. Without one the installer stops before it changes anything, and says so. Turn lingering on and run the command again, or run it as root, with `sudo bash` in place of `bash`.
 
 The agent reads `SERVER_URL`, `SECRET` and `INTERVAL` from its settings file. [The configuration reference](configuration.md#the-agent) lists them.
 
