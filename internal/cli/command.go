@@ -19,12 +19,23 @@ type Command struct {
 	Flags []Flag
 	// Admin says it needs an admin. The commands that change anything do.
 	Admin bool
+	// ReadOnly says a command that needs an admin changes nothing, as with
+	// reading a container's logs. MCP clients are told so.
+	ReadOnly bool
 	// Destructive says it deletes, stops or overwrites something, so it
 	// does nothing without --yes.
 	Destructive bool
 	// Stream says it has a --follow flag, which keeps it open to print as
 	// things happen. A run that follows has no timeout.
 	Stream bool
+	// Serves says it runs until it is stopped, so it has no timeout.
+	Serves bool
+	// NoTool says why this command isn't a tool of the MCP server. Every other
+	// command is one.
+	NoTool string
+	// Stdin says what the command reads from standard input, for the tool's
+	// content argument, if it reads it for its data.
+	Stdin string
 	// Min and Max are how many arguments it takes. Max below 0 is any number.
 	Min, Max int
 	// Run does it.
@@ -76,6 +87,26 @@ type Flag struct {
 	Usage   string
 	// Arg names the value in the usage, such as "n".
 	Arg string
+	// CLIOnly leaves the flag out of the MCP tool, because a tool answers once
+	// and always in JSON.
+	CLIOnly bool
+}
+
+// check reports whether val is a value this flag takes. name is how the
+// message should call the flag.
+func (f Flag) check(name, val string) error {
+	switch f.Kind {
+	case Int:
+		if _, err := strconv.Atoi(val); err != nil {
+			return fmt.Errorf("%s takes a number, not %q", name, val)
+		}
+	case Duration:
+		if _, err := parseDuration(val); err != nil {
+			return fmt.Errorf("%s takes a time such as 30m, 4h or 2d, not %q", name, val)
+		}
+	default:
+	}
+	return nil
 }
 
 func (f Flag) usage() string {
@@ -169,16 +200,8 @@ func parseFlags(flags []Flag, args []string) (map[string]string, []string, error
 			i++
 			val = args[i]
 		}
-		switch f.Kind {
-		case Int:
-			if _, err := strconv.Atoi(val); err != nil {
-				return nil, nil, fmt.Errorf("%s takes a number, not %q", name, val)
-			}
-		case Duration:
-			if _, err := parseDuration(val); err != nil {
-				return nil, nil, fmt.Errorf("%s takes a time such as 30m, 4h or 2d, not %q", name, val)
-			}
-		default:
+		if err := f.check(name, val); err != nil {
+			return nil, nil, err
 		}
 		vals[f.Name] = val
 	}

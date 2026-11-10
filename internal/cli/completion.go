@@ -13,6 +13,7 @@ var otherCommands = []string{"serve", "admin", "backup", "healthcheck", "version
 func completionCommands() []*Command {
 	return []*Command{{
 		Name: "completion", Args: "<bash|zsh|fish>", Min: 1, Max: 1, Run: runCompletion,
+		NoTool:  "it prints a script for a person's shell",
 		Summary: "print a script that completes bield's commands and flags in a shell",
 		What: "Bash: source <(bield completion bash). Zsh: source <(bield completion zsh). " +
 			"Fish: bield completion fish | source. Put the line in the shell's startup file.",

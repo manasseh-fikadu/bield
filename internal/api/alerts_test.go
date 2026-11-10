@@ -623,6 +623,11 @@ func TestEvents_viaCLI(t *testing.T) {
 	if rec := serve(h, cli); rec.Code != http.StatusCreated {
 		t.Fatalf("POST note from the CLI = %d %s", rec.Code, rec.Body)
 	}
+	mcp := newRequestBody(t, http.MethodPost, path+"/notes", laptopIP, strings.NewReader(`{"text":"An agent looked"}`))
+	mcp.Header.Set("User-Agent", api.MCPUserAgent+"/0.4.0")
+	if rec := serve(h, mcp); rec.Code != http.StatusCreated {
+		t.Fatalf("POST note from MCP = %d %s", rec.Code, rec.Body)
+	}
 	// A browser, and a client that only looks like the CLI's name.
 	for _, ua := range []string{"Mozilla/5.0", "bield-cli-fake/1", ""} {
 		web := newRequestBody(t, http.MethodDelete, path+"/ack", laptopIP, strings.NewReader(""))
@@ -644,16 +649,17 @@ func TestEvents_viaCLI(t *testing.T) {
 	want := []string{
 		"cli: Acknowledged: Disk 90% full on bield",
 		"cli: Wrote a note on: Disk 90% full on bield",
+		"mcp: Wrote a note on: Disk 90% full on bield",
 	}
-	if len(got) < 2 || !slices.Equal(got[:2], want) {
-		t.Errorf("events by alice = %q, want the first two %q", got, want)
+	if len(got) < 3 || !slices.Equal(got[:3], want) {
+		t.Errorf("events by alice = %q, want the first three %q", got, want)
 	}
-	for _, line := range got[2:] {
+	for _, line := range got[3:] {
 		if !strings.HasPrefix(line, ": ") {
 			t.Errorf("event %q from a browser is marked as coming from the CLI", line)
 		}
 	}
-	if len(got) != 5 {
-		t.Errorf("events by alice = %q, want 5", got)
+	if len(got) != 6 {
+		t.Errorf("events by alice = %q, want 6", got)
 	}
 }

@@ -1832,18 +1832,23 @@ export interface Event {
   actor?: string;
   /**
    * Via is how the actor's request reached Bield when it wasn't the web app:
-   * ViaCLI for the command line. It's what the client says in its
-   * User-Agent, so it labels the event and proves nothing.
+   * ViaCLI for the command line and ViaMCP for bield mcp. It's what the
+   * client says in its User-Agent, so it labels the event and proves nothing.
    */
   via?: string;
 }
 /**
- * The values of Event.Via.
- */
-/**
  * ViaCLI is a change made with the bield command line (#49).
  */
 export const ViaCLI = "cli";
+/**
+ * ViaMCP is a change made through bield mcp, by an AI agent (#83).
+ */
+export const ViaMCP = "mcp";
+/**
+ * The values of Event.Via.
+ */
+export type Via = typeof ViaCLI | typeof ViaMCP;
 /**
  * CLIUserAgent is the name the bield command line gives itself in its
  * User-Agent header, followed by a slash and its version, such as
@@ -1851,6 +1856,11 @@ export const ViaCLI = "cli";
  * command line.
  */
 export const CLIUserAgent = "bield-cli";
+/**
+ * MCPUserAgent is the name bield mcp gives itself in the same way, such as
+ * "bield-mcp/0.4.0".
+ */
+export const MCPUserAgent = "bield-mcp";
 /**
  * EventLevel says how an event went.
  */

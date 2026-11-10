@@ -30,7 +30,8 @@ type Options struct {
 	// It must name Bield's node, since Bield only answers to its own names.
 	URL string
 	// Name and Version make the User-Agent that Bield marks the changes in
-	// its activity log with. Name is api.CLIUserAgent if it's empty.
+	// its activity log with, such as api.MCPUserAgent. Name is
+	// api.CLIUserAgent if it's empty.
 	Name, Version string
 	// HTTP sends the requests. Nil is a client that gives a server 30
 	// seconds to start answering, and any time at all to finish.

@@ -20,7 +20,7 @@ func adminCommands() []*Command {
 				"CPU, memory, disk and Docker to Bield.",
 		},
 		{
-			Name: "settings", Admin: true, Run: runSettings,
+			Name: "settings", Admin: true, ReadOnly: true, Run: runSettings,
 			Summary: "show Bield's settings and what they are by default",
 			What:    "Names are the API's, such as thresholds.diskWarn or rules.cpu. --json has the full structure.",
 		},
@@ -30,11 +30,11 @@ func adminCommands() []*Command {
 			What: "A value is a number, true or false, text, or for watchedUnits a comma-separated list. " +
 				"Example: bield settings set thresholds.diskWarn=85 rules.cpu=false general.name=\"Home lab\"",
 		},
-		{Name: "access", Admin: true, Run: runAccess, Summary: "show who has a role in Bield, and who else can view it"},
+		{Name: "access", Admin: true, ReadOnly: true, Run: runAccess, Summary: "show who has a role in Bield, and who else can view it"},
 		{
 			Name: "access set", Args: "<login> <admin|viewer>", Min: 2, Max: 2, Admin: true, Destructive: true, Run: runAccessSet,
 			Summary: "give a Tailscale login a role",
-			What:    "Admins can open shells and change files on every device, so this needs --yes.",
+			What:    "Admins can open shells and change files on every device. So this needs --yes.",
 		},
 		{
 			Name: "access remove", Args: "<login>", Min: 1, Max: 1, Admin: true, Destructive: true, Run: runAccessRemove,
@@ -43,7 +43,7 @@ func adminCommands() []*Command {
 		{
 			Name: "access who-can-view", Args: "[tailnet|listed]", Max: 1, Admin: true, Run: runWhoCanView,
 			Summary: "show or set who can view Bield besides the users with a role",
-			What:    "tailnet lets anyone who signs in from the tailnet view it (and needs --yes); listed lets only the users with a role.",
+			What:    "tailnet lets anyone who signs in from the tailnet view it; listed lets only the users with a role. Choosing tailnet needs --yes.",
 		},
 	}
 }

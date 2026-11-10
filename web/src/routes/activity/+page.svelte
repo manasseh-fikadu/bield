@@ -185,7 +185,11 @@
 										>
 									{/if}
 									{#if e.actor}
-										· by {e.actor}{e.via === 'cli' ? ' with the CLI' : ''}
+										· by {e.actor}{e.via === 'cli'
+											? ' with the CLI'
+											: e.via === 'mcp'
+												? ' with MCP'
+												: ''}
 									{/if}
 								</p>
 							</div>

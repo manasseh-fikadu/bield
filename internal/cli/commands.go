@@ -13,5 +13,6 @@ func init() {
 		fileCommands(),
 		adminCommands(),
 		completionCommands(),
+		mcpCommands(),
 	)
 }

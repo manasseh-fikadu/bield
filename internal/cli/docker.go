@@ -27,14 +27,14 @@ func dockerCommands() []*Command {
 		{Name: "docker stop", Args: "<device> <container>", Min: 2, Max: 2, Admin: true, Destructive: true, Run: dockerAction("stop"), Summary: "stop a container"},
 		{Name: "docker restart", Args: "<device> <container>", Min: 2, Max: 2, Admin: true, Destructive: true, Run: dockerAction("restart"), Summary: "restart a container"},
 		{
-			Name: "docker logs", Args: "<device> <container>", Min: 2, Max: 2, Admin: true, Stream: true, Run: runDockerLogs,
-			Summary: "print a container's logs, or follow them",
+			Name: "docker logs", Args: "<device> <container>", Min: 2, Max: 2, Admin: true, ReadOnly: true, Stream: true, Run: runDockerLogs,
+			Summary: "print a container's logs",
 			What:    "Logs often hold secrets, so only admins can read them. A container's error output goes to stderr.",
 			Flags: []Flag{
 				{Name: "tail", Short: 'n', Arg: "n", Kind: Int, Default: "100", Usage: "how many of the last lines to start with, or 0 for all"},
 				{Name: "since", Arg: "time", Usage: "only lines since a time ago, such as 10m, or an RFC 3339 time"},
-				{Name: "follow", Short: 'f', Kind: Bool, Usage: "keep running, and print new lines"},
-				{Name: "timestamps", Short: 't', Kind: Bool, Usage: "put the time Docker stamped on each line before it"},
+				{Name: "follow", Short: 'f', Kind: Bool, CLIOnly: true, Usage: "keep running, and print new lines"},
+				{Name: "timestamps", Short: 't', Kind: Bool, CLIOnly: true, Usage: "put the time Docker stamped on each line before it"},
 			},
 		},
 	}

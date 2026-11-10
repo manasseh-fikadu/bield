@@ -1255,8 +1255,8 @@ type Event struct {
 	// Actor is the login of who did it, if someone did. Only admins get it.
 	Actor string `json:"actor,omitempty" bield:"secret"`
 	// Via is how the actor's request reached Bield when it wasn't the web app:
-	// ViaCLI for the command line. It's what the client says in its
-	// User-Agent, so it labels the event and proves nothing.
+	// ViaCLI for the command line and ViaMCP for bield mcp. It's what the
+	// client says in its User-Agent, so it labels the event and proves nothing.
 	Via string `json:"via,omitempty"`
 }
 
@@ -1264,6 +1264,8 @@ type Event struct {
 const (
 	// ViaCLI is a change made with the bield command line (#49).
 	ViaCLI = "cli"
+	// ViaMCP is a change made through bield mcp, by an AI agent (#83).
+	ViaMCP = "mcp"
 )
 
 // CLIUserAgent is the name the bield command line gives itself in its
@@ -1271,6 +1273,10 @@ const (
 // "bield-cli/0.3.0". Bield marks the changes it makes as coming from the
 // command line.
 const CLIUserAgent = "bield-cli"
+
+// MCPUserAgent is the name bield mcp gives itself in the same way, such as
+// "bield-mcp/0.4.0".
+const MCPUserAgent = "bield-mcp"
 
 // EventLevel says how an event went.
 type EventLevel string
