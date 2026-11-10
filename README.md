@@ -113,6 +113,7 @@ Bield has had an outside review, and v0.1.1 fixes what it found. It's a young pr
 | [The agent](docs/agent.md) | Per-machine metrics |
 | [SSH access](docs/ssh.md) | Terminals, files and Docker on other machines |
 | [The command line](docs/cli.md) | `bield devices`, `bield alerts ack`, for people, scripts and AI agents |
+| [MCP server](docs/mcp.md) | `bield mcp`: typed tools for AI agents, read-only by default |
 | [Notifications](docs/notifications.md) | Where alerts go, and when |
 | [Settings](docs/settings.md) | Every setting, with its default |
 | [Configuration reference](docs/configuration.md) | Every flag and environment variable |

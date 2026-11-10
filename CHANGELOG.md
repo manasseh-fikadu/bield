@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- `bield mcp`, an MCP server for AI agents such as Claude Code, Codex and Cursor. Its tools are made from the command line's commands, with the same roles. It is read-only unless you start it with `--allow-changes`, and the activity log says *with MCP* for the changes it makes. See [MCP server for AI agents](docs/mcp.md).
+
 ## 0.3.0 - 2026-11-07
 
 This release adds a command line. The agent doesn't change, so there's nothing to update on your machines. Bield adds a column to the activity log when it starts, which needs no action from you.
