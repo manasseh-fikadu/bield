@@ -19,11 +19,15 @@ import (
 // make a signed-in browser change anything.
 const CSRFHeader = "X-Bield"
 
-// viaOf returns how r reached Bield, for the activity log: ViaCLI if it came
-// from the command line, as its User-Agent says, and "" otherwise.
+// viaOf returns how r reached Bield, for the activity log: ViaCLI or ViaMCP if
+// it came from one of those, as its User-Agent says, and "" otherwise.
 func viaOf(r *http.Request) string {
-	if name, _, _ := strings.Cut(r.UserAgent(), "/"); name == CLIUserAgent {
+	name, _, _ := strings.Cut(r.UserAgent(), "/")
+	switch name {
+	case CLIUserAgent:
 		return ViaCLI
+	case MCPUserAgent:
+		return ViaMCP
 	}
 	return ""
 }
