@@ -23,6 +23,14 @@ rm -rf ~/.local/share/bield-agent ~/.config/bield-agent
 systemctl --user daemon-reload
 ```
 
+If you installed it as root, it's a system service, and these replace the two `systemctl` lines and the unit's path:
+
+```sh
+systemctl disable --now bield-agent.service
+rm -f /etc/systemd/system/bield-agent.service
+systemctl daemon-reload
+```
+
 On macOS:
 
 ```sh
