@@ -1,8 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
 # Installs the Bield agent for the current user: a LaunchAgent on macOS, and
-# a systemd user service on Linux. No root needed. The hub serves this script
-# only for a valid enrollment code, which Add agent on its Agents page makes.
+# on Linux a systemd user service, or a system service when run as root. No
+# root needed. The hub serves this script only for a valid enrollment code,
+# which Add agent on its Agents page makes.
 set -euo pipefail
 
 SERVER_URL=__SERVER_URL__
@@ -13,6 +14,17 @@ CODE=__CODE__
 __LAYOUT__
 
 command -v curl >/dev/null || { echo "curl is required" >&2; exit 1; }
+
+# Find out now whether systemd can run the agent, so that a machine it can't
+# run on isn't left enrolled, with one heartbeat and then silence.
+if [ "$(uname -s)" = "Linux" ] && ! systemctl "$SCOPE" show-environment >/dev/null 2>&1; then
+  if [ "$SCOPE" = "--system" ]; then
+    echo "Couldn't reach systemd. On Linux the agent runs as a systemd service, so this machine needs to run systemd." >&2
+  else
+    echo "Couldn't reach systemd's user session for $(id -un), which runs the agent. This happens when you log in without a session, as with Dropbear. Run 'sudo loginctl enable-linger $(id -un)' and run this command again, or run it again with 'sudo bash' in place of 'bash' to install a system service." >&2
+  fi
+  exit 1
+fi
 
 # The code goes through stdin (-K -), so it doesn't show up in `ps`. Bield
 # refuses POSTs without an X-Bield header.
@@ -96,29 +108,39 @@ EOF
   launchctl bootstrap "gui/$(id -u)" "$PLIST"
   echo "Installed LaunchAgent $LABEL (logs: $LOG)."
 else
-  mkdir -p "$UNIT_DIR"
+  # An older install as root made a user service, which would report next to
+  # the system service.
+  if [ "$UNIT" != "$USER_UNIT" ] && [ -e "$USER_UNIT" ]; then
+    remove_service --user "$USER_UNIT"
+  fi
+  mkdir -p "$(dirname "$UNIT")"
+  # HOME, since a system service doesn't get one, and the agent finds its
+  # settings there.
   cat > "$UNIT" <<EOF
 [Unit]
 Description=Bield agent (heartbeats to $SERVER_URL)
 After=network-online.target
 
 [Service]
-ExecStart=/bin/bash %h/.local/share/$NAME/agent.sh
+Environment="HOME=$HOME"
+ExecStart=/bin/bash "$BIN_DIR/agent.sh"
 Restart=always
 RestartSec=10
 Nice=10
 
 [Install]
-WantedBy=default.target
+WantedBy=$WANTED_BY
 EOF
-  systemctl --user daemon-reload
-  systemctl --user enable "$NAME.service"
+  systemctl "$SCOPE" daemon-reload
+  systemctl "$SCOPE" enable "$NAME.service"
   # restart, not start, so that running this again replaces an agent that's
   # already running with the new one.
-  systemctl --user restart "$NAME.service"
-  echo "Installed systemd user service $NAME (logs: journalctl --user -u $NAME)."
-  if command -v loginctl >/dev/null && [ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" != "yes" ]; then
-    echo "Tip: run 'sudo loginctl enable-linger $USER' to keep it running while you're logged out."
+  systemctl "$SCOPE" restart "$NAME.service"
+  echo "Installed systemd ${SCOPE#--} service $NAME (logs: $LOGS)."
+  # A system service doesn't stop at logout. USER can be unset, as when
+  # logging in over Dropbear.
+  if [ "$SCOPE" = "--user" ] && command -v loginctl >/dev/null && [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != "yes" ]; then
+    echo "Tip: run 'sudo loginctl enable-linger $(id -un)' to keep it running while you're logged out."
   fi
 fi
 echo "Done. This machine will appear as reporting on the dashboard within a few seconds."

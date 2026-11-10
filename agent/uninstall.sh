@@ -11,9 +11,11 @@ if [ "$(uname -s)" = "Darwin" ]; then
   launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
   rm -f "$PLIST"
 else
-  systemctl --user disable --now "$NAME.service" 2>/dev/null || true
-  rm -f "$UNIT"
-  systemctl --user daemon-reload 2>/dev/null || true
+  remove_service "$SCOPE" "$UNIT"
+  # An older install as root made a user service.
+  if [ "$UNIT" != "$USER_UNIT" ] && [ -e "$USER_UNIT" ]; then
+    remove_service --user "$USER_UNIT"
+  fi
 fi
 
 # The agent's secret is in env, and goes through stdin (-K -) so it doesn't
