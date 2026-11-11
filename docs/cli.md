@@ -119,6 +119,25 @@ fix what it finds.
 - Exit code 4 means you aren't allowed. Don't look for a way around it; tell me.
 ```
 
+## Machines without Tailscale
+
+A container, a CI runner or any machine without Tailscale can still use `bield`: give it an [auth key](https://tailscale.com/kb/1085/auth-keys) (or a Headscale pre-auth key) in `BIELD_TS_AUTHKEY`, and it joins the tailnet itself, inside its own process, for as long as the command runs. Nothing is installed and nothing needs root. Pair it with an [API token](#api-tokens), since a node made from a tagged key belongs to no one:
+
+```sh
+export BIELD_URL=https://bield.example.ts.net
+export BIELD_TS_AUTHKEY=tskey-auth-…   # tagged, ephemeral, reusable: a CI key
+export BIELD_TOKEN=bield_…            # a viewer token
+bield checks --failing --json
+```
+
+- Each run is a new, ephemeral node that logs out when the command ends, so the machine list stays clean. Joining adds about 3 seconds to a command, which is why it only happens when the command needs Bield: `help`, `completion` and a mistyped command don't join.
+- `BIELD_TS_STATE_DIR` keeps the node's state in a directory, so later runs are the same node and don't log in again (about 2 seconds). Such a node stays in the machine list, offline when nothing runs, like any other machine.
+- `BIELD_TS_HOSTNAME` names the node (`bield-cli` by default), and `BIELD_CONTROL_URL` points it at Headscale, as it does for `bield serve`.
+- `bield mcp` joins the same way, on its first tool call, and stays joined while it runs.
+- The tailnet's access rules decide what the node reaches, so let its tag reach Bield's port. A node that sees no machine at all says so.
+
+Tried against Headscale 0.29.7 from a Debian container with no Tailscale in it. It hasn't been tried with a Tailscale auth key yet.
+
 ## Who did it
 
 A change made with the command line is in the activity log with the person's login, and says it came from the command line: *Acknowledged: Disk 90% full on NAS, by alice@example.com with the CLI*. The command line says so in its `User-Agent`, `bield-cli/<version>`. Bield takes the client's word for that, since it only labels the line: who did it is Tailscale's answer, and no client can change that. A change made with an API token is under the login of the admin who made the token, with the token's name: *by alice@example.com with the token ci-deploy, with the CLI*. Making and revoking tokens is in the log too.
@@ -130,6 +149,5 @@ A change made with the command line is in the activity log with the person's log
 ## What it doesn't do yet
 
 - **Running a command on a device**, and an interactive terminal. The browser terminal does that, and giving an agent the same is a decision that needs its own approval step and its own record.
-- **Reaching Bield from a machine that isn't on the tailnet**, such as a container with no Tailscale.
 
 Bield and `bield` should be the same version. A newer command line talking to an older Bield says so when the older one lacks what it needs.

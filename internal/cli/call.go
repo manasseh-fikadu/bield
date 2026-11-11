@@ -101,7 +101,11 @@ func (c *Call) Client() (*client.Client, error) {
 	if c.client != nil {
 		return c.client, nil
 	}
-	cl, err := client.New(c.clientOptions())
+	opts, err := c.clientOptions()
+	if err != nil {
+		return nil, err
+	}
+	cl, err := client.New(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -110,10 +114,23 @@ func (c *Call) Client() (*client.Client, error) {
 }
 
 // clientOptions returns the options of the client for the Bield that the
-// command talks to: its address, and the API token to send it, if any.
-func (c *Call) clientOptions() client.Options {
+// command talks to: its address, the API token to send it, if any, and bield's
+// own Tailscale node to send it through, if BIELD_TS_AUTHKEY asks for one,
+// which this starts.
+func (c *Call) clientOptions() (client.Options, error) {
 	addr, _ := c.address()
-	return client.Options{URL: addr, Version: c.Env.Version, HTTP: c.Env.HTTP, Token: c.token(addr)}
+	opts := client.Options{URL: addr, Version: c.Env.Version, HTTP: c.Env.HTTP, Token: c.token(addr)}
+	if c.Env.node != nil {
+		if _, err := client.ParseURL(addr); err != nil {
+			return opts, err
+		}
+		hc, err := c.Env.node.client(c.Ctx)
+		if err != nil {
+			return opts, err
+		}
+		opts.HTTP = hc
+	}
+	return opts, nil
 }
 
 // token returns the API token to send to the Bield at addr: BIELD_TOKEN, or

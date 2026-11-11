@@ -7,6 +7,7 @@ What changed in each release of Bield, newest first. The [landing page](https://
 ### Added
 
 - Scoped API tokens, for machines no person is logged in to, such as a tagged server, a CI job or an AI agent that should have less access than you. An admin makes one in Settings, under API tokens, or with `bield tokens create`, with a role and an expiry of up to a year. Use it with `BIELD_TOKEN` or `bield connect <url> --with-token`, and `bield mcp` takes it too. A token never does more than the admin who made it can now, and it can't open terminals, make tokens or change who has access. Changes made with one are in the activity log with its name. See [API tokens](docs/cli.md#api-tokens).
+- `bield` runs on machines without Tailscale, such as containers and CI runners: with an auth key in `BIELD_TS_AUTHKEY`, it joins the tailnet itself for the length of a command. See [Machines without Tailscale](docs/cli.md#machines-without-tailscale).
 
 ## 0.4.0 - 2026-11-10
 

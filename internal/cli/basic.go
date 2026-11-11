@@ -56,6 +56,11 @@ func runConnect(c *Call) error {
 		// BIELD_TOKEN, as every other command would send it.
 		opts.Token = c.Env.getenv("BIELD_TOKEN")
 	}
+	if c.Env.node != nil {
+		if opts.HTTP, err = c.Env.node.client(c.Ctx); err != nil {
+			return err
+		}
+	}
 	cl, err := client.New(opts)
 	if err != nil {
 		return err

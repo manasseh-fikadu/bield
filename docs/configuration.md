@@ -46,6 +46,20 @@ The Docker image sets `BIELD_DATA_DIR=/data`, and the install script sets it to 
 
 The subcommands of `bield admin` are in [Admins and viewers](tailscale.md#admins-and-viewers), and `bield backup` is in [Upgrading, backups and rolling back](upgrading.md#backing-up).
 
+## The command line
+
+The commands that talk to a running Bield (see [The command line](cli.md)) read these.
+
+| Variable | What it does |
+| --- | --- |
+| `BIELD_URL` | Where Bield is, if `--url` isn't given. Without either, the address `bield connect` saved. |
+| `BIELD_TOKEN` | An [API token](cli.md#api-tokens) to send, which Bield acts on instead of who Tailscale says is asking. It beats a token `bield connect --with-token` saved. |
+| `BIELD_TS_AUTHKEY` | An auth key, for a machine without Tailscale: `bield` joins the tailnet itself for the run (see [Machines without Tailscale](cli.md#machines-without-tailscale)). |
+| `BIELD_TS_STATE_DIR` | Keeps that node's state, so later runs are the same node. Without it, each run is an ephemeral node that logs out at the end. |
+| `BIELD_TS_HOSTNAME` | The node's name, `bield-cli` by default. |
+| `BIELD_CONTROL_URL` | The control server for that node, for Headscale. |
+| `NO_COLOR` | Leaves color out of the tables, as `--no-color` does. |
+
 ## Variables that Tailscale and the system read
 
 These aren't Bield's, but Bield's behavior depends on them.

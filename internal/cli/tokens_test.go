@@ -180,3 +180,22 @@ func TestRun_connectWithToken(t *testing.T) {
 		t.Errorf("whoami --url elsewhere with BIELD_TOKEN sent Authorization %q, want the token", sent)
 	}
 }
+
+// A command that doesn't reach Bield doesn't join the tailnet, even with an
+// auth key: help and usage errors stay instant and offline.
+func TestRun_authKeyNotNeeded(t *testing.T) {
+	t.Parallel()
+	for _, args := range [][]string{{"help"}, {"completion", "bash"}, {"tokens", "create"}, {"tokens", "revoke", "x"}} {
+		var stdout, stderr strings.Builder
+		e := cli.Env{
+			Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &stderr,
+			Getenv: func(k string) string {
+				return map[string]string{"BIELD_TS_AUTHKEY": "tskey-auth-not-real", "BIELD_URL": "http://bield.invalid"}[k]
+			},
+		}
+		code := cli.Run(t.Context(), e, args)
+		if strings.Contains(stderr.String(), "join the tailnet") {
+			t.Errorf("bield %v with an auth key = %d %q, want no node started", args, code, stderr.String())
+		}
+	}
+}

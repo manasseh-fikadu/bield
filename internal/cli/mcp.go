@@ -39,7 +39,7 @@ func mcpCommands() []*Command {
 }
 
 func runMCP(c *Call) error {
-	s := &mcpServer{env: c.Env, global: c.global}
+	s := &mcpServer{ctx: c.Ctx, env: c.Env, global: c.global}
 	server := mcp.NewServer(&mcp.Implementation{Name: "bield", Version: c.Env.Version}, &mcp.ServerOptions{Instructions: mcpInstructions})
 	for _, t := range mcpTools(c.Bool("allow-changes")) {
 		server.AddTool(t.def, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -241,6 +241,8 @@ func camel(name string) string {
 
 // mcpServer holds what the tools share.
 type mcpServer struct {
+	//nolint:containedctx // The server's context, which its own Tailscale node, if it has one, lives as long as.
+	ctx    context.Context
 	env    Env
 	global globals
 
@@ -257,7 +259,10 @@ func (s *mcpServer) client() (*client.Client, error) {
 	if s.cl != nil {
 		return s.cl, nil
 	}
-	opts := (&Call{Env: s.env, global: s.global}).clientOptions()
+	opts, err := (&Call{Ctx: s.ctx, Env: s.env, global: s.global}).clientOptions()
+	if err != nil {
+		return nil, err
+	}
 	opts.Name = api.MCPUserAgent
 	cl, err := client.New(opts)
 	if err != nil {
