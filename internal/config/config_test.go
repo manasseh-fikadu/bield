@@ -22,6 +22,7 @@ func TestParse(t *testing.T) {
 		DemoListen:  config.DefaultDemoListen,
 		DemoDevices: config.DefaultDemoDevices,
 		DemoDays:    config.DefaultDemoDays,
+		EditorPorts: config.PortRange{First: 4710, Last: 4799},
 	}
 	with := func(change func(*config.Config)) config.Config {
 		cfg := defaults
@@ -55,6 +56,7 @@ func TestParse(t *testing.T) {
 				"BIELD_DEMO_LISTEN":  "0.0.0.0:8080",
 				"BIELD_DEMO_DEVICES": "200",
 				"BIELD_DEMO_DAYS":    "30",
+				"BIELD_EDITOR_PORTS": "9000-9009",
 			},
 			want: config.Config{
 				Tailscale:   config.Host,
@@ -69,6 +71,7 @@ func TestParse(t *testing.T) {
 				DemoListen:  "0.0.0.0:8080",
 				DemoDevices: 200,
 				DemoDays:    30,
+				EditorPorts: config.PortRange{First: 9000, Last: 9009},
 			},
 		},
 		{
@@ -112,6 +115,32 @@ func TestParse(t *testing.T) {
 			args: []string{"--port", "4800"},
 			env:  map[string]string{"BIELD_PORT": "https"},
 			want: with(func(c *config.Config) { c.Port = 4800 }),
+		},
+		{
+			name: "editor ports flag beats environment",
+			args: []string{"--editor-ports", "8443"},
+			env:  map[string]string{"BIELD_EDITOR_PORTS": "9000-9009"},
+			want: with(func(c *config.Config) { c.EditorPorts = config.PortRange{First: 8443, Last: 8443} }),
+		},
+		{
+			name:    "editor ports aren't a range",
+			args:    []string{"--editor-ports", "4799-4710"},
+			wantErr: true,
+		},
+		{
+			name:    "editor ports out of range",
+			args:    []string{"--editor-ports", "65000-70000"},
+			wantErr: true,
+		},
+		{
+			name:    "editor ports include the app's port in host mode",
+			args:    []string{"--tailscale", "host", "--port", "4720"},
+			wantErr: true,
+		},
+		{
+			name:    "editor ports include 443 in embedded mode",
+			args:    []string{"--editor-ports", "400-500"},
+			wantErr: true,
 		},
 		{
 			name: "admins flag beats environment",

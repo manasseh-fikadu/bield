@@ -38,6 +38,15 @@ func (n *Node) Listen(ctx context.Context) (net.Listener, string, error) {
 	return ln, localURL(ln.Addr()), nil
 }
 
+// ErrNoPorts is what ListenPort returns: a demo serves the app alone, and
+// has no machines to open an editor on.
+var ErrNoPorts = errors.New("a demo serves the app alone")
+
+// ListenPort returns ErrNoPorts.
+func (n *Node) ListenPort(context.Context, int) (net.Listener, string, error) {
+	return nil, "", ErrNoPorts
+}
+
 // Close stops serving the app. The server that serves it closes the listener
 // too, and a second close doesn't matter.
 func (n *Node) Close() error {

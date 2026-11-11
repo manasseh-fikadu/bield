@@ -39,6 +39,12 @@ type Node interface {
 	// Listen waits until the node is on the tailnet, then returns a listener
 	// for the app and the URL people open it at. Call it once.
 	Listen(ctx context.Context) (ln net.Listener, url string, err error)
+	// ListenPort listens on another port of the node, for pages that must
+	// have an origin of their own, apart from the app's, such as a device's
+	// editor. They're served as the app is, over HTTPS with the node's
+	// certificate if the app is. It returns the URL of the port's root. Call
+	// it after Listen has returned, and close the listener when done.
+	ListenPort(ctx context.Context, port int) (ln net.Listener, url string, err error)
 	// Close disconnects from the tailnet and closes the listener.
 	Close() error
 }

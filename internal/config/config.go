@@ -33,6 +33,9 @@ const (
 	DefaultDemoListen  = "127.0.0.1:4700"
 	DefaultDemoDevices = 12
 	DefaultDemoDays    = 7.0
+	// DefaultEditorPorts are the ports devices' editors are served on: one
+	// port each, for 90 devices.
+	DefaultEditorPorts = "4710-4799"
 )
 
 // The most a demo can have: devices, and days of history.
@@ -77,6 +80,9 @@ type Config struct {
 	// its data in a temporary directory, and the Tailscale flags above don't
 	// apply.
 	Demo bool
+	// EditorPorts are the ports of Bield's node that devices' editors are
+	// served on, one each (see package editor).
+	EditorPorts PortRange
 	// DemoListen is the local TCP address the demo is served on.
 	DemoListen string
 	// DemoDevices is how many devices the demo's tailnet has, Bield's own
@@ -113,6 +119,8 @@ func Parse(args []string, getenv func(string) string, output io.Writer) (Config,
 		"`directory` whose proc/ and sys/ are the host's, for Bield in a container that mounts them there (env BIELD_HOST_ROOT)")
 	fs.StringVar(&cfg.DevUI, "dev-ui", envOr(getenv, "BIELD_DEV_UI", ""),
 		"`URL` of a Vite dev server to proxy the web UI to, for development (env BIELD_DEV_UI)")
+	editorPorts := fs.String("editor-ports", envOr(getenv, "BIELD_EDITOR_PORTS", DefaultEditorPorts),
+		"`range` of ports, such as 4710-4799, to serve each device's VS Code on, one port each (env BIELD_EDITOR_PORTS)")
 	admins := fs.String("admins", getenv("BIELD_ADMINS"),
 		"comma-separated Tailscale `logins` to make admins while Bield has none (env BIELD_ADMINS)")
 	demo, demoErr := envBool(getenv, "BIELD_DEMO")
@@ -146,6 +154,11 @@ func Parse(args []string, getenv func(string) string, output io.Writer) (Config,
 		return Config{}, daysErr
 	}
 	cfg.Admins = splitList(*admins)
+	ports, err := ParsePortRange(*editorPorts)
+	if err != nil {
+		return Config{}, fmt.Errorf("editor ports: %w", err)
+	}
+	cfg.EditorPorts = ports
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
 	}
@@ -205,8 +218,39 @@ func (cfg Config) validateMode() error {
 		return fmt.Errorf("control URL %q isn't an http:// or https:// URL, such as https://headscale.example.com", cfg.ControlURL)
 	case !filepath.IsAbs(cfg.HostRoot):
 		return fmt.Errorf("host root %q isn't an absolute path", cfg.HostRoot)
+	case cfg.Tailscale == Host && cfg.EditorPorts.Has(cfg.Port):
+		return fmt.Errorf("the editor ports %v include port %d, which Bield is served on", cfg.EditorPorts, cfg.Port)
+	case cfg.Tailscale == Embedded && (cfg.EditorPorts.Has(80) || cfg.EditorPorts.Has(443)):
+		return fmt.Errorf("the editor ports %v include 80 or 443, which Bield is served on in embedded mode", cfg.EditorPorts)
 	}
 	return nil
+}
+
+// PortRange is a range of ports, both included.
+type PortRange struct{ First, Last int }
+
+// ParsePortRange reads a range such as 4710-4799, or a single port.
+func ParsePortRange(s string) (PortRange, error) {
+	first, last, ok := strings.Cut(s, "-")
+	if !ok {
+		last = first
+	}
+	a, errA := strconv.Atoi(strings.TrimSpace(first))
+	b, errB := strconv.Atoi(strings.TrimSpace(last))
+	if errA != nil || errB != nil || a < 1 || b > 65535 || a > b {
+		return PortRange{}, fmt.Errorf("%q isn't a port or a range of ports such as %s", s, DefaultEditorPorts)
+	}
+	return PortRange{First: a, Last: b}, nil
+}
+
+// Has reports whether port is in the range.
+func (p PortRange) Has(port int) bool { return port >= p.First && port <= p.Last }
+
+func (p PortRange) String() string {
+	if p.First == p.Last {
+		return strconv.Itoa(p.First)
+	}
+	return strconv.Itoa(p.First) + "-" + strconv.Itoa(p.Last)
 }
 
 // validControlURL reports whether raw is empty, which means Tailscale's own
