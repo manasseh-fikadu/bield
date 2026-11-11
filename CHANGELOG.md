@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.6.1 - 2026-11-11
+
+This release fixes how VS Code in the browser looks while it loads the first time. The agent doesn't change, and there is no database change.
+
 ### Fixed
 
 - VS Code no longer says "The editor failed to load" while it's still loading. Its first load over a relayed connection takes longer than the 10 seconds VS Code waits, so Bield's editor port has it say it's loading, and shows the failure only after two minutes. The activity log also names the machine Bield runs on one way for its editor, and the editor's port sends each of its security headers once.
