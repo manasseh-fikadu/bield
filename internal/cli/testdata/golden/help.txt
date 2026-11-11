@@ -6,7 +6,7 @@ Commands that talk to a running Bield:
   devices show <device>                 show everything Bield knows about a device
   devices history <device>              show a device's CPU, memory, network and latency over time
   devices usage <device>                show what uses a device's CPU and memory now
-  devices set <device>                  change a device's name, kind, notes, offline alert or thresholds (admins)
+  devices set <device>                  change a device's name, kind, notes, alerts or thresholds (admins)
   alerts                                list the alerts that are open
   alerts show <id>                      show an alert, with the notes on it
   alerts ack <id>                       acknowledge an open alert: you are on it (admins)

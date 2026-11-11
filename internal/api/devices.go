@@ -73,7 +73,8 @@ func (h *handler) setDeviceSettings(w http.ResponseWriter, r *http.Request) {
 	if !h.readJSON(w, r, &body) {
 		return
 	}
-	ds, err := cleanSettings(body, d, h.opts.Settings.Get(r.Context()).Thresholds)
+	kind := h.kindOf(d, body.Kind)
+	ds, err := cleanSettings(body, d, kind, h.opts.Settings.Get(r.Context()).Thresholds)
 	if err != nil {
 		h.writeJSON(w, r, http.StatusBadRequest, ErrorBody{Error: err.Error()})
 		return
@@ -89,16 +90,39 @@ func (h *handler) setDeviceSettings(w http.ResponseWriter, r *http.Request) {
 		DisplayName:  ds.DisplayName,
 		Kind:         DeviceKind(ds.Kind),
 		AlertOffline: alertOffline(d, ds),
+		AlertRelayed: alertRelayed(kind, ds),
 		Thresholds:   newDeviceThresholds(ds.Thresholds),
 		Notes:        ds.Notes,
 	})
 }
 
-// cleanSettings checks the settings an admin sent for d, and returns them as
-// the store keeps them. Alerting when d goes offline is only stored if it
-// differs from the default, so the default can change later. global are the
-// settings' thresholds, which the device's own must fit with.
-func cleanSettings(s SetDeviceSettings, d tailnet.Device, global settings.Thresholds) (store.DeviceSettings, error) {
+// kindOf returns the kind of device d is: picked, if an admin picked one, or
+// else the one Bield guesses, as the snapshot does. It doesn't build a
+// snapshot to find the device's model, so the next one has the new settings.
+func (h *handler) kindOf(d tailnet.Device, picked DeviceKind) DeviceKind {
+	if validKind(picked) {
+		return picked
+	}
+	self, model := d.SameMachine, ""
+	if st := h.opts.Snapshot().Status; st != nil && st.Self.ID == d.ID {
+		self = true
+	}
+	if p := h.opts.Feed.current(); p != nil {
+		for _, x := range p.snap.Devices {
+			if x.ID == d.ID && x.Info != nil {
+				model = x.Info.Model
+			}
+		}
+	}
+	return inferKind(d, self, model)
+}
+
+// cleanSettings checks the settings an admin sent for d, which is a device of
+// a kind, and returns them as the store keeps them. Alerting when d goes
+// offline or relayed is only stored if it differs from the default, so the
+// default can change later. global are the settings' thresholds, which the
+// device's own must fit with.
+func cleanSettings(s SetDeviceSettings, d tailnet.Device, kind DeviceKind, global settings.Thresholds) (store.DeviceSettings, error) {
 	name := strings.TrimSpace(s.DisplayName)
 	switch {
 	case utf8.RuneCountInString(name) > maxDisplayName:
@@ -120,6 +144,9 @@ func cleanSettings(s SetDeviceSettings, d tailnet.Device, global settings.Thresh
 	}
 	if s.AlertOffline != nil && *s.AlertOffline != defaultAlertOffline(d) {
 		out.AlertOffline = s.AlertOffline
+	}
+	if s.AlertRelayed != nil && *s.AlertRelayed != defaultAlertRelayed(kind) {
+		out.AlertRelayed = s.AlertRelayed
 	}
 	return out, nil
 }

@@ -35,7 +35,7 @@ func deviceCommands() []*Command {
 		},
 		{
 			Name: "devices set", Args: "<device>", Min: 1, Max: 1, Admin: true, Run: runDeviceSet,
-			Summary: "change a device's name, kind, notes, offline alert or thresholds",
+			Summary: "change a device's name, kind, notes, alerts or thresholds",
 			What: "Only the flags you give change. A threshold takes a number in percent (minutes for offline-minutes), " +
 				"or \"default\" to go back to the setting for every device.",
 			Flags: []Flag{
@@ -43,6 +43,7 @@ func deviceCommands() []*Command {
 				{Name: "kind", Arg: "kind", Usage: "server, laptop, desktop, tablet, phone or other"},
 				{Name: "notes", Arg: "text", Usage: "notes about the device"},
 				{Name: "alert-offline", Arg: "true|false", Usage: "raise an alert when it goes offline"},
+				{Name: "alert-relayed", Arg: "true|false", Usage: "raise an alert when it was direct and Bield reaches it through a relay; on for servers by default"},
 				{Name: "disk-warn", Arg: "percent", Usage: "disk warning threshold"},
 				{Name: "disk-critical", Arg: "percent", Usage: "disk critical threshold"},
 				{Name: "memory-warn", Arg: "percent", Usage: "memory warning threshold"},
@@ -371,6 +372,12 @@ func runDeviceSet(c *Call) error {
 		DisplayName: d.Settings.DisplayName, Kind: d.Settings.Kind, Notes: d.Settings.Notes,
 		AlertOffline: &d.Settings.AlertOffline, Thresholds: d.Settings.Thresholds,
 	}
+	// The relay alert is on by default for servers only. One that is the
+	// default for the device's kind now is left out, so that a new kind
+	// brings its own default.
+	if d.Settings.AlertRelayed != (d.Kind == api.DeviceKindServer) {
+		in.AlertRelayed = &d.Settings.AlertRelayed
+	}
 	changed := 0
 	if c.Given("name") {
 		in.DisplayName, changed = c.Str("name"), changed+1
@@ -381,12 +388,16 @@ func runDeviceSet(c *Call) error {
 	if c.Given("notes") {
 		in.Notes, changed = c.Str("notes"), changed+1
 	}
-	if c.Given("alert-offline") {
-		on := c.Str("alert-offline") == "true"
-		if s := c.Str("alert-offline"); s != "true" && s != "false" {
-			return usagef(c.cmd, "--alert-offline is true or false, not %q", s)
+	for name, dst := range map[string]**bool{"alert-offline": &in.AlertOffline, "alert-relayed": &in.AlertRelayed} {
+		if !c.Given(name) {
+			continue
 		}
-		in.AlertOffline, changed = &on, changed+1
+		s := c.Str(name)
+		if s != "true" && s != "false" {
+			return usagef(c.cmd, "--%s is true or false, not %q", name, s)
+		}
+		on := s == "true"
+		*dst, changed = &on, changed+1
 	}
 	for name, dst := range map[string]**float64{
 		"disk-warn": &in.Thresholds.DiskWarn, "disk-critical": &in.Thresholds.DiskCritical,

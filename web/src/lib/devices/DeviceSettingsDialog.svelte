@@ -1,12 +1,12 @@
 <!--
-	Where admins change a device's display name, kind, offline alerts, its own
-	alert thresholds and notes.
+	Where admins change a device's display name, kind, alerts, its own alert
+	thresholds and notes.
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { putDeviceSettings } from '#lib/api/client.js';
 	import type { Device, DeviceKind, DeviceSettings } from '#lib/api/types.js';
-	import { deviceKinds, kindLabel } from '#lib/device.js';
+	import { deviceKinds, kindLabel, relayedByDefault } from '#lib/device.js';
 	import { plural } from '#lib/format.js';
 	import Button from '#lib/ui/Button.svelte';
 	import Dialog from '#lib/ui/Dialog.svelte';
@@ -32,17 +32,27 @@
 	// and stays put while it's open, even as new snapshots come, and while it
 	// fades out.
 	let opened: DeviceSettings | null = null;
+	// The device's kind when the dialog opened.
+	let openedKind: DeviceKind = 'other';
 	const settings = $derived.by(() => {
 		if (open) {
 			// A copy, so that opening again starts afresh even if no new
 			// snapshot came in between.
 			opened = { ...untrack(() => device.settings) };
+			openedKind = untrack(() => device.kind);
 		}
 		return opened;
 	});
 	let name = $derived(settings?.displayName ?? '');
 	let kind: DeviceKind | '' = $derived(settings?.kind ?? '');
 	let alertOffline = $derived(settings?.alertOffline ?? true);
+	// A relay alert that isn't the default for the device's kind was set by
+	// an admin, and stays. One that is follows the type picked here.
+	let alertRelayed = $derived(
+		settings && settings.alertRelayed !== relayedByDefault(openedKind)
+			? settings.alertRelayed
+			: relayedByDefault(kind || openedKind)
+	);
 	let notes = $derived(settings?.notes ?? '');
 	// A threshold that is NaN, an empty field, is the setting's.
 	let diskWarn = $derived(draftOf(settings?.thresholds).diskWarn);
@@ -74,6 +84,7 @@
 				displayName: name.trim(),
 				...(kind ? { kind } : {}),
 				alertOffline,
+				alertRelayed,
 				thresholds: thresholdsOf(own),
 				notes
 			});
@@ -117,6 +128,17 @@
 				</span>
 			</label>
 			<Switch id="{id}-alert" bind:checked={alertOffline} />
+		</div>
+		<div
+			class="flex items-center justify-between gap-4 rounded-lg border border-line bg-canvas px-3 py-2.5"
+		>
+			<label for="{id}-relayed">
+				<span class="block text-[13px] font-medium text-fg">Alert when relayed</span>
+				<span class="block text-[12px] text-fg-subtle">
+					Bield raises an alert when it was direct and five pings in a row go through a relay.
+				</span>
+			</label>
+			<Switch id="{id}-relayed" bind:checked={alertRelayed} />
 		</div>
 		<fieldset class="space-y-3 rounded-lg border border-line bg-canvas px-3 py-3">
 			<legend class="px-1 text-[13px] font-medium text-fg-muted">Alert thresholds</legend>

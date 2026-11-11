@@ -355,6 +355,11 @@ export interface AlertRules {
    */
   offline: boolean;
   /**
+   * Relayed is a device that was direct, and that Bield's pings have
+   * reached through a relay for a while.
+   */
+  relayed: boolean;
+  /**
    * KeyExpiry is a Tailscale key that is about to expire.
    */
   keyExpiry: boolean;
@@ -533,6 +538,7 @@ export interface ChangeThresholds {
  */
 export interface ChangeRules {
   offline?: boolean;
+  relayed?: boolean;
   keyExpiry?: boolean;
   agentStopped?: boolean;
   disk?: boolean;
@@ -1018,6 +1024,11 @@ export interface Path {
    */
   pingedAt?: string /* RFC 3339 */;
   /**
+   * DirectAt is when the device last answered a ping directly, not through
+   * a relay, if it has in the last 30 days.
+   */
+  directAt?: string /* RFC 3339 */;
+  /**
    * Unanswered reports whether the device is online but didn't answer the
    * last two pings, and the latest of them is recent.
    */
@@ -1157,6 +1168,13 @@ export interface DeviceSettings {
    */
   alertOffline: boolean;
   /**
+   * AlertRelayed says whether to raise an alert when Bield's pings to the
+   * device, after it was direct, go through a relay for a while. It's on
+   * by default for servers only, since other devices move between
+   * networks.
+   */
+  alertRelayed: boolean;
+  /**
    * Thresholds are the thresholds an admin set for this device in place of
    * the settings'.
    */
@@ -1195,6 +1213,11 @@ export interface SetDeviceSettings {
    * AlertOffline is on if it's left out, except for phones and tablets.
    */
   alertOffline?: boolean;
+  /**
+   * AlertRelayed is on if it's left out for a server, and off for anything
+   * else.
+   */
+  alertRelayed?: boolean;
   /**
    * Thresholds are the device's own, and none if it's left out.
    */

@@ -19,6 +19,9 @@ type DeviceSettings struct {
 	// AlertOffline says whether to alert when the device goes offline, or is
 	// nil for the default.
 	AlertOffline *bool
+	// AlertRelayed says whether to alert when the device falls from a direct
+	// path to a relay, or is nil for the default.
+	AlertRelayed *bool
 	// Thresholds replace the settings' for this device.
 	Thresholds ThresholdOverrides
 	Notes      string
@@ -53,7 +56,7 @@ func (o ThresholdOverrides) Or(other ThresholdOverrides) ThresholdOverrides {
 // device ID.
 func (s *Store) DeviceSettings(ctx context.Context) (map[string]DeviceSettings, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT device_id, display_name, kind, alert_offline, notes,
+		`SELECT device_id, display_name, kind, alert_offline, alert_relayed, notes,
 			disk_warn, disk_critical, memory_warn, cpu_warn, offline_minutes FROM device_settings`)
 	if err != nil {
 		return nil, fmt.Errorf("read device settings: %w", err)
@@ -65,17 +68,21 @@ func (s *Store) DeviceSettings(ctx context.Context) (map[string]DeviceSettings, 
 			id       string
 			ds       DeviceSettings
 			alert    sql.NullBool
+			relayed  sql.NullBool
 			diskW    sql.NullFloat64
 			diskC    sql.NullFloat64
 			memory   sql.NullFloat64
 			cpu      sql.NullFloat64
 			offlineM sql.NullInt64
 		)
-		if err := rows.Scan(&id, &ds.DisplayName, &ds.Kind, &alert, &ds.Notes, &diskW, &diskC, &memory, &cpu, &offlineM); err != nil {
+		if err := rows.Scan(&id, &ds.DisplayName, &ds.Kind, &alert, &relayed, &ds.Notes, &diskW, &diskC, &memory, &cpu, &offlineM); err != nil {
 			return nil, fmt.Errorf("read device settings: %w", err)
 		}
 		if alert.Valid {
 			ds.AlertOffline = &alert.Bool
+		}
+		if relayed.Valid {
+			ds.AlertRelayed = &relayed.Bool
 		}
 		ds.Thresholds = ThresholdOverrides{
 			DiskWarn: floatPtr(diskW), DiskCritical: floatPtr(diskC), MemoryWarn: floatPtr(memory), CPUWarn: floatPtr(cpu),
@@ -99,15 +106,16 @@ func (s *Store) SetDeviceSettings(ctx context.Context, deviceID string, ds Devic
 		_, err = s.db.ExecContext(ctx, "DELETE FROM device_settings WHERE device_id = ?", deviceID)
 	} else {
 		_, err = s.db.ExecContext(ctx, `
-			INSERT INTO device_settings (device_id, display_name, kind, alert_offline, notes,
+			INSERT INTO device_settings (device_id, display_name, kind, alert_offline, alert_relayed, notes,
 				disk_warn, disk_critical, memory_warn, cpu_warn, offline_minutes)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (device_id) DO UPDATE SET display_name = excluded.display_name,
-				kind = excluded.kind, alert_offline = excluded.alert_offline, notes = excluded.notes,
+				kind = excluded.kind, alert_offline = excluded.alert_offline,
+				alert_relayed = excluded.alert_relayed, notes = excluded.notes,
 				disk_warn = excluded.disk_warn, disk_critical = excluded.disk_critical,
 				memory_warn = excluded.memory_warn, cpu_warn = excluded.cpu_warn,
 				offline_minutes = excluded.offline_minutes`,
-			deviceID, ds.DisplayName, ds.Kind, nullBool(ds.AlertOffline), ds.Notes,
+			deviceID, ds.DisplayName, ds.Kind, nullBool(ds.AlertOffline), nullBool(ds.AlertRelayed), ds.Notes,
 			nullFloat(t.DiskWarn), nullFloat(t.DiskCritical), nullFloat(t.MemoryWarn), nullFloat(t.CPUWarn), nullInt(t.OfflineMinutes))
 	}
 	if err != nil {
@@ -136,6 +144,9 @@ type Ping struct {
 	At       time.Time
 	// Replied reports whether a reply came back.
 	Replied bool
+	// Direct reports whether the reply came straight from the device, not
+	// through a relay.
+	Direct bool
 	// RTT is the round trip, if a reply came back.
 	RTT time.Duration
 }
@@ -156,6 +167,13 @@ func (s *Store) AddPings(ctx context.Context, pings []Ping) error {
 			if _, err := stmt.ExecContext(ctx, p.At.UnixMilli(), p.DeviceID, rtt); err != nil {
 				return err
 			}
+			if p.Replied && p.Direct {
+				_, err := tx.ExecContext(ctx, `INSERT INTO direct_paths (device_id, at) VALUES (?, ?)
+					ON CONFLICT (device_id) DO UPDATE SET at = max(at, excluded.at)`, p.DeviceID, p.At.UnixMilli())
+				if err != nil {
+					return err
+				}
+			}
 		}
 		return nil
 	})
@@ -163,6 +181,35 @@ func (s *Store) AddPings(ctx context.Context, pings []Ping) error {
 		return fmt.Errorf("record pings: %w", err)
 	}
 	return nil
+}
+
+// directPathsKeep is how long Bield remembers when a device was last direct.
+const directPathsKeep = 30 * 24 * time.Hour
+
+// DirectPaths returns when each device last answered a ping directly, not
+// through a relay, by device ID. Devices that haven't for directPathsKeep may
+// be left out.
+func (s *Store) DirectPaths(ctx context.Context) (map[string]time.Time, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT device_id, at FROM direct_paths")
+	if err != nil {
+		return nil, fmt.Errorf("read direct paths: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	out := map[string]time.Time{}
+	for rows.Next() {
+		var (
+			id string
+			at int64
+		)
+		if err := rows.Scan(&id, &at); err != nil {
+			return nil, fmt.Errorf("read direct paths: %w", err)
+		}
+		out[id] = time.UnixMilli(at)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read direct paths: %w", err)
+	}
+	return out, nil
 }
 
 // RTTBucket sums up the pings of a device in one span of time.

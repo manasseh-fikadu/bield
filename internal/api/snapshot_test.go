@@ -134,9 +134,10 @@ func TestSnapshot_devices(t *testing.T) {
 		t.Errorf("pixel last seen = %v, want %v", d.LastSeen, recent)
 	}
 
-	// Settings, with the defaults for alerting.
+	// Settings, with the defaults for alerting. An admin made the iMac a
+	// server, which alerts when it's relayed.
 	for id, want := range map[string]api.DeviceSettings{
-		"imac":  {DisplayName: "Studio", Kind: api.DeviceKindServer, AlertOffline: true, Notes: "Upstairs"},
+		"imac":  {DisplayName: "Studio", Kind: api.DeviceKindServer, AlertOffline: true, AlertRelayed: true, Notes: "Upstairs"},
 		"pixel": {AlertOffline: false},
 		"ipad":  {AlertOffline: false},
 		"mac":   {AlertOffline: true},

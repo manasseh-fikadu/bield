@@ -33,7 +33,7 @@ For shell completion, `bield completion bash` prints a script for bash (`source 
 | `bield devices show <device>` | Everything Bield knows about one | viewer |
 | `bield devices history <device>` | CPU, memory, network and latency over `--range` 1h, 6h, 24h or 7d | viewer |
 | `bield devices usage <device>` | What uses a device's CPU and memory now | viewer |
-| `bield devices set <device>` | Change a device's name, kind, notes, offline alert or thresholds | admin |
+| `bield devices set <device>` | Change a device's name, kind, notes, alerts or thresholds | admin |
 | `bield alerts` | The alerts that are open. `--resolved` lists the ones that cleared, `--follow` keeps going | viewer |
 | `bield alerts show <id>` | An alert, with its notes | viewer |
 | `bield alerts ack`, `unack`, `snooze`, `wake` and `note` `<id>` | The same as the buttons on the Alerts page | admin |

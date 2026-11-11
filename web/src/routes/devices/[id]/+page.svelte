@@ -345,6 +345,9 @@
 					{#if device.path.peerRelay}
 						<DataRow flat label="Peer relay">{device.path.peerRelay}</DataRow>
 					{/if}
+					{#if device.path.directAt && device.path.kind !== 'direct' && !device.self}
+						<DataRow flat label="Last direct">{ago(device.path.directAt, now)}</DataRow>
+					{/if}
 					<DataRow flat label="Home relay">{device.path.homeDerp ?? '—'}</DataRow>
 					{#if !device.self}
 						<DataRow flat label="RTT">

@@ -8,6 +8,7 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 - Devices show their Tailscale tags, all of them: on the Devices page, on a device's page, and in `bield devices` and `bield devices show`. Pick one tag in the Devices page's **Tag** list or with `bield devices --tag server`. The command palette finds a device by its tags too. Bield only shows tags. You set them in Tailscale.
 - Pick the devices Bield reaches one way, directly, through a DERP relay or through a peer relay, in the Devices page's **Route** list or with `bield devices --path derp`.
+- An alert when a device that was direct is reached through a relay: after five pings in a row through a DERP server or a peer relay, for a device that was direct in the last week. It resolves once the device is direct again. It's on for servers and off for everything else, which the device's **Alert when relayed** switch and `bield devices set --alert-relayed` change, and **Relayed connection** in Settings turns it off for every device. A device's page says when Bield last reached it directly. Bield adds a table for that when it starts, which needs no action from you.
 
 ### Fixed
 

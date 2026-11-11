@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import type { Device, Thresholds } from './api/types.js';
-import { levelText, limitsOf, tagCounts, tagName } from './device.js';
+import {
+	deviceKinds,
+	levelText,
+	limitsOf,
+	relayedByDefault,
+	tagCounts,
+	tagName
+} from './device.js';
 
 const hub = { cpuWarn: 90, memoryWarn: 80, diskWarn: 85, diskCritical: 95 } as Thresholds;
 
@@ -54,5 +61,11 @@ describe('tagName', () => {
 		['tag:tag:odd', 'tag:odd']
 	])('%s', (tag, want) => {
 		expect(tagName(tag)).toBe(want);
+	});
+});
+
+describe('relayedByDefault', () => {
+	test('only servers alert when relayed unless an admin says', () => {
+		expect(deviceKinds.filter(relayedByDefault)).toEqual(['server']);
 	});
 });

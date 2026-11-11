@@ -81,6 +81,7 @@ func (b ChangeSettings) apply(s *settings.Settings) error {
 	if r := b.Rules; r != nil {
 		ru := &s.Rules
 		set(&ru.Offline, r.Offline)
+		set(&ru.Relayed, r.Relayed)
 		set(&ru.KeyExpiry, r.KeyExpiry)
 		set(&ru.AgentStopped, r.AgentStopped)
 		set(&ru.Disk, r.Disk)

@@ -15,6 +15,11 @@ export interface RuleInfo {
 export const rules: RuleInfo[] = [
 	{ key: 'offline', label: 'Device offline', description: 'A device has left the tailnet.' },
 	{
+		key: 'relayed',
+		label: 'Relayed connection',
+		description: 'A device that was direct is reached through a relay. On for servers by default.'
+	},
+	{
 		key: 'keyExpiry',
 		label: 'Key expiring',
 		description: "A device's Tailscale key is about to expire."

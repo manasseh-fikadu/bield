@@ -324,8 +324,8 @@ func TestSeed(t *testing.T) {
 		t.Errorf("Checks() = %d checks, %v, want 14 and the database's own gone", len(checks), err)
 	}
 	open, err := st.OpenAlerts(t.Context())
-	if err != nil || len(open) != 4 {
-		t.Errorf("OpenAlerts() = %d alerts, %v, want 4", len(open), err)
+	if err != nil || len(open) != 5 {
+		t.Errorf("OpenAlerts() = %d alerts, %v, want 5", len(open), err)
 	}
 	resolved, err := st.ResolvedAlerts(t.Context(), 0, 50)
 	if err != nil || len(resolved) != 6 {

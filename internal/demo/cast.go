@@ -56,6 +56,7 @@ type machine struct {
 	rtt               time.Duration
 	relay             string
 	direct            bool
+	relayedFor        time.Duration // how long it has been relayed after it was direct, or 0
 	endpoint          netip.AddrPort
 	joined            time.Duration
 	keyIn             time.Duration // how long until its key expires, or 0
@@ -259,7 +260,7 @@ var baseCast = []machine{
 		model: "DigitalOcean Droplet", arch: "x86_64", owner: alex,
 		cores: 1, memGB: 0.96, swapGB: 1, diskGB: 24, cpu: 8, cpuSwing: 6, mem: 71, memSwing: 4, disk: 57, diskPerDay: 0.12,
 		rx: 210e3, tx: 330e3, peak: 13, uptime: 22 * 24 * time.Hour, rtt: 88 * time.Millisecond, relay: "nyc",
-		joined: 160 * 24 * time.Hour, agent: true, ssh: true, name: "New York VPS", bursty: true,
+		relayedFor: 3*time.Hour + 20*time.Minute, joined: 160 * 24 * time.Hour, agent: true, ssh: true, name: "New York VPS", bursty: true,
 		workloads: []workload{
 			svc("uptime-kuma.service", 0.6, 160, 1, "node"), svc("tailscaled.service", 0.1, 52, 1, "tailscaled"),
 			svc("caddy.service", 0.1, 34, 1, "caddy"),

@@ -22,6 +22,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": true,
       "thresholds": {},
       "notes": ""
     },
@@ -53,6 +54,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": true,
       "thresholds": {},
       "notes": ""
     },
@@ -81,6 +83,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },
@@ -108,6 +111,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": false,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },
@@ -135,6 +139,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": false,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },

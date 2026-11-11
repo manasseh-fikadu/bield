@@ -145,6 +145,12 @@ type PingResult struct {
 	PeerRelay string
 }
 
+// Relayed reports whether the ping went through a DERP server or a peer relay
+// rather than straight to the peer.
+func (r *PingResult) Relayed() bool {
+	return r.DERPRegion != "" || r.PeerRelay != ""
+}
+
 // Identity is who is at the other end of a connection.
 type Identity struct {
 	// NodeID is the stable ID of the node the connection comes from.
