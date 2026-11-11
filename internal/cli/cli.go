@@ -148,7 +148,7 @@ func Run(ctx context.Context, env Env, args []string) int {
 	following := cmd.Stream && vals["follow"] == "true"
 	if !following && !cmd.Serves && g.timeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, g.timeout)
+		ctx, cancel = context.WithTimeout(ctx, max(g.timeout, cmd.Wait))
 		defer cancel()
 	}
 	env.node = newTSNode(env)

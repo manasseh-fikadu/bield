@@ -11,6 +11,7 @@ func init() {
 		checkCommands(),
 		dockerCommands(),
 		fileCommands(),
+		editorCommands(),
 		adminCommands(),
 		tokenCommands(),
 		completionCommands(),
