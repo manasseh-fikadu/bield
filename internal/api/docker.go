@@ -118,8 +118,7 @@ func (h *handler) containerID(w http.ResponseWriter, r *http.Request) (string, b
 // while the admin goes on reading, such as a processes list that refreshes.
 // what is a short phrase for the log, such as "Read the logs of".
 func (h *handler) logDockerRead(r *http.Request, t *dockerTarget, cid, what string) {
-	actor := callerOf(r).who.LoginName
-	if !h.audit.first("docker "+what, actor, t.deviceID, cid, time.Now()) {
+	if !h.audit.first("docker "+what, callerOf(r).actorKey(), t.deviceID, cid, time.Now()) {
 		return
 	}
 	name, err := t.host.Name(r.Context(), cid)
@@ -432,7 +431,7 @@ func (h *handler) dockerAction(a docker.Action, done string) http.HandlerFunc {
 		if err == nil && changed {
 			// Docker acted, whether or not the admin is still there to hear.
 			h.addEvent(context.WithoutCancel(ctx), store.Event{
-				Kind: string(EventKindContainer), DeviceID: t.deviceID, Actor: callerOf(r).who.LoginName,
+				Kind: string(EventKindContainer), DeviceID: t.deviceID, Actor: callerOf(r).login(),
 				Message: done + " " + name + " on " + device,
 			})
 		}

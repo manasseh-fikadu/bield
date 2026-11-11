@@ -156,9 +156,10 @@ func (h *handler) routes(rt *router) {
 	rt.write("PUT /api/devices/{id}/ssh/host-key", h.trustHostKey)
 	rt.write("DELETE /api/devices/{id}/ssh/host-key", h.resetHostKey)
 	// A WebSocket, which guard only lets in from Bield's own pages.
-	rt.read("GET /api/devices/{id}/terminal", admins, h.terminal)
-	rt.read("GET /api/devices/{id}/terminal/sessions", admins, h.terminalSessions)
-	rt.write("DELETE /api/devices/{id}/terminal/sessions/{name}", h.killSession)
+	// Not with an API token: a token isn't a person at a keyboard.
+	rt.forAdminsInPerson("GET /api/devices/{id}/terminal", h.terminal)
+	rt.forAdminsInPerson("GET /api/devices/{id}/terminal/sessions", h.terminalSessions)
+	rt.forAdminsInPerson("DELETE /api/devices/{id}/terminal/sessions/{name}", h.killSession)
 
 	// A file's content is served from Bield's own origin, so the raw route
 	// sandboxes it. All of these are for admins, who can open shells already.
@@ -235,10 +236,15 @@ func (h *handler) routes(rt *router) {
 	rt.write("DELETE /api/notifications/channels/{id}", h.deleteChannel)
 	rt.write("POST /api/notifications/channels/{id}/test", h.testChannel)
 
+	// Who has a role, and the tokens, change only from a person, so a token
+	// can't hand out roles or make more of itself.
 	rt.read("GET /api/access", admins, h.access)
-	rt.write("PATCH /api/access", h.changeAccess)
-	rt.write("PUT /api/access/users/{login}", h.setRole)
-	rt.write("DELETE /api/access/users/{login}", h.removeUser)
+	rt.forAdminsInPerson("PATCH /api/access", h.changeAccess)
+	rt.forAdminsInPerson("PUT /api/access/users/{login}", h.setRole)
+	rt.forAdminsInPerson("DELETE /api/access/users/{login}", h.removeUser)
+	rt.forAdminsInPerson("GET /api/tokens", h.listTokens)
+	rt.forAdminsInPerson("POST /api/tokens", h.newToken)
+	rt.forAdminsInPerson("DELETE /api/tokens/{id}", h.revokeToken)
 
 	rt.read("GET /api/debug/tailnet", admins, h.debugTailnet)
 
@@ -275,6 +281,22 @@ func (h *handler) health(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) me(w http.ResponseWriter, r *http.Request) {
 	c := callerOf(r)
+	if c.token != nil {
+		tokenRole := RoleViewer
+		if c.token.Role == store.Admin {
+			tokenRole = RoleAdmin
+		}
+		h.writeJSON(w, r, http.StatusOK, Me{
+			SignedIn:  true,
+			Login:     c.token.CreatedBy,
+			Device:    c.device,
+			Role:      c.role(),
+			Reason:    c.reason,
+			Token:     c.token.Name,
+			TokenRole: tokenRole,
+		})
+		return
+	}
 	if c.who == nil {
 		h.writeJSON(w, r, http.StatusOK, Me{Reason: c.reason})
 		return

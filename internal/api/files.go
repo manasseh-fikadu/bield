@@ -59,7 +59,7 @@ type uploadBatch struct {
 func (a *fileAudit) upload(h *handler, e store.Event, device, dir, name string, size int64) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	key := e.Actor + "\x00" + e.DeviceID + "\x00" + dir
+	key := e.Actor + "\x00" + e.Token + "\x00" + e.DeviceID + "\x00" + dir
 	if a.uploads == nil {
 		a.uploads = map[string]*uploadBatch{}
 	}
@@ -266,7 +266,7 @@ func unprintable(r rune) bool {
 // time in a while that this admin reads it (see fileAudit.first). It's for
 // what was sent, even if only part of it was.
 func (h *handler) logRead(r *http.Request, verb, file string) {
-	if h.audit.first("read "+verb, callerOf(r).who.LoginName, r.PathValue("id"), file, time.Now()) {
+	if h.audit.first("read "+verb, callerOf(r).actorKey(), r.PathValue("id"), file, time.Now()) {
 		h.logFiles(r, "%s %s", verb, file)
 	}
 }
@@ -491,10 +491,10 @@ func (h *handler) uploadFile(w http.ResponseWriter, r *http.Request) {
 	if h.fileError(w, r, err) {
 		return
 	}
-	id, who := r.PathValue("id"), callerOf(r).who.LoginName
+	id, who := r.PathValue("id"), callerOf(r).login()
 	// Batched by the folder the upload goes to, so a folder of files is one line
 	// however deep it goes.
-	h.audit.upload(h, store.Event{Kind: string(EventKindFiles), DeviceID: id, Actor: who, Via: viaOf(r)}, h.deviceName(r, id), dir, up.Name, up.Size)
+	h.audit.upload(h, store.Event{Kind: string(EventKindFiles), DeviceID: id, Actor: who, Via: viaOf(r), Token: callerOf(r).tokenName()}, h.deviceName(r, id), dir, up.Name, up.Size)
 	h.writeJSON(w, r, http.StatusOK, FileUpload{Path: up.Path, Name: up.Name, Size: up.Size})
 }
 
@@ -523,7 +523,7 @@ func (h *handler) writeFile(w http.ResponseWriter, r *http.Request) {
 	}
 	// Saving the same file over and over while editing is one edit as far as
 	// the log is concerned.
-	if id := r.PathValue("id"); create || h.audit.first("edit", callerOf(r).who.LoginName, id, p, time.Now()) {
+	if id := r.PathValue("id"); create || h.audit.first("edit", callerOf(r).actorKey(), id, p, time.Now()) {
 		verb := "Edited"
 		if create {
 			verb = "Created"

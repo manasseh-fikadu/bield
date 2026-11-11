@@ -22,6 +22,13 @@ func (h *handler) changeSettings(w http.ResponseWriter, r *http.Request) {
 	if !h.readJSON(w, r, &body) {
 		return
 	}
+	if callerOf(r).token != nil && body.General != nil && body.General.PublicURL != nil {
+		// The Public URL decides which other host and origin Bield trusts, so
+		// a token that set it could send people's browsers there and act
+		// through them, opening terminals or making tokens.
+		h.writeJSON(w, r, http.StatusForbidden, ErrorBody{Error: PeopleOnly + " (the Public URL decides which pages Bield trusts)"})
+		return
+	}
 	before, after, err := h.opts.Settings.Update(r.Context(), body.apply)
 	var invalid *settings.InvalidError
 	switch {
@@ -33,7 +40,7 @@ func (h *handler) changeSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	by := callerOf(r).who.LoginName
+	by := callerOf(r).login()
 	for _, msg := range settings.Changes(before, after) {
 		h.log.Info("changed the settings", "by", by, "change", msg)
 		h.logAction(r, EventKindSettings, "", msg)

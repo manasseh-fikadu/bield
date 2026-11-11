@@ -109,6 +109,6 @@ func (h *handler) streamContext(r *http.Request) (context.Context, context.Cance
 // when they asked, so a stream can end and the client asks again. If the
 // store can't say, it isn't.
 func (h *handler) callerRoleChanged(ctx context.Context, c caller) bool {
-	l, err := h.levelOf(ctx, c.who.LoginName)
+	l, err := h.levelNow(ctx, c)
 	return err == nil && l != c.level
 }

@@ -6,6 +6,7 @@ import {
 	ReasonRoleLookupFailed,
 	ReasonBieldMachine,
 	ReasonTaggedDevice,
+	ReasonTokenMakerHasNoRole,
 	ReasonUnknownDevice,
 	ReasonWhoIsFailed,
 	RoleAdmin,
@@ -43,7 +44,9 @@ const reasons: Record<Reason, string> = {
 	[ReasonBieldMachine]:
 		"You're on the machine Bield runs on. Any program here could connect to Bield, so Bield signs no one in from it. Open Bield from another device.",
 	[ReasonWhoIsFailed]: "Bield couldn't ask Tailscale who you are. Try again in a moment.",
-	[ReasonRoleLookupFailed]: "Bield couldn't look up your role. Try again in a moment."
+	[ReasonRoleLookupFailed]: "Bield couldn't look up your role. Try again in a moment.",
+	[ReasonTokenMakerHasNoRole]:
+		'This API token does nothing now, because the person who made it has no role in Bield.'
 };
 
 function isReason(reason: string | undefined): reason is Reason {

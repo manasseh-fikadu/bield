@@ -40,6 +40,14 @@ type Me struct {
 	// Reason says why an anonymous caller isn't signed in, or why Bield
 	// doesn't know a signed-in caller's role: one of the Reason constants.
 	Reason string `json:"reason,omitempty"`
+	// Token is the name of the API token the request came with, if it came
+	// with one. Login is then the admin who made the token, Name is empty,
+	// and Role is what the token may do now: its own role, or its maker's if
+	// that's lower.
+	Token string `json:"token,omitempty"`
+	// TokenRole is the role the token was made with, if the request came
+	// with one.
+	TokenRole Role `json:"tokenRole,omitempty"`
 }
 
 // Why a caller is anonymous, or has no role, in Me.Reason.
@@ -60,6 +68,9 @@ const (
 	// ReasonRoleLookupFailed means the caller is signed in, but Bield
 	// couldn't look up their role, so for now they have none.
 	ReasonRoleLookupFailed = "role-lookup-failed"
+	// ReasonTokenMakerHasNoRole means the request came with an API token
+	// whose maker has no role in Bield now, so the token can't do anything.
+	ReasonTokenMakerHasNoRole = "token-maker-has-no-role"
 )
 
 // Role is what a signed-in caller may do in Bield.
@@ -108,6 +119,65 @@ type User struct {
 type ChangeAccess struct {
 	// WhoCanView, if it's set, changes who can view Bield.
 	WhoCanView WhoCanView `json:"whoCanView,omitempty"`
+}
+
+// PeopleOnly is the error a caller with an API token gets from a route only
+// people can use, whatever the token's role.
+const PeopleOnly = "only a person can do this, not an API token, whatever its role; do it from a machine you're logged in to"
+
+// An APIToken lets a caller that Tailscale can't name, such as an agent on a
+// tagged server or in CI, use the API with a role, by sending it as
+// "Authorization: Bearer <token>". GET /api/tokens lists them. Only people
+// can list, make or revoke tokens, and never with a token.
+type APIToken struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	// Hint is the token's last few characters, so people can tell which one
+	// they hold.
+	Hint string `json:"hint"`
+	// Role is the most the token may do.
+	Role Role `json:"role"`
+	// ActsAs is what the token may do now: Role, or its maker's role if
+	// that's lower. It's empty if the token can't do anything, because it
+	// expired or its maker has no role.
+	ActsAs Role `json:"actsAs,omitempty"`
+	// CreatedBy is the login of the admin who made it.
+	CreatedBy string    `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	Expired   bool      `json:"expired"`
+	// LastUsedAt is when the token was last used, to the minute, if it was.
+	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
+	// LastUsedDeviceID and LastUsedFrom are the ID and name of the device it
+	// was last used from, if Tailscale knew it.
+	LastUsedDeviceID string `json:"lastUsedDeviceId,omitempty"`
+	LastUsedFrom     string `json:"lastUsedFrom,omitempty"`
+}
+
+// NewAPIToken is the body of POST /api/tokens, which makes an API token and
+// answers with a NewAPITokenResult.
+type NewAPIToken struct {
+	// Name is 1 to 40 letters, digits, dots, dashes and underscores, and no
+	// other token may have it.
+	Name string `json:"name"`
+	// Role is RoleViewer if it's empty.
+	Role Role `json:"role,omitempty"`
+	// Days is how long the token works, from 1 to MaxTokenDays. It's
+	// DefaultTokenDays if it's 0.
+	Days int `json:"days,omitempty"`
+}
+
+// How long an API token works, in days.
+const (
+	DefaultTokenDays = 30
+	MaxTokenDays     = 365
+)
+
+// NewAPITokenResult is the answer to POST /api/tokens. Secret is the token
+// itself, which Bield doesn't keep, so this is the only time it's shown.
+type NewAPITokenResult struct {
+	Token  APIToken `json:"token"`
+	Secret string   `json:"secret"`
 }
 
 // SetRole is the body of PUT /api/access/users/{login}, which gives a
@@ -1258,6 +1328,9 @@ type Event struct {
 	// ViaCLI for the command line and ViaMCP for bield mcp. It's what the
 	// client says in its User-Agent, so it labels the event and proves nothing.
 	Via string `json:"via,omitempty"`
+	// Token is the name of the API token the actor's request came with, if
+	// it came with one. Actor is then the token's maker. Only admins get it.
+	Token string `json:"token,omitempty" bield:"secret"`
 }
 
 // The values of Event.Via.

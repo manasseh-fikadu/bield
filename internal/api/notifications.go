@@ -123,7 +123,7 @@ func (h *handler) addChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.ID = row.ID
-	h.log.Info("added a notification channel", "channel", c.ID, "name", c.Name, "kind", c.Kind, "by", callerOf(r).who.LoginName)
+	h.log.Info("added a notification channel", "channel", c.ID, "name", c.Name, "kind", c.Kind, "by", callerOf(r).login())
 	h.logAction(r, EventKindNotification, "", "Added the notification channel "+c.Name)
 	h.writeJSON(w, r, http.StatusCreated, h.newChannel(c))
 }
@@ -192,7 +192,7 @@ func (h *handler) changeChannel(w http.ResponseWriter, r *http.Request) {
 	if h.channelFailed(w, r, "change a notification channel", h.opts.Store.UpdateChannel(r.Context(), c.ToStore())) {
 		return
 	}
-	h.log.Info("changed a notification channel", "channel", c.ID, "name", c.Name, "by", callerOf(r).who.LoginName)
+	h.log.Info("changed a notification channel", "channel", c.ID, "name", c.Name, "by", callerOf(r).login())
 	h.logAction(r, EventKindNotification, "", "Changed the notification channel "+c.Name)
 	h.writeJSON(w, r, http.StatusOK, h.newChannel(c))
 }
@@ -207,7 +207,7 @@ func (h *handler) deleteChannel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.opts.Notify.Forget(old.ID)
-	h.log.Info("deleted a notification channel", "channel", old.ID, "name", old.Name, "by", callerOf(r).who.LoginName)
+	h.log.Info("deleted a notification channel", "channel", old.ID, "name", old.Name, "by", callerOf(r).login())
 	h.logAction(r, EventKindNotification, "", "Deleted the notification channel "+old.Name)
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -219,7 +219,7 @@ func (h *handler) testChannel(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	dl := h.opts.Notify.Test(r.Context(), c, callerOf(r).who.LoginName)
+	dl := h.opts.Notify.Test(r.Context(), c, callerOf(r).login())
 	if r.Context().Err() != nil {
 		return
 	}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/api"
+	"github.com/manasseh-fikadu/bield/internal/store"
 )
 
 // TestRoutes walks every route New registers. Each one must say who can use
@@ -29,22 +30,39 @@ func TestRoutes(t *testing.T) {
 		"anyone": anyone, "viewers": viewers, "admins": admins,
 		"agent secret": agentSecret, "enrollment code": enrollCode,
 	}
-	callers := []struct {
+	type callerSpec struct {
 		name  string
 		from  netip.Addr
 		level int
-	}{
-		{"an unknown device", strangerIP, anyone},
-		{"a tagged device", serverIP, anyone},
-		{"Bield's own node", bieldIP, anyone},
-		{"carol, who has no role", tabletIP, anyone},
-		{"bob, a viewer", phoneIP, viewers},
-		{"alice, an admin", laptopIP, admins},
+		// token is the API token the caller sends: "viewer" or "admin" for
+		// one of alice's with that role, "bob's admin" for one bob made as
+		// an admin before he became a viewer, and "carol's" for one carol
+		// made before she lost her role.
+		token string
+	}
+	callers := []callerSpec{
+		{"an unknown device", strangerIP, anyone, ""},
+		{"a tagged device", serverIP, anyone, ""},
+		{"Bield's own node", bieldIP, anyone, ""},
+		{"carol, who has no role", tabletIP, anyone, ""},
+		{"bob, a viewer", phoneIP, viewers, ""},
+		{"alice, an admin", laptopIP, admins, ""},
+		{"a viewer token on a tagged device", serverIP, viewers, "viewer"},
+		{"an admin token on Bield's own node", bieldIP, admins, "admin"},
+		{"an admin token on bob's phone", phoneIP, admins, "admin"},
+		{"bob's admin token, now a viewer's", serverIP, viewers, "bob's admin"},
+		{"carol's token, who has no role", serverIP, anyone, "carol's"},
 	}
 	wildcard := regexp.MustCompile(`\{[^}]*\}`)
 
 	for _, devUI := range []bool{false, true} {
 		st := testStore(t)
+		apiTokens := map[string]string{
+			"viewer":      newToken(t, st, "v", store.Viewer, alice),
+			"admin":       newToken(t, st, "a", store.Admin, alice),
+			"bob's admin": newToken(t, st, "b", store.Admin, bob),
+			"carol's":     newToken(t, st, "c", store.Viewer, carol),
+		}
 		opts := withStore(t, testTailnet(), st, api.Options{})
 		if devUI {
 			opts.DevUI = &url.URL{Scheme: "http", Host: "127.0.0.1:5173"}
@@ -79,6 +97,9 @@ func TestRoutes(t *testing.T) {
 				// from a machine Tailscale knows. An agent's secret counts
 				// only from the machine it enrolled on.
 				for _, c := range callers {
+					if c.token != "" {
+						continue
+					}
 					for _, auth := range []string{"", "Bearer wrong", "Bearer " + token} {
 						req := newRequest(t, method, target, c.from)
 						req.Header.Set(api.CSRFHeader, "1")
@@ -109,8 +130,12 @@ func TestRoutes(t *testing.T) {
 				for _, c := range callers {
 					req := newRequest(t, m, target, c.from)
 					req.Header.Set(api.CSRFHeader, "1")
+					if c.token != "" {
+						req.Header.Set("Authorization", "Bearer "+apiTokens[c.token])
+					}
 					rec := serve(h, req)
-					switch allowed := c.level >= want; {
+					allowed := c.level >= want && (c.token == "" || !r.People)
+					switch {
 					case allowed && rec.Code != http.StatusNoContent:
 						t.Errorf("dev UI %v: %s %s from %s = %d %q, want it let through",
 							devUI, m, target, c.name, rec.Code, rec.Body)

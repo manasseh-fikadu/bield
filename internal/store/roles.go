@@ -100,6 +100,22 @@ func (s *Store) Role(ctx context.Context, login string) (Role, error) {
 	return "", nil
 }
 
+// OwnRole returns the role login has in the roles table: Admin, Viewer, or ""
+// if it has none of its own. Unlike Role, it ignores who can view Bield, so a
+// login with no role of its own has none here even when anyone on the
+// tailnet can view Bield.
+func (s *Store) OwnRole(ctx context.Context, login string) (Role, error) {
+	var role Role
+	err := s.db.QueryRowContext(ctx, "SELECT role FROM roles WHERE login = ?", login).Scan(&role)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return "", nil
+	case err != nil:
+		return "", fmt.Errorf("look up a role: %w", err)
+	}
+	return role, nil
+}
+
 // SetRole gives login a role, and reports whether that changed anything. It
 // returns ErrLastAdmin instead of making Bield's last admin a viewer.
 func (s *Store) SetRole(ctx context.Context, login string, role Role) (changed bool, err error) {

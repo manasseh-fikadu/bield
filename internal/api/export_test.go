@@ -12,6 +12,8 @@ import (
 type Route struct {
 	Pattern string
 	Level   string
+	// People says a caller with an API token can't use it.
+	People bool
 }
 
 // StubRoutes returns the handler New would, except that each route answers
@@ -27,7 +29,7 @@ func StubRoutes(opts Options) (http.Handler, []Route) {
 		stub.add(r, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}))
-		routes[i] = Route{Pattern: r.pattern, Level: r.need.String()}
+		routes[i] = Route{Pattern: r.pattern, Level: r.need.String(), People: r.people}
 	}
 	return h.guard(stub.mux), routes
 }

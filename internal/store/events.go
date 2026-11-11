@@ -26,9 +26,15 @@ type Event struct {
 	// Via is how the actor's request reached Bield when it wasn't the web
 	// app, such as "cli", or "" for the web app.
 	Via string
+	// Token is the name of the API token the actor's request came with, or
+	// "" if it didn't come with one. The actor is then the token's maker.
+	Token string
 }
 
-type viaKey struct{}
+type (
+	viaKey   struct{}
+	tokenKey struct{}
+)
 
 // WithVia returns a context that marks the events with an actor that are added
 // with it as having come via something other than the web app, such as "cli".
@@ -38,16 +44,25 @@ func WithVia(ctx context.Context, via string) context.Context {
 	return context.WithValue(ctx, viaKey{}, via)
 }
 
+// WithToken returns a context that marks the events with an actor that are
+// added with it as made with the API token called name. The API sets it on
+// each request that comes with a token, as it does WithVia.
+func WithToken(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, tokenKey{}, name)
+}
+
 // AddEvents adds events to the activity log, in order. An event with an actor
-// that doesn't say how it came gets the via that ctx carries (see WithVia).
+// that doesn't say how it came gets the via and the token that ctx carries
+// (see WithVia and WithToken).
 func (s *Store) AddEvents(ctx context.Context, events ...Event) error {
 	if len(events) == 0 {
 		return nil
 	}
 	via, _ := ctx.Value(viaKey{}).(string)
+	token, _ := ctx.Value(tokenKey{}).(string)
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		stmt, err := tx.PrepareContext(ctx,
-			"INSERT INTO events (ts, level, kind, message, device_id, actor, via) VALUES (?, ?, ?, ?, ?, ?, ?)")
+			"INSERT INTO events (ts, level, kind, message, device_id, actor, via, token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 		if err != nil {
 			return err
 		}
@@ -56,7 +71,10 @@ func (s *Store) AddEvents(ctx context.Context, events ...Event) error {
 			if e.Actor != "" && e.Via == "" {
 				e.Via = via
 			}
-			if _, err := stmt.ExecContext(ctx, e.At.UnixMilli(), e.Level, e.Kind, e.Message, nullString(e.DeviceID), e.Actor, e.Via); err != nil {
+			if e.Actor != "" && e.Token == "" {
+				e.Token = token
+			}
+			if _, err := stmt.ExecContext(ctx, e.At.UnixMilli(), e.Level, e.Kind, e.Message, nullString(e.DeviceID), e.Actor, e.Via, e.Token); err != nil {
 				return err
 			}
 		}
@@ -104,7 +122,7 @@ func (s *Store) Events(ctx context.Context, q EventQuery) ([]Event, error) {
 	for _, k := range q.HideKinds {
 		where, args = append(where, "kind != ?"), append(args, k)
 	}
-	query := "SELECT id, ts, level, kind, message, device_id, actor, via FROM events"
+	query := "SELECT id, ts, level, kind, message, device_id, actor, via, token FROM events"
 	if len(where) > 0 {
 		// The conditions are constants, with placeholders for the values.
 		query += " WHERE " + strings.Join(where, " AND ") //nolint:gosec // G202: see above.
@@ -122,7 +140,7 @@ func (s *Store) Events(ctx context.Context, q EventQuery) ([]Event, error) {
 			at     int64
 			device sql.NullString
 		)
-		if err := rows.Scan(&e.ID, &at, &e.Level, &e.Kind, &e.Message, &device, &e.Actor, &e.Via); err != nil {
+		if err := rows.Scan(&e.ID, &at, &e.Level, &e.Kind, &e.Message, &device, &e.Actor, &e.Via, &e.Token); err != nil {
 			return nil, fmt.Errorf("read the activity log: %w", err)
 		}
 		e.At, e.DeviceID = time.UnixMilli(at), device.String
