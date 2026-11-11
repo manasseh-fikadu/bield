@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- Scoped API tokens, for machines no person is logged in to, such as a tagged server, a CI job or an AI agent that should have less access than you. An admin makes one in Settings, under API tokens, or with `bield tokens create`, with a role and an expiry of up to a year. Use it with `BIELD_TOKEN` or `bield connect <url> --with-token`, and `bield mcp` takes it too. A token never does more than the admin who made it can now, and it can't open terminals, make tokens or change who has access. Changes made with one are in the activity log with its name. See [API tokens](docs/cli.md#api-tokens).
+
 ## 0.4.0 - 2026-11-10
 
 This release adds an MCP server for AI agents and fixes installing the agent on machines whose login has no systemd session. The agent itself doesn't change, so there's nothing to update on machines where it already runs. There is no database change.

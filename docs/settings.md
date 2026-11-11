@@ -1,6 +1,6 @@
 # Settings
 
-**Settings** is for admins. It has six tabs, and `/settings?tab=alerts` (or `notifications`, `units`, `retention`, `access`) links to one. Each tab saves on its own, Bield uses a change at once, and every change is a line in the [activity log](pages.md#activity). Viewers don't see the page. If two admins edit at the same time, each save only writes the fields its admin changed.
+**Settings** is for admins. It has seven tabs, and `/settings?tab=alerts` (or `notifications`, `units`, `retention`, `access`, `tokens`) links to one. Each tab saves on its own, Bield uses a change at once, and every change is a line in the [activity log](pages.md#activity). Viewers don't see the page. If two admins edit at the same time, each save only writes the fields its admin changed.
 
 Environment variables and flags are a separate thing. They set up how Bield starts, and they're in the [configuration reference](configuration.md).
 
@@ -9,7 +9,7 @@ Environment variables and flags are a separate thing. They set up how Bield star
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Name | `Bield` | What this Bield is called. It's in the sidebar and in the title of every page, and notification messages say it. Up to 40 characters on one line, with no space at either end. |
-| Public URL | empty | The address that people and agents reach Bield at, if it differs from Bield's own address on the tailnet, such as a name of your own that points at it. Bield answers to that host as well as to its own names, and writes it into the agent's install command and into the links in notifications. It doesn't change who a caller is: that still comes from the tailnet connection. Empty means Bield's own address on the tailnet. It takes a scheme, a host and maybe a port, such as `https://bield.example.ts.net`, and no path. |
+| Public URL | empty | The address that people and agents reach Bield at, if it differs from Bield's own address on the tailnet, such as a name of your own that points at it. Bield answers to that host as well as to its own names, and writes it into the agent's install command and into the links in notifications. It doesn't change who a caller is: that still comes from the tailnet connection, or an [API token](#api-tokens) the request carries. Only a person can change it, not a token. Empty means Bield's own address on the tailnet. It takes a scheme, a host and maybe a port, such as `https://bield.example.ts.net`, and no path. |
 
 The **First-run setup** card on this tab reopens [the setup](pages.md#first-run-setup).
 
@@ -81,3 +81,9 @@ Who can use Bield: the people with a role, and **Who can view**. It's the same a
 **Who can view** is `listed` by default, which means only people with a role. `tailnet` makes anyone who signs in from the tailnet a viewer.
 
 The **Tailscale** card shows the mode Bield joined the tailnet in. It's read only, since it's set when Bield starts.
+
+## API tokens
+
+API tokens let a script, a CI job or an AI agent on a machine no person is logged in to, such as a tagged server, use Bield's API and the [command line](cli.md#api-tokens). Make one with a name, a role (viewer unless you pick admin) and how long it works: 7, 30, 90 or 365 days. Bield shows the token once, when you make it, and keeps only its hash, so copy it then.
+
+The list shows each token's role, who made it, when it expires, and when and from which device it was last used. A token never does more than the admin who made it can now, so the list says when one acts as a viewer, or does nothing, because its maker's role changed. Revoking a token stops it at once. Tokens can't open terminals, make tokens, change who has access or change the Public URL, and only people can see this tab's list. An admin token can still write files on your machines, which is as good as a shell, so prefer viewer tokens. Making and revoking tokens is in the activity log, and so is every change made with one, under its maker's login and with its name.

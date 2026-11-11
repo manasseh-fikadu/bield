@@ -79,7 +79,7 @@ Bield knows you, and you have no role. By default, only admins and viewers can s
 
 ### Bield thinks I'm anonymous.
 
-A request is anonymous when Tailscale can't say which user it comes from: a tagged device, an address Tailscale doesn't know, or Bield's own machine in host mode. In host mode, open Bield from another device. `GET /api/me` says who Bield thinks you are, and why not.
+A request is anonymous when Tailscale can't say which user it comes from: a tagged device, an address Tailscale doesn't know, or Bield's own machine in host mode. In host mode, open Bield from another device. A script or an agent on such a machine can use an [API token](cli.md#api-tokens) instead. `GET /api/me` says who Bield thinks you are, and why not.
 
 ### I'm locked out, and no admin can sign in.
 

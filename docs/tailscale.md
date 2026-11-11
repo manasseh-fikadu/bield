@@ -77,11 +77,12 @@ Otherwise Bield falls back to plain HTTP and says so in its log. If Bield may fe
 
 ## Signing in
 
-Your tailnet is the login. For every request, Bield asks Tailscale which device the connection comes from and which user owns that device. It never reads who you are from a header, so nothing in a request can claim to be someone else.
+Your tailnet is the login. For every request, Bield asks Tailscale which device the connection comes from and which user owns that device. It never reads who you are from a header, so nothing in a request can claim to be someone else, except an API token an admin made (below).
 
 - A device that belongs to a user signs that user in, as everywhere on Tailscale: anyone using your laptop is you to Bield.
 - Tagged devices, which belong to no one, and addresses Tailscale doesn't know are anonymous.
 - Bield's own node is anonymous too. In host mode, that node is the machine Bield runs on, so open Bield from another device. Any program on that machine can connect to Bield, and it shouldn't count as the machine's owner.
+- A request that carries an [API token](cli.md#api-tokens) acts as that token instead, from any device, with the token's role and never more than its maker's. It's the one thing in a request that changes who Bield thinks is asking, and only an admin can make one.
 - `GET /api/me` says who Bield thinks you are, or why you're anonymous.
 
 Tailscale identifies devices, not the people or programs using them, so anything running on a device you're logged in to acts as you. If a server runs other people's code, give its Tailscale node a tag, so that connections from it are anonymous.
