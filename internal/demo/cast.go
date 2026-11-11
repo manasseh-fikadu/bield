@@ -176,7 +176,7 @@ var baseCast = []machine{
 	},
 	{
 		host: "nas", os: "linux", osVersion: "Debian GNU/Linux 13 (trixie)", kernel: "6.12.43+deb13-amd64",
-		model: "HP ProLiant MicroServer Gen10", arch: "x86_64", owner: "", tags: []string{"tag:server"},
+		model: "HP ProLiant MicroServer Gen10", arch: "x86_64", owner: "", tags: []string{"tag:server", "tag:storage"},
 		cores: 4, memGB: 15.5, swapGB: 4, diskGB: 7450, cpu: 14, cpuSwing: 12, mem: 58, memSwing: 5, disk: 89.6, diskPerDay: 0.3,
 		rx: 4.2e6, tx: 2.6e6, temp: 41, peak: 20, uptime: 38 * 24 * time.Hour, rtt: 6 * time.Millisecond, direct: true,
 		endpoint: netip.MustParseAddrPort("192.168.1.20:41641"), joined: 330 * 24 * time.Hour,
@@ -198,7 +198,7 @@ var baseCast = []machine{
 	},
 	{
 		host: "homelab", os: "linux", osVersion: "Ubuntu 24.04.3 LTS", kernel: "6.8.0-79-generic",
-		model: "Beelink EQ12", arch: "x86_64", owner: "", tags: []string{"tag:server"},
+		model: "Beelink EQ12", arch: "x86_64", owner: "", tags: []string{"tag:home", "tag:server"},
 		cores: 4, memGB: 15.4, swapGB: 4, diskGB: 476, cpu: 9, cpuSwing: 6, mem: 49, memSwing: 4, disk: 52, diskPerDay: 0.1,
 		rx: 650e3, tx: 420e3, temp: 52, peak: 19, uptime: 74 * 24 * time.Hour, rtt: 4 * time.Millisecond, direct: true,
 		endpoint: netip.MustParseAddrPort("192.168.1.31:41641"), joined: 400 * 24 * time.Hour, tailscaleSSH: true,
@@ -397,6 +397,9 @@ func generated(i int, seed uint64) machine {
 	}
 	if t.prefix == "srv" || t.prefix == "vm" || t.prefix == "vps" {
 		m.owner, m.tags = "", []string{"tag:server"}
+		if t.prefix == "vps" {
+			m.tags = append(m.tags, "tag:cloud")
+		}
 	}
 	if pick(16) < 0.08 {
 		m.offlineFor = time.Duration(20+int(pick(17)*3000)) * time.Minute

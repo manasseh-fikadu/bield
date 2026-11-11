@@ -73,7 +73,7 @@ func New(tb testing.TB, change ...func(*api.Options)) *Server {
 		Peers: []tailnet.Device{
 			{ID: "laptop", HostName: "alice-laptop", DNSName: "alice-laptop.example.ts.net", IPs: []netip.Addr{LaptopIP}, Owner: Alice, Online: true, OS: "macOS"},
 			{ID: "phone", HostName: "bob-phone", DNSName: "bob-phone.example.ts.net", IPs: []netip.Addr{PhoneIP}, Owner: Bob, Online: true, OS: "android"},
-			{ID: "server", HostName: "web-1", DNSName: "web-1.example.ts.net", IPs: []netip.Addr{ServerIP}, Tags: []string{"tag:server"}, Online: true, OS: "linux"},
+			{ID: "server", HostName: "web-1", DNSName: "web-1.example.ts.net", IPs: []netip.Addr{ServerIP}, Tags: []string{"tag:web", "tag:server"}, Online: true, OS: "linux"},
 			{ID: "tablet", HostName: "carol-tablet", DNSName: "carol-tablet.example.ts.net", IPs: []netip.Addr{TabletIP}, Owner: Carol, Online: true, OS: "iOS"},
 		},
 	})

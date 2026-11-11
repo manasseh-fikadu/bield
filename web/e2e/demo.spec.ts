@@ -70,6 +70,19 @@ test('the devices page lists the twelve machines', async ({ page }) => {
 	}
 });
 
+test('the devices page picks machines by tag', async ({ page }) => {
+	const problems = await visit(page, '/devices');
+	const main = page.getByRole('main');
+
+	// Only the NAS is tagged storage.
+	await expect(shown(page, 'storage', true)).toBeVisible();
+	await main.getByLabel('Tag', { exact: true }).selectOption('tag:storage');
+	await expect(deviceLink(page, 'NAS')).toBeVisible();
+	await expect(deviceLink(page, 'Homelab')).toHaveCount(0);
+
+	expect(problems).toEqual([]);
+});
+
 test('the alerts page has what is wrong in the demo', async ({ page }) => {
 	await visit(page, '/alerts');
 

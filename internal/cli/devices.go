@@ -19,6 +19,7 @@ func deviceCommands() []*Command {
 			Flags: []Flag{
 				{Name: "status", Arg: "status", Usage: "only devices that are online, attention, offline or unknown"},
 				{Name: "kind", Arg: "kind", Usage: "only servers, laptops, desktops, tablets, phones or others"},
+				{Name: "tag", Arg: "tag", Usage: "only devices with this Tailscale tag, such as server or tag:server"},
 			},
 		},
 		{Name: "devices show", Args: "<device>", Min: 1, Max: 1, Run: runDeviceShow, Summary: "show everything Bield knows about a device"},
@@ -64,6 +65,23 @@ func statusPaint(v *View, s api.Status) string {
 	}
 }
 
+// tagLabel lists a device's Tailscale tags, all of them, or "-" for none.
+func tagLabel(tags []string) string {
+	if len(tags) == 0 {
+		return "-"
+	}
+	return strings.Join(tags, ",")
+}
+
+// hasTag reports whether tags has want, which is a tag with or without its
+// "tag:" start, in any case.
+func hasTag(tags []string, want string) bool {
+	want = strings.TrimPrefix(strings.ToLower(want), "tag:")
+	return slices.ContainsFunc(tags, func(t string) bool {
+		return strings.TrimPrefix(strings.ToLower(t), "tag:") == want
+	})
+}
+
 // pathLabel says how traffic reaches a device: "direct 12ms", "relay fra".
 func pathLabel(p api.Path) string {
 	rtt := ""
@@ -97,13 +115,16 @@ func runDevices(c *Call) error {
 		if k := c.Str("kind"); k != "" && string(d.Kind) != k {
 			continue
 		}
+		if t := c.Str("tag"); t != "" && !hasTag(d.Tags, t) {
+			continue
+		}
 		list = append(list, d)
 	}
 	if list == nil {
 		list = []api.Device{}
 	}
 	return c.Print(list, func(v *View) {
-		t := v.Table("NAME", "STATUS", "KIND", "OS", "CPU", "MEM", "DISK", "PATH", "NOTE")
+		t := v.Table("NAME", "STATUS", "KIND", "OS", "CPU", "MEM", "DISK", "PATH", "TAGS", "NOTE")
 		for _, d := range list {
 			cpu, mem, disk := "-", "-", "-"
 			if m := d.Metrics; m != nil {
@@ -123,7 +144,7 @@ func runDevices(c *Call) error {
 			if d.Status == api.StatusOffline && d.LastSeen != nil {
 				note = "seen " + v.since(*d.LastSeen)
 			}
-			t.Row(name, statusPaint(v, d.Status), string(d.Kind), d.OS, cpu, mem, disk, pathLabel(d.Path), oneLine(note, 50))
+			t.Row(name, statusPaint(v, d.Status), string(d.Kind), d.OS, cpu, mem, disk, pathLabel(d.Path), tagLabel(d.Tags), oneLine(note, 50))
 		}
 		t.Write()
 		if t.Len() == 0 {
@@ -144,6 +165,7 @@ func runDeviceShow(c *Call) error {
 		v.Field("Kind", string(d.Kind))
 		v.Field("DNS name", d.DNSName)
 		v.Field("Addresses", strings.Join(d.IPs, ", "))
+		v.Field("Tags", strings.Join(d.Tags, ", "))
 		if d.Info != nil {
 			os := d.Info.OSVersion
 			if os == "" {

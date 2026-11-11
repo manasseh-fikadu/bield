@@ -22,6 +22,7 @@
 	import RunningNow from '#lib/devices/RunningNow.svelte';
 	import ServicesCard from '#lib/devices/ServicesCard.svelte';
 	import SSHCard from '#lib/devices/SSHCard.svelte';
+	import TagChips from '#lib/devices/TagChips.svelte';
 	import UsagePanel from '#lib/devices/UsagePanel.svelte';
 	import {
 		ago,
@@ -330,6 +331,12 @@
 					>
 					{#if ipv6(device) && ipv6(device) !== tailnetIP(device)}
 						<DataRow flat label="IPv6" copy={ipv6(device)}>{ipv6(device)}</DataRow>
+					{/if}
+					{#if device.tags.length}
+						<div class="flex items-start justify-between gap-3">
+							<dt class="shrink-0 text-[12px] leading-5 text-fg-faint">Tags</dt>
+							<dd class="min-w-0"><TagChips tags={device.tags} class="justify-end" /></dd>
+						</div>
 					{/if}
 					<DataRow flat label="Route">{routeName(device).toLowerCase()}</DataRow>
 					{#if device.path.endpoint}

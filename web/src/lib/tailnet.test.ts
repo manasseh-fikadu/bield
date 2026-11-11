@@ -19,6 +19,7 @@ function device(path: Path, online = true, ips = ['100.64.0.2', 'fd7a:115c:a1e0:
 		os: 'macOS',
 		kind: 'laptop',
 		ips,
+		tags: [],
 		online,
 		status: online ? 'online' : 'offline',
 		statusReason: '',

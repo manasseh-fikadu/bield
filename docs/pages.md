@@ -16,7 +16,7 @@ The first time an admin opens Bield, the Overview sends them to the [first-run s
 
 ## Devices
 
-A table of every machine on the tailnet with its status, how traffic reaches it (the route), its tailnet IP, and, for machines that report, its CPU, memory and disk, and how long it has been up or offline. Filter by status. **Agents** in the corner opens [the agent page](agent.md).
+A table of every machine on the tailnet with its status, how traffic reaches it (the route), its tailnet IP, and, for machines that report, its CPU, memory and disk, and how long it has been up or offline. If any machine has Tailscale tags, all of them show under its name, or in a column of their own on a wide screen. In the corner, **Tag** shows only the machines with one tag, and the status buttons count what it leaves. **Agents** in the corner opens [the agent page](agent.md).
 
 ![A device's page, with its metrics, an alert and history charts](images/device.png)
 
@@ -27,7 +27,7 @@ A machine's page has:
 - A line for each open alert, which you can acknowledge or snooze there.
 - **History**, with charts for 1 hour to 90 days: CPU and memory, network, and the round-trip time. Point at the first to see what was running then, and click for all of it.
 - **Running now**: what uses its CPU and memory, the busiest first, with a link to all of it and the trend over days.
-- Its **Tailscale** details: addresses, the route and endpoint, the home relay, the key's expiry, and how much traffic has passed.
+- Its **Tailscale** details: addresses, tags, the route and endpoint, the home relay, the key's expiry, and how much traffic has passed. Tags are set in Tailscale, not in Bield, and viewers see them too.
 - Your note on it, the **System** details the agent reports, and the cards for [SSH access](ssh.md), [VS Code](vscode.md) and the agent.
 
 **Edit** changes the machine's name, its type, its thresholds and its notes. See [per-device thresholds](settings.md#per-device-thresholds).

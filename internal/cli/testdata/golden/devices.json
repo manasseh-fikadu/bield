@@ -9,6 +9,7 @@
     "ips": [
       "100.64.0.1"
     ],
+    "tags": [],
     "online": true,
     "self": true,
     "status": "online",
@@ -36,6 +37,10 @@
     "ips": [
       "100.64.0.4"
     ],
+    "tags": [
+      "tag:server",
+      "tag:web"
+    ],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",
@@ -62,6 +67,7 @@
     "ips": [
       "100.64.0.2"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",
@@ -88,6 +94,7 @@
     "ips": [
       "100.64.0.5"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",
@@ -114,6 +121,7 @@
     "ips": [
       "100.64.0.3"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",

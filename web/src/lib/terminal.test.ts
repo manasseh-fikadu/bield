@@ -26,6 +26,7 @@ function device(id: string, ssh?: DeviceSSH, { online = true, self = false } = {
 		os: 'linux',
 		kind: 'server',
 		ips: ['100.64.0.2'],
+		tags: [],
 		online,
 		self,
 		status: online ? 'online' : 'offline',

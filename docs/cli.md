@@ -29,7 +29,7 @@ For shell completion, `bield completion bash` prints a script for bash (`source 
 | Command | What it does | Needs |
 | --- | --- | --- |
 | `bield status` | Health, how many devices are online and how many alerts are open | viewer |
-| `bield devices` | The devices and how they're doing. `--status` and `--kind` pick some | viewer |
+| `bield devices` | The devices and how they're doing. `--status`, `--kind` and `--tag` pick some | viewer |
 | `bield devices show <device>` | Everything Bield knows about one | viewer |
 | `bield devices history <device>` | CPU, memory, network and latency over `--range` 1h, 6h, 24h or 7d | viewer |
 | `bield devices usage <device>` | What uses a device's CPU and memory now | viewer |

@@ -3,6 +3,7 @@ package api_test
 import (
 	"errors"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -181,6 +182,46 @@ func TestSnapshot_kinds(t *testing.T) {
 		if d := findDevice(t, got, tt.host); d.Kind != tt.want {
 			t.Errorf("%s on %s: kind %s, want %s", tt.host, tt.os, d.Kind, tt.want)
 		}
+	}
+}
+
+// A device lists all of its tags, in the same order each time, and viewers see
+// them too. A device with none has an empty list, which the API sends as [],
+// not null.
+func TestSnapshot_tags(t *testing.T) {
+	t.Parallel()
+	tagged := []string{"tag:server", "tag:backup", "tag:prod"}
+	st := &tailnet.Status{
+		State: tailnet.StateRunning,
+		Self:  tailnet.Device{ID: "bield", DNSName: bieldHost, Tags: []string{"tag:bield"}, Online: true},
+		Peers: []tailnet.Device{
+			{ID: "nas", DNSName: "nas.example.ts.net", Tags: tagged, Online: true},
+			{ID: "laptop", DNSName: "laptop.example.ts.net", Owner: "alice@example.com", Online: true},
+		},
+	}
+	admin := snapshotOf(t, testStore(t), tailnet.Snapshot{Status: st}, nil)
+	viewer, ok := api.Redact(admin).(api.Snapshot)
+	if !ok {
+		t.Fatal("Redact() changed the snapshot's type")
+	}
+
+	for _, tt := range []struct {
+		who  string
+		snap api.Snapshot
+	}{{"admin", admin}, {"viewer", viewer}} {
+		for id, want := range map[string][]string{
+			"nas":    {"tag:backup", "tag:prod", "tag:server"},
+			"bield":  {"tag:bield"},
+			"laptop": {},
+		} {
+			got := findDevice(t, tt.snap, id).Tags
+			if got == nil || !slices.Equal(got, want) {
+				t.Errorf("%s sees tags %#v on %s, want %#v", tt.who, got, id, want)
+			}
+		}
+	}
+	if !slices.Equal(tagged, []string{"tag:server", "tag:backup", "tag:prod"}) {
+		t.Errorf("building a snapshot reordered the tailnet's tags: %v", tagged)
 	}
 }
 

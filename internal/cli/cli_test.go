@@ -172,6 +172,19 @@ func TestRun_devices(t *testing.T) {
 	// "b" starts "bield" and "bob-phone".
 	run(t, s, apitest.PhoneIP, "devices", "show", "b").want(t, cli.ExitUsage, "", "matches several devices")
 	run(t, s, apitest.PhoneIP, "devices", "--status", "offline").want(t, 0, "No devices match.", "")
+	// A tag is given with or without "tag:", in any case. Only web-1 has any.
+	for _, tag := range []string{"server", "tag:server", "TAG:Web", "web"} {
+		r := run(t, s, apitest.PhoneIP, "devices", "--tag", tag)
+		r.want(t, 0, "web-1", "")
+		if strings.Contains(r.stdout, "alice-laptop") {
+			t.Errorf("devices --tag %s = %q, want only web-1", tag, r.stdout)
+		}
+	}
+	run(t, s, apitest.PhoneIP, "devices", "--tag", "nope").want(t, 0, "No devices match.", "")
+	// Every tag shows, in order, and a device with none shows a dash.
+	run(t, s, apitest.PhoneIP, "devices", "show", "web-1").want(t, 0, "tag:server, tag:web", "")
+	r = run(t, s, apitest.PhoneIP, "devices")
+	r.want(t, 0, "tag:server,tag:web", "")
 	r = run(t, s, apitest.PhoneIP, "devices")
 	r.want(t, 0, "NAME", "")
 	for _, name := range []string{"alice-laptop", "bob-phone", "web-1", "carol-tablet"} {

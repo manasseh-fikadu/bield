@@ -236,6 +236,7 @@ func newDevice(s tailnet.Snapshot, in deviceInput, now time.Time) (Device, machi
 		DNSName:      d.DNSName,
 		OS:           d.OS,
 		IPs:          ips,
+		Tags:         sortedTags(d.Tags),
 		Online:       d.Online,
 		LastSeen:     timePtr(d.LastSeen),
 		Self:         in.self,
@@ -505,6 +506,18 @@ func defaultAlertOffline(d tailnet.Device) bool {
 func firstLabel(name string) string {
 	label, _, _ := strings.Cut(name, ".")
 	return label
+}
+
+// sortedTags returns a copy of tags in alphabetical order, so the same device
+// always lists them the same way. It is empty, not nil, for no tags, which
+// the API sends as [] and not null.
+func sortedTags(tags []string) []string {
+	out := slices.Clone(tags)
+	if out == nil {
+		out = []string{}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // hasDocker reports whether Bield can read the Docker on d: on the machine

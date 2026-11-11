@@ -820,6 +820,12 @@ export interface Device {
   kind: DeviceKind;
   ips: string[];
   /**
+   * Tags are all of the node's Tailscale tags, such as "tag:server", in
+   * alphabetical order, or none. A tagged node belongs to no user. Viewers
+   * see them too.
+   */
+  tags: string[];
+  /**
    * Online reports whether the node is connected to Tailscale.
    */
   online: boolean;

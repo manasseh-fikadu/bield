@@ -19,6 +19,7 @@ function device(
 		os,
 		kind: 'laptop',
 		ips: ['100.64.0.2'],
+		tags: [],
 		online,
 		status: online ? 'online' : 'offline',
 		statusReason: '',

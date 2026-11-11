@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- Devices show their Tailscale tags, all of them: on the Devices page, on a device's page, and in `bield devices` and `bield devices show`. Pick one tag in the Devices page's **Tag** list or with `bield devices --tag server`. The command palette finds a device by its tags too. Bield only shows tags. You set them in Tailscale.
+
 ## 0.6.1 - 2026-11-11
 
 This release fixes how VS Code in the browser looks while it loads the first time. The agent doesn't change, and there is no database change.

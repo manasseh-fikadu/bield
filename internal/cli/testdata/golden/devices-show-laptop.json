@@ -8,6 +8,7 @@
   "ips": [
     "100.64.0.2"
   ],
+  "tags": [],
   "online": true,
   "status": "online",
   "statusReason": "Relayed through DERP",

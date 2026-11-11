@@ -571,6 +571,10 @@ type Device struct {
 	// Bield's guess.
 	Kind DeviceKind `json:"kind"`
 	IPs  []string   `json:"ips"`
+	// Tags are all of the node's Tailscale tags, such as "tag:server", in
+	// alphabetical order, or none. A tagged node belongs to no user. Viewers
+	// see them too.
+	Tags []string `json:"tags"`
 	// Online reports whether the node is connected to Tailscale.
 	Online bool `json:"online"`
 	// LastSeen is when an offline node was last connected, if Tailscale

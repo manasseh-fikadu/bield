@@ -41,6 +41,7 @@ function device(id: string, measuredBy?: MeasuredBy): Device {
 		os: 'linux',
 		kind: 'server',
 		ips: [],
+		tags: [],
 		online: true,
 		status: 'online',
 		statusReason: '',
