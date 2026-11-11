@@ -70,16 +70,20 @@ test('the devices page lists the twelve machines', async ({ page }) => {
 	}
 });
 
-test('the devices page picks machines by tag', async ({ page }) => {
+test('the devices page picks machines by tag and by route', async ({ page }) => {
 	const problems = await visit(page, '/devices');
 	const main = page.getByRole('main');
 
-	// Only the NAS is tagged storage.
+	// Only the NAS is tagged storage. New York VPS goes through a DERP relay.
 	await expect(shown(page, 'storage', true)).toBeVisible();
 	await main.getByLabel('Tag', { exact: true }).selectOption('tag:storage');
 	await expect(deviceLink(page, 'NAS')).toBeVisible();
 	await expect(deviceLink(page, 'Homelab')).toHaveCount(0);
 
+	await main.getByLabel('Tag', { exact: true }).selectOption('');
+	await main.getByLabel('Route', { exact: true }).selectOption('derp');
+	await expect(deviceLink(page, 'New York VPS')).toBeVisible();
+	await expect(deviceLink(page, 'NAS')).toHaveCount(0);
 	expect(problems).toEqual([]);
 });
 

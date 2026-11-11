@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -185,6 +186,25 @@ func TestRun_devices(t *testing.T) {
 	run(t, s, apitest.PhoneIP, "devices", "show", "web-1").want(t, 0, "tag:server, tag:web", "")
 	r = run(t, s, apitest.PhoneIP, "devices")
 	r.want(t, 0, "tag:server,tag:web", "")
+	// web-1 is direct, the laptop goes through a peer relay, and the phone and
+	// tablet through DERP. The hub is none of them.
+	for path, want := range map[string][]string{
+		"direct": {"web-1"}, "peer-relay": {"alice-laptop"}, "derp": {"bob-phone", "carol-tablet"},
+	} {
+		var got []api.Device
+		r := run(t, s, apitest.PhoneIP, "devices", "--path", path, "--json")
+		if err := json.Unmarshal([]byte(r.stdout), &got); err != nil {
+			t.Fatalf("devices --path %s --json = %q, %v", path, r.stdout, err)
+		}
+		names := make([]string, 0, len(got))
+		for _, d := range got {
+			names = append(names, d.Name)
+		}
+		if slices.Sort(names); !slices.Equal(names, want) {
+			t.Errorf("devices --path %s = %v, want %v", path, names, want)
+		}
+	}
+	run(t, s, apitest.PhoneIP, "devices", "--path", "relay").want(t, cli.ExitUsage, "", "--path is direct, derp or peer-relay")
 	r = run(t, s, apitest.PhoneIP, "devices")
 	r.want(t, 0, "NAME", "")
 	for _, name := range []string{"alice-laptop", "bob-phone", "web-1", "carol-tablet"} {

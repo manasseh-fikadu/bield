@@ -71,9 +71,9 @@ func New(tb testing.TB, change ...func(*api.Options)) *Server {
 			ID: "bield", HostName: "bield", DNSName: "bield.example.ts.net", IPs: []netip.Addr{BieldIP}, Owner: Alice, Online: true, OS: "linux",
 		},
 		Peers: []tailnet.Device{
-			{ID: "laptop", HostName: "alice-laptop", DNSName: "alice-laptop.example.ts.net", IPs: []netip.Addr{LaptopIP}, Owner: Alice, Online: true, OS: "macOS"},
+			{ID: "laptop", HostName: "alice-laptop", DNSName: "alice-laptop.example.ts.net", IPs: []netip.Addr{LaptopIP}, Owner: Alice, Online: true, OS: "macOS", PeerRelay: "198.51.100.7:40000:9"},
 			{ID: "phone", HostName: "bob-phone", DNSName: "bob-phone.example.ts.net", IPs: []netip.Addr{PhoneIP}, Owner: Bob, Online: true, OS: "android"},
-			{ID: "server", HostName: "web-1", DNSName: "web-1.example.ts.net", IPs: []netip.Addr{ServerIP}, Tags: []string{"tag:web", "tag:server"}, Online: true, OS: "linux"},
+			{ID: "server", HostName: "web-1", DNSName: "web-1.example.ts.net", IPs: []netip.Addr{ServerIP}, Tags: []string{"tag:web", "tag:server"}, Online: true, OS: "linux", CurAddr: "203.0.113.10:41641"},
 			{ID: "tablet", HostName: "carol-tablet", DNSName: "carol-tablet.example.ts.net", IPs: []netip.Addr{TabletIP}, Owner: Carol, Online: true, OS: "iOS"},
 		},
 	})

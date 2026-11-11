@@ -16,7 +16,7 @@ The first time an admin opens Bield, the Overview sends them to the [first-run s
 
 ## Devices
 
-A table of every machine on the tailnet with its status, how traffic reaches it (the route), its tailnet IP, and, for machines that report, its CPU, memory and disk, and how long it has been up or offline. If any machine has Tailscale tags, all of them show under its name, or in a column of their own on a wide screen. In the corner, **Tag** shows only the machines with one tag, and the status buttons count what it leaves. **Agents** in the corner opens [the agent page](agent.md).
+A table of every machine on the tailnet with its status, how traffic reaches it (the route), its tailnet IP, and, for machines that report, its CPU, memory and disk, and how long it has been up or offline. If any machine has Tailscale tags, all of them show under its name, or in a column of their own on a wide screen. In the corner, **Tag** shows only the machines with one tag, **Route** only those reached one way (directly, through a DERP relay or through a peer relay), and the status buttons count what those two leave. **Agents** in the corner opens [the agent page](agent.md).
 
 ![A device's page, with its metrics, an alert and history charts](images/device.png)
 

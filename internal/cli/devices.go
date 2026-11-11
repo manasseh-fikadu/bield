@@ -20,6 +20,7 @@ func deviceCommands() []*Command {
 				{Name: "status", Arg: "status", Usage: "only devices that are online, attention, offline or unknown"},
 				{Name: "kind", Arg: "kind", Usage: "only servers, laptops, desktops, tablets, phones or others"},
 				{Name: "tag", Arg: "tag", Usage: "only devices with this Tailscale tag, such as server or tag:server"},
+				{Name: "path", Arg: "direct|derp|peer-relay", Usage: "only devices Bield reaches this way: directly, through a DERP relay or through a peer relay"},
 			},
 		},
 		{Name: "devices show", Args: "<device>", Min: 1, Max: 1, Run: runDeviceShow, Summary: "show everything Bield knows about a device"},
@@ -102,7 +103,14 @@ func pathLabel(p api.Path) string {
 	}
 }
 
+// pathKinds are the paths that bield devices --path picks between.
+var pathKinds = []api.PathKind{api.PathKindDirect, api.PathKindDERP, api.PathKindPeerRelay}
+
 func runDevices(c *Call) error {
+	path := api.PathKind(c.Str("path"))
+	if path != "" && !slices.Contains(pathKinds, path) {
+		return usagef(c.cmd, "--path is direct, derp or peer-relay")
+	}
 	snap, err := c.Snapshot()
 	if err != nil {
 		return err
@@ -116,6 +124,9 @@ func runDevices(c *Call) error {
 			continue
 		}
 		if t := c.Str("tag"); t != "" && !hasTag(d.Tags, t) {
+			continue
+		}
+		if path != "" && d.Path.Kind != path {
 			continue
 		}
 		list = append(list, d)
