@@ -87,32 +87,30 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release adds [scoped API tokens](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md#api-tokens), for the machines and agents that Tailscale can't name a person for, and lets `bield` join the tailnet by itself where Tailscale isn't installed.
+    This release adds [VS Code in the browser](https://github.com/manasseh-fikadu/bield/blob/main/docs/vscode.md): open a machine in VS Code from its page in Bield, with nothing to sign in to and no work for Bield's own machine.
 
-    - An admin makes a token in Settings, under API tokens, or with `bield tokens create`, with a name, a role (viewer by default) and an expiry of up to a year. Bield shows it once and keeps only its hash. Use it with `BIELD_TOKEN` or `bield connect <url> --with-token`. `bield mcp` takes it too.
-    - A token never does more than the admin who made it can now: demote them and their admin tokens act as viewers, remove them and their tokens stop. Revoking one stops it at once, ends the streams it opened, and keeps its name, so a name in the activity log always means one token.
-    - Tokens can't open terminals, make or revoke tokens, change who has access, or change the Public URL. An admin token can still write files on your machines, which is as good as a shell there, so prefer viewer tokens and treat a leaked admin token like a leaked admin laptop.
-    - Changes made with a token are in the activity log under its maker, with the token's name.
-    - With an auth key in `BIELD_TS_AUTHKEY`, the command line and `bield mcp` join the tailnet inside their own process for as long as they run, so a container or a CI runner needs no Tailscale. See [Machines without Tailscale](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md#machines-without-tailscale).
+    - An admin installs it from the machine's page, or with `bield editor install`. The machine downloads code-server from GitHub, and Bield checks the download against the SHA-256 it pins for that version before it installs it. It needs SSH access, Linux or macOS on x86-64 or ARM64 with glibc, and about 1 GB free in the home folder.
+    - **Open VS Code** on the machine's page, or **Open in VS Code** in the file manager for the folder you're in, opens it in a new tab. code-server runs as the user Bield logs in as, listens on a private socket in that user's home and nowhere on the network, and stops by itself after 30 minutes with no one connected.
+    - Each machine's editor is served on a port of Bield's own, from 4710 (`BIELD_EDITOR_PORTS`), so what VS Code runs in your browser can't reach Bield's API or another machine's editor. **If your tailnet policy only lets people reach port 443 of Bield, allow ports 4710 to 4799 too.** The editor is on the tailnet only, not behind a Public URL.
+    - It's for admins in person, like the terminal: viewers and API tokens can't open it. Installs, updates, opens, closes, stops and removals are in the activity log.
+    - Extensions come from Open VSX, not Microsoft's marketplace, so Copilot, Remote - SSH and Live Share aren't there.
 
-    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. Bield adds a table for the tokens and a column to the activity log when it starts, which needs no action from you.
+    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. Bield adds a table for the editors when it starts, which needs no action from you.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - Tokens on a real Tailscale tailnet, from Bield's own machine, which is anonymous without one: viewer and admin tokens, the routes only people can use, `bield connect --with-token`, a revoke ending a live `--follow` within seconds, and `bield mcp` with each kind of token.
-    - Tokens on Headscale 0.29.7, made by a person from their own machine and used from a tagged server: a maker demoted and removed, revoking, and the Settings tab in a browser over plain HTTP.
-    - `BIELD_TS_AUTHKEY` on Headscale, from a Debian container with no Tailscale in it, for the command line and `bield mcp`.
-    - An independent security review of the tokens. The four things it found are fixed in this release.
-    - Shell completion in bash 5.2, zsh 5.9 and fish 3.6.
+    - VS Code on Headscale 0.29.7 over plain HTTP, with an admin and a viewer opening it from their own machines in Chromium, and the machine Bield runs on as the target: installing from the card, opening it from the file manager at a folder, editing and saving a file, the terminal, installing an extension from Open VSX, stopping it and starting it again from its own page, and removing it with and without its settings.
+    - What the editor's port refuses: a viewer, an admin demoted while their editor was open (cut off within 10 seconds), API tokens, requests from other sites, and a machine with no SSH access.
+    - The install, start, stop and remove scripts with a real `sh`, and the API, the editor's port and `bield editor` against a fake tailnet and SSH server in Go tests.
 
     ### What has not been run
 
-    - Making a token in the web app on a real Tailscale tailnet (it was made through the same code path, not the page).
-    - `BIELD_TS_AUTHKEY` with a Tailscale auth key, as opposed to a Headscale one.
-    - Codex and Cursor against `bield mcp`, and the command line on a Mac.
-    - What the [v0.2.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.2.0) list under "What has not been run", which is coding usage on a Mac, OpenCode read with the `sqlite3` command, and Pi on a real install. Nothing in this release changes that.
+    - VS Code over HTTPS, which turns on webviews and the clipboard that plain HTTP turns off, and a Tailscale tailnet: the test tailnet was Headscale.
+    - Tailscale SSH with Tailscale's own control server as the way Bield reaches the editor. Headscale allows it for `accept` rules.
+    - A Mac as the machine VS Code runs on, a machine other than the one Bield runs on, and Safari.
+    - What the [v0.5.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.5.0) list under "What has not been run". Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |

@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.6.0 - 2026-11-11
+
+This release adds VS Code in the browser: Bield installs code-server on a machine over SSH and opens it in a tab of its own. The agent doesn't change, so there's nothing to update on your machines. Bield adds a table for the editors when it starts, which needs no action from you. If your tailnet policy only lets people reach port 443 of Bield, allow ports 4710 to 4799 too, where the editors are served.
+
 ### Added
 
 - VS Code in the browser on a machine. An admin installs code-server on it from the machine's page, over SSH, and opens it in a tab of its own, or opens the folder they're in from the file manager. Bield checks the download against the SHA-256 it pins, code-server listens on a private socket on the machine, and it stops by itself after 30 minutes with no one connected. Each machine's editor is served on a port of Bield's own, from 4710 (`BIELD_EDITOR_PORTS`), so your tailnet policy has to let you reach those ports. Opening and closing it is in the activity log, and `bield editor` does it from the command line. See [VS Code in the browser](docs/vscode.md).
