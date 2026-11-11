@@ -460,6 +460,71 @@ func TestCompletion(t *testing.T) {
 	run(t, s, apitest.LaptopIP, "completion", "tcsh").want(t, cli.ExitUsage, "", "the shells are bash, zsh and fish")
 }
 
+// TestCompletion_inShells completes words in the shells that are installed,
+// as a person pressing Tab would get them. zsh uses the bash script through
+// bashcompinit, and needs a terminal to press Tab in, so it's checked by hand
+// (docs/cli.md says how it was).
+func TestCompletion_inShells(t *testing.T) {
+	t.Parallel()
+	s := apitest.New(t)
+	cases := []struct {
+		line string // what's typed, up to the cursor
+		want []string
+	}{
+		{"bield tok", []string{"tokens"}},
+		{"bield tokens ", []string{"create", "revoke"}},
+		{"bield tokens create --", []string{"--role", "--days", "--json"}},
+		{"bield connect --w", []string{"--with-token"}},
+		{"bield docker logs --f", []string{"--follow"}},
+	}
+	complete := map[string]func(script, line string) string{
+		// bash: call the function as complete -F would, with the words so far.
+		"bash": func(script, line string) string {
+			words := strings.Fields(line)
+			if strings.HasSuffix(line, " ") {
+				words = append(words, "")
+			}
+			quoted := make([]string, len(words))
+			for i, w := range words {
+				quoted[i] = "'" + w + "'"
+			}
+			return script + "\nCOMP_WORDS=(" + strings.Join(quoted, " ") + "); COMP_CWORD=" + strconv.Itoa(len(words)-1) +
+				"; _bield; printf '%s\\n' \"${COMPREPLY[@]}\"\n"
+		},
+		// fish: complete -C is what fish runs on Tab.
+		"fish": func(script, line string) string {
+			return script + "\ncomplete -C '" + line + "'\n"
+		},
+	}
+	for shell, input := range complete {
+		sh, err := exec.LookPath(shell)
+		if err != nil {
+			t.Logf("no %s here, so its completion isn't run", shell)
+			continue
+		}
+		script := run(t, s, apitest.LaptopIP, "completion", shell).stdout
+		for _, tc := range cases {
+			cmd := exec.CommandContext(t.Context(), sh) //nolint:gosec // G204: sh is bash or fish, found on the PATH.
+			cmd.Stdin = strings.NewReader(input(script, tc.line))
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("%s completing %q: %v\n%s", shell, tc.line, err, out)
+				continue
+			}
+			got := map[string]bool{}
+			for l := range strings.Lines(string(out)) {
+				word, _, _ := strings.Cut(strings.TrimSpace(l), "\t")
+				got[word] = true
+			}
+			for _, w := range tc.want {
+				if !got[w] {
+					t.Errorf("%s completing %q = %q, want %q among them", shell, tc.line, out, w)
+				}
+			}
+		}
+	}
+}
+
 func TestHas(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]bool{"alerts": true, "docker": true, "completion": true, "serve": false, "admin": false, "version": false, "": false} {

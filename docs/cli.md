@@ -22,7 +22,7 @@ bield whoami
 You are alice@example.com on laptop.example.ts.net, with the role admin
 ```
 
-For shell completion, `bield completion bash` prints a script for bash (`source <(bield completion bash)`), and `zsh` and `fish` print theirs.
+For shell completion, `bield completion bash` prints a script for bash (`source <(bield completion bash)`), `bield completion zsh` one for zsh (`source <(bield completion zsh)`), and `bield completion fish` one for fish (`bield completion fish | source`). Put the line in the shell's startup file. They've been tried in bash 5.2, zsh 5.9 and fish 3.6, and CI completes commands and flags in bash and fish on every change.
 
 ## What it does
 
