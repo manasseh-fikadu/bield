@@ -76,6 +76,7 @@ func TestRun_tokens(t *testing.T) {
 		t.Errorf("the ack's activity line = %+v, want alice's, with the token deploy, via the CLI", e)
 	}
 
+	run(t, s, apitest.LaptopIP, "events").want(t, 0, "by alice@example.com with the token deploy, with the CLI", "")
 	r = run(t, s, apitest.LaptopIP, "tokens")
 	r.want(t, 0, "deploy", "")
 	for _, want := range []string{"ci", "viewer", "admin", "alice@example.com", "from web-1"} {
