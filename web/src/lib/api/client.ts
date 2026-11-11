@@ -7,6 +7,7 @@ import type {
 	Alert,
 	AlertList,
 	AlertNote,
+	APIToken,
 	Check,
 	CheckHistory,
 	CheckInput,
@@ -25,6 +26,8 @@ import type {
 	HealthHistory,
 	InstalledServices,
 	Me,
+	NewAPIToken,
+	NewAPITokenResult,
 	NotificationChannel,
 	NotificationChannels,
 	RecentResults,
@@ -395,6 +398,27 @@ export function removeUser(login: string, undo?: ToastAction): Promise<Access> {
 /** Changes who can view Bield, other than the users with a role. Admins only. */
 export function setWhoCanView(whoCanView: WhoCanView): Promise<Access> {
 	return mutate('PATCH', 'access', { whoCanView }, { success: 'Saved' });
+}
+
+/** The API tokens, by name, expired ones too, without their secrets. Admins only. */
+export function getTokens(): Promise<APIToken[]> {
+	return request('GET', 'tokens');
+}
+
+/**
+ * Makes an API token, and answers with its secret, which is the only time
+ * the hub sends it. A failure is thrown without a toast, so the dialog can
+ * say why next to the form. Admins only.
+ */
+export function makeToken(body: NewAPIToken): Promise<NewAPITokenResult> {
+	return request('POST', 'tokens', body);
+}
+
+/** Revokes an API token, so it stops working at once, and says so in a toast. Admins only. */
+export function revokeToken(id: number): Promise<void> {
+	return mutate('DELETE', `tokens/${encodeURIComponent(String(id))}`, undefined, {
+		success: 'Token revoked'
+	});
 }
 
 /** The notification channels, by name. Admins only. */

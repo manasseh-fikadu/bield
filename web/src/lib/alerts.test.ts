@@ -4,6 +4,7 @@ import {
 	alertedDevices,
 	containerStatus,
 	deviceIds,
+	eventActor,
 	groupContainers,
 	mergeById,
 	onDevice,
@@ -212,4 +213,22 @@ describe('troubleFirst', () => {
 		expect(quietlyOffline(off('a'), new Set(['a']))).toBe(false);
 		expect(quietlyOffline(device('a'), new Set())).toBe(false);
 	});
+});
+
+describe('eventActor', () => {
+	const cases: { e: { actor?: string; token?: string; via?: string }; want: string }[] = [
+		{ e: {}, want: '' },
+		{ e: { token: 'deploy' }, want: '' },
+		{ e: { actor: 'alice' }, want: 'by alice' },
+		{ e: { actor: 'alice', via: 'cli' }, want: 'by alice with the CLI' },
+		{ e: { actor: 'alice', via: 'mcp' }, want: 'by alice with MCP' },
+		{ e: { actor: 'alice', token: 'deploy' }, want: 'by alice with the token deploy' },
+		{
+			e: { actor: 'alice', token: 'deploy', via: 'cli' },
+			want: 'by alice with the token deploy, with the CLI'
+		}
+	];
+	for (const c of cases) {
+		test(c.want || 'nobody', () => expect(eventActor(c.e)).toBe(c.want));
+	}
 });

@@ -134,7 +134,7 @@ export async function record(hub: string, out: string): Promise<Recording> {
 	const add = (path: string, options?: { optional?: boolean; also?: string[] }) =>
 		jobs.push(() => keep(path, options));
 
-	for (const path of ['me', 'health', 'agent', 'settings', 'settings/units', 'access']) {
+	for (const path of ['me', 'health', 'agent', 'settings', 'settings/units', 'access', 'tokens']) {
 		add(path);
 	}
 	add('notifications/channels');
