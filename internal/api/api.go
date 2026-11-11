@@ -17,6 +17,7 @@ import (
 	"github.com/manasseh-fikadu/bield/internal/alerts"
 	"github.com/manasseh-fikadu/bield/internal/checks"
 	"github.com/manasseh-fikadu/bield/internal/docker"
+	"github.com/manasseh-fikadu/bield/internal/editor"
 	"github.com/manasseh-fikadu/bield/internal/files"
 	"github.com/manasseh-fikadu/bield/internal/notify"
 	"github.com/manasseh-fikadu/bield/internal/pricing"
@@ -71,6 +72,9 @@ type Options struct {
 	// Systemd watches the units on Bield's machine. It's nil if Bield can't
 	// ask systemd there.
 	Systemd *systemd.Collector
+	// Editors installs and runs VS Code on devices. Without it, the editor
+	// routes say Bield has none.
+	Editors *editor.Manager
 	// Tailscale is how Bield joined the tailnet, which the settings show.
 	Tailscale TailscaleMode
 	// MaxUpload is the most bytes one uploaded file may have, or 0 for the
@@ -102,6 +106,12 @@ func New(opts Options) http.Handler {
 	h := newHandler(opts)
 	rt := newRouter(h)
 	h.routes(rt)
+	if opts.Editors != nil && !opts.Demo {
+		opts.Editors.Handle(h.editorPort)
+		if opts.Stopping != nil {
+			go h.watchEditors(opts.Stopping)
+		}
+	}
 	return securityHeaders(h.guard(rt.mux))
 }
 
@@ -115,6 +125,7 @@ func newHandler(opts Options) *handler {
 		opts.Prices = pricing.Default()
 	}
 	h := &handler{opts: opts, log: opts.Logger, limits: newLimits()}
+	h.editorSessions.log = h.logEditorSession
 	if h.log == nil {
 		h.log = slog.New(slog.DiscardHandler)
 	}
@@ -163,6 +174,15 @@ func (h *handler) routes(rt *router) {
 
 	// A file's content is served from Bield's own origin, so the raw route
 	// sandboxes it. All of these are for admins, who can open shells already.
+	// VS Code is for admins, since it runs commands as a shell does. Opening
+	// it is for people, as the terminal is, and the editor's own port lets
+	// no token in.
+	rt.read("GET /api/devices/{id}/editor", admins, h.deviceEditor)
+	rt.write("POST /api/devices/{id}/editor/install", h.installEditor)
+	rt.forAdminsInPerson("POST /api/devices/{id}/editor/start", h.startEditor)
+	rt.write("POST /api/devices/{id}/editor/stop", h.stopEditor)
+	rt.write("DELETE /api/devices/{id}/editor", h.removeEditor)
+
 	rt.read("GET /api/devices/{id}/files/list", admins, h.listFiles)
 	rt.read("GET /api/devices/{id}/files/stat", admins, h.statFile)
 	rt.read("GET /api/devices/{id}/files/raw", admins, h.rawFile)
@@ -271,6 +291,12 @@ type handler struct {
 	// activity log is waiting to write about files.
 	archives files.Archives
 	audit    fileAudit
+	// editorSessions are the WebSockets admins have open to editors, and
+	// editorTransports the proxies' connections to them, by access ID.
+	editorSessions   editorSessions
+	editorTransports sync.Map
+	// editorJobs are the installs of code-server under way, and the last.
+	editorJobs editorJobs
 	// limits keep a machine from calling the routes for agents in a loop.
 	limits limits
 }

@@ -30,6 +30,9 @@ type Command struct {
 	Stream bool
 	// Serves says it runs until it is stopped, so it has no timeout.
 	Serves bool
+	// Wait is the longest it runs, if that's longer than --timeout, for a
+	// command that waits for something slow, such as an install.
+	Wait time.Duration
 	// NoTool says why this command isn't a tool of the MCP server. Every other
 	// command is one.
 	NoTool string

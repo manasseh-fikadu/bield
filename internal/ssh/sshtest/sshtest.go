@@ -161,10 +161,15 @@ func (s *Server) Handle(h Handler) {
 
 // HandleSocket makes h serve each connection a client opens to the Unix
 // socket at path, as OpenSSH's direct-streamlocal does. A client can't
-// open a socket that has no handler.
+// open a socket that has no handler, and a nil h takes it away, as a
+// program that stops listening does.
 func (s *Server) HandleSocket(path string, h func(net.Conn)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if h == nil {
+		delete(s.sockets, path)
+		return
+	}
 	s.sockets[path] = h
 }
 

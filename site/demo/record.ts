@@ -167,6 +167,7 @@ export async function record(hub: string, out: string): Promise<Recording> {
 		const device = `devices/${encodeURIComponent(d.id)}`;
 		add(`${device}/usage`, { optional: true });
 		add(`${device}/ssh`, { optional: true });
+		add(`${device}/editor`, { optional: true });
 		for (const r of ranges) {
 			add(`${device}/history?range=${r}`);
 			add(`${device}/usage/history?range=${r}`, { optional: true });

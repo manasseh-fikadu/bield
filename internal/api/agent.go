@@ -189,7 +189,7 @@ func (h *handler) runOnDevice(w http.ResponseWriter, r *http.Request, d tailnet.
 		return
 	}
 	name := h.deviceName(r, d.ID)
-	out := AgentRun{OK: res.Code == 0, Output: tail(strings.TrimSpace(string(res.Stdout)), maxRunOutput)}
+	out := AgentRun{OK: res.Code == 0, Output: tail(strings.TrimSpace(string(res.Stdout)))}
 	switch {
 	case out.OK:
 		h.logAction(r, EventKindAgent, d.ID, "Ran the agent "+what+" on "+name+" over SSH")
@@ -203,12 +203,13 @@ func (h *handler) runOnDevice(w http.ResponseWriter, r *http.Request, d tailnet.
 	h.writeJSON(w, r, http.StatusOK, out)
 }
 
-// tail returns the last limit bytes of s, from the start of a character.
-func tail(s string, limit int) string {
-	if len(s) <= limit {
+// tail returns the last maxRunOutput bytes of s, a script's output, from the
+// start of a character.
+func tail(s string) string {
+	if len(s) <= maxRunOutput {
 		return s
 	}
-	s = s[len(s)-limit:]
+	s = s[len(s)-maxRunOutput:]
 	for !utf8.RuneStart(s[0]) {
 		s = s[1:]
 	}

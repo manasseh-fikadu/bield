@@ -370,3 +370,39 @@ func (c *Client) finish(req *http.Request, out any) error {
 	defer func() { _ = resp.Body.Close() }()
 	return json.NewDecoder(resp.Body).Decode(out)
 }
+
+func editorPath(device, rest string) string { return devicePath(device, "/editor"+rest) }
+
+// Editor returns what a device has of VS Code. Bield asks the device over
+// SSH.
+func (c *Client) Editor(ctx context.Context, device string) (e api.DeviceEditor, err error) {
+	return e, c.do(ctx, http.MethodGet, editorPath(device, ""), nil, nil, &e)
+}
+
+// InstallEditor starts installing code-server on a device, or updating it.
+// The install goes on in the background, and Editor says when it's over.
+func (c *Client) InstallEditor(ctx context.Context, device string) (j api.EditorInstall, err error) {
+	return j, c.do(ctx, http.MethodPost, editorPath(device, "/install"), nil, nil, &j)
+}
+
+// StartEditor starts code-server on a device, unless it runs, and returns
+// where to open the editor.
+func (c *Client) StartEditor(ctx context.Context, device string) (o api.EditorOpen, err error) {
+	return o, c.do(ctx, http.MethodPost, editorPath(device, "/start"), nil, nil, &o)
+}
+
+// StopEditor stops code-server on a device, which closes it for everyone
+// who has it open.
+func (c *Client) StopEditor(ctx context.Context, device string) error {
+	return c.do(ctx, http.MethodPost, editorPath(device, "/stop"), nil, nil, nil)
+}
+
+// RemoveEditor deletes code-server from a device, with its settings and
+// extensions unless keepData.
+func (c *Client) RemoveEditor(ctx context.Context, device string, keepData bool) (r api.EditorRun, err error) {
+	var q url.Values
+	if keepData {
+		q = url.Values{"keep": {"data"}}
+	}
+	return r, c.do(ctx, http.MethodDelete, editorPath(device, ""), q, nil, &r)
+}

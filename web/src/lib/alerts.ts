@@ -194,11 +194,15 @@ export const eventKindLabels: Record<EventKind, string> = {
 	ssh: 'SSH',
 	terminal: 'Terminals',
 	files: 'Files',
-	notification: 'Notifications'
+	notification: 'Notifications',
+	editor: 'VS Code'
 };
 
-/** The kinds of event only admins see: who has a role, SSH access, terminals and files. */
-export const adminEventKinds: EventKind[] = ['access', 'ssh', 'terminal', 'files'];
+/**
+ * The kinds of event only admins see: who has a role, SSH access, terminals,
+ * files and VS Code.
+ */
+export const adminEventKinds: EventKind[] = ['access', 'ssh', 'terminal', 'files', 'editor'];
 
 /**
  * Who did an event and how, such as "by alice@example.com with the token

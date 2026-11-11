@@ -15,10 +15,14 @@ import type {
 	ChangeSettings,
 	ChannelDelivery,
 	ChannelInput,
+	DeviceEditor,
 	DeviceHistory,
 	DeviceSettings,
 	DeviceSSH,
 	DeviceUsage,
+	EditorInstall,
+	EditorOpen,
+	EditorRun,
 	ErrorBody,
 	EventKind,
 	EventList,
@@ -261,6 +265,52 @@ export function killTerminalSession(id: string, name: string): Promise<void> {
 		undefined,
 		{ success: `Ended ${name}` }
 	);
+}
+
+function editorPath(id: string, rest = ''): string {
+	return `devices/${encodeURIComponent(id)}/editor${rest}`;
+}
+
+/**
+ * Whether a device has VS Code, how it runs there and where it's served.
+ * Bield asks the device over SSH, which takes a moment. Admins only.
+ */
+export function getEditor(id: string): Promise<DeviceEditor> {
+	return request('GET', editorPath(id));
+}
+
+/**
+ * Starts installing VS Code on a device, or updating it to the version Bield
+ * installs. It runs in the background, and getEditor says how it goes.
+ * Admins only.
+ */
+export function installEditor(id: string): Promise<EditorInstall> {
+	return mutate('POST', editorPath(id, '/install'));
+}
+
+/**
+ * Starts VS Code on a device unless it runs already, which can take a few
+ * seconds, and answers where it's served. Admins only.
+ */
+export function startEditor(id: string): Promise<EditorOpen> {
+	return mutate('POST', editorPath(id, '/start'));
+}
+
+/**
+ * Stops VS Code on a device, which closes it for everyone who has it open,
+ * and says so in a toast. Admins only.
+ */
+export function stopEditor(id: string): Promise<void> {
+	return mutate('POST', editorPath(id, '/stop'), undefined, { success: 'VS Code stopped' });
+}
+
+/**
+ * Removes VS Code from a device, and with `keepData`, leaves its settings
+ * and extensions there for the next install. A script that fails is an
+ * answer with `ok` false, not an error. Admins only.
+ */
+export function removeEditor(id: string, keepData: boolean): Promise<EditorRun> {
+	return mutate('DELETE', editorPath(id, keepData ? '?keep=data' : ''));
 }
 
 function checkPath(id: string): string {

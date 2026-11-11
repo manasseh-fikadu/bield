@@ -28,7 +28,7 @@ A machine's page has:
 - **History**, with charts for 1 hour to 90 days: CPU and memory, network, and the round-trip time. Point at the first to see what was running then, and click for all of it.
 - **Running now**: what uses its CPU and memory, the busiest first, with a link to all of it and the trend over days.
 - Its **Tailscale** details: addresses, the route and endpoint, the home relay, the key's expiry, and how much traffic has passed.
-- Your note on it, the **System** details the agent reports, and the cards for [SSH access](ssh.md) and the agent.
+- Your note on it, the **System** details the agent reports, and the cards for [SSH access](ssh.md), [VS Code](vscode.md) and the agent.
 
 **Edit** changes the machine's name, its type, its thresholds and its notes. See [per-device thresholds](settings.md#per-device-thresholds).
 
@@ -82,11 +82,11 @@ A shell on a machine, in the browser, in tabs. With tmux on the machine, a sessi
 
 ## Files
 
-A file manager for a machine's disk: browse, preview, edit, upload, download, rename, copy, move, delete and search. On a wide screen, a file opens beside the list. The side has shortcuts to folders, your bookmarks and the machine's Docker volumes. Admins only. See [Files](ssh.md#files).
+A file manager for a machine's disk: browse, preview, edit, upload, download, rename, copy, move, delete and search. **Open in VS Code** opens the folder you're in, if the machine has [VS Code](vscode.md). On a wide screen, a file opens beside the list. The side has shortcuts to folders, your bookmarks and the machine's Docker volumes. Admins only. See [Files](ssh.md#files).
 
 ## Activity
 
-Devices coming and going, alerts opening and resolving, and what people did in Bield. Filter it by **Devices**, **Agents**, **Alerts**, **Checks**, **Containers**, **Access**, **Settings**, **SSH**, **Terminals**, **Files** or **Notifications**. It records who did what and when: terminals opened, files changed, containers started, settings changed, roles given. It doesn't record what was typed in a terminal or what a file held. How long it keeps events is the **Activity log** setting under [Retention](settings.md#retention).
+Devices coming and going, alerts opening and resolving, and what people did in Bield. Filter it by **Devices**, **Agents**, **Alerts**, **Checks**, **Containers**, **Access**, **Settings**, **SSH**, **Terminals**, **Files**, **VS Code** or **Notifications**. It records who did what and when: terminals opened, files changed, containers started, settings changed, roles given. It doesn't record what was typed in a terminal or what a file held. How long it keeps events is the **Activity log** setting under [Retention](settings.md#retention).
 
 ## Settings
 

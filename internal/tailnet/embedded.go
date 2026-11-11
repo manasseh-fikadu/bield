@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"strconv"
 	"sync"
 	"time"
 
@@ -160,6 +161,23 @@ func (e *Embedded) Listen(ctx context.Context) (net.Listener, string, error) {
 		}
 	}()
 	return tlsListener(ln, e.lc.GetCertificate), url, nil
+}
+
+// ListenPort listens on port of the node, over HTTPS if the tailnet has
+// HTTPS certificates turned on, as Listen does.
+func (e *Embedded) ListenPort(ctx context.Context, port int) (net.Listener, string, error) {
+	st, err := waitRunning(ctx, e.lc, func(ipn.State) {})
+	if err != nil {
+		return nil, "", err
+	}
+	ln, err := e.srv.Listen("tcp", ":"+strconv.Itoa(port))
+	if err != nil {
+		return nil, "", err
+	}
+	if domain, ok := certDomain(st); ok {
+		return tlsListener(ln, e.lc.GetCertificate), appURL("https", domain, port), nil
+	}
+	return ln, appURL("http", hostForURL(st), port), nil
 }
 
 // Close shuts the node down, which closes its listeners.

@@ -1402,6 +1402,9 @@ const (
 	// EventKindNotification is a notification Bield sent to a channel, or
 	// couldn't, and a channel an admin added, changed or deleted.
 	EventKindNotification EventKind = "notification"
+	// EventKindEditor is VS Code that an admin installed, updated, removed,
+	// opened, closed or stopped on a device.
+	EventKindEditor EventKind = "editor"
 )
 
 // EventList is the response to GET /api/events?before=&after=&limit=&kind=&device=:
@@ -2612,4 +2615,97 @@ type CodingSummary struct {
 // agent has to be at least version 1.4.0 to report them.
 type SetCoding struct {
 	Enabled bool `json:"enabled"`
+}
+
+// DeviceEditor is VS Code in the browser on a device, for admins: the
+// response to GET /api/devices/{id}/editor. Bield runs code-server on the
+// device, as the user it logs in as over SSH, and serves its editor on a
+// port of Bield's own for each device.
+type DeviceEditor struct {
+	State EditorState `json:"state"`
+	// Reason says why the device can't have VS Code, while the State is
+	// EditorStateUnavailable.
+	Reason string `json:"reason,omitempty"`
+	// Error says why Bield couldn't ask the device what it has, such as
+	// that it's offline. The rest is what Bield knew before.
+	Error string `json:"error,omitempty"`
+	// Version is the code-server version on the device, and Latest the
+	// one Bield installs. They differ when an update is waiting.
+	Version string `json:"version,omitempty"`
+	Latest  string `json:"latest"`
+	// Running says code-server runs on the device now.
+	Running bool `json:"running"`
+	// URL is where the editor is served, once it's installed, and Port its
+	// port. URL is empty while Bield can't listen on the port, and
+	// ListenError says why.
+	URL         string `json:"url,omitempty"`
+	Port        int    `json:"port,omitempty"`
+	ListenError string `json:"listenError,omitempty"`
+	// Secure says the editor is served over HTTPS. Without it, browsers
+	// turn off parts of VS Code, such as webviews and the clipboard.
+	Secure bool `json:"secure"`
+	// Home is the home folder of the user Bield logs in as, which the
+	// editor opens.
+	Home string `json:"home,omitempty"`
+	// Download is the size of code-server's download for the device, and
+	// Disk about how much free space installing it takes, in bytes, while
+	// it isn't installed. Free is how much the home folder has, if the
+	// device said.
+	Download int64  `json:"download,omitempty"`
+	Disk     int64  `json:"disk,omitempty"`
+	Free     *int64 `json:"free,omitempty"`
+	// OpenBy are the logins of the admins who have the editor open now.
+	OpenBy []string `json:"openBy"`
+	// Install is the install under way, or else the last one Bield ran
+	// since it started, until VS Code is removed.
+	Install *EditorInstall `json:"install,omitempty"`
+}
+
+// EditorInstall is an install or an update of code-server on a device,
+// which runs in the background: the response to POST
+// /api/devices/{id}/editor/install, and part of the DeviceEditor.
+type EditorInstall struct {
+	// Running says it's under way. Until then, OK says whether it worked.
+	Running bool `json:"running"`
+	OK      bool `json:"ok"`
+	// Version is the version it installs.
+	Version string `json:"version"`
+	// By is the login of the admin who started it.
+	By        string     `json:"by"`
+	StartedAt time.Time  `json:"startedAt"`
+	EndedAt   *time.Time `json:"endedAt,omitempty"`
+	// Output is the end of what the script printed, errors included, or why
+	// it couldn't run, once it's over.
+	Output string `json:"output,omitempty"`
+}
+
+// EditorState says whether a device has VS Code.
+type EditorState string
+
+// The states of a DeviceEditor.
+const (
+	// EditorStateUnavailable means the device can't have VS Code, or Bield
+	// can't tell yet, such as before SSH access is set up.
+	EditorStateUnavailable EditorState = "unavailable"
+	// EditorStateNotInstalled means an admin can install it.
+	EditorStateNotInstalled EditorState = "not-installed"
+	EditorStateInstalled    EditorState = "installed"
+	// EditorStateMissing means Bield installed it, and its files are gone
+	// from the device. Installing it again puts them back.
+	EditorStateMissing EditorState = "missing"
+)
+
+// EditorRun is the response to DELETE /api/devices/{id}/editor, which runs
+// a script over SSH on the device. A script that fails is still a 200, with
+// OK false.
+type EditorRun struct {
+	OK bool `json:"ok"`
+	// Output is the end of what the script printed, errors included.
+	Output string `json:"output"`
+}
+
+// EditorOpen is the response to POST /api/devices/{id}/editor/start: where
+// to open the editor, which runs now.
+type EditorOpen struct {
+	URL string `json:"url"`
 }

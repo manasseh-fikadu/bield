@@ -26,6 +26,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import Search from '@lucide/svelte/icons/search';
+	import SquareCode from '@lucide/svelte/icons/square-code';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import Star from '@lucide/svelte/icons/star';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -34,8 +35,10 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { getEditor } from '#lib/api/client.js';
 	import type { ConflictMode, FileEntry, FileListing, FileSearch } from '#lib/api/types.js';
 	import { copyText } from '#lib/clipboard.js';
+	import { openEditor } from '#lib/editor/open.js';
 	import { bytes, plural } from '#lib/format.js';
 	import { toast } from '#lib/toast.svelte.js';
 	import { getDockerVolumes } from '#lib/docker/api.js';
@@ -104,6 +107,26 @@
 			})
 			.catch(() => {
 				// The other places still work.
+			});
+		return () => {
+			current = false;
+		};
+	});
+
+	/** Whether the device has VS Code, which can open the folder in a tab of its own. */
+	let hasEditor = $state(false);
+	$effect(() => {
+		const id = deviceId;
+		hasEditor = false;
+		let current = true;
+		getEditor(id)
+			.then((e) => {
+				if (current) {
+					hasEditor = e.state === 'installed';
+				}
+			})
+			.catch(() => {
+				// Then the folder has no VS Code buttons, and the rest works.
 			});
 		return () => {
 			current = false;
@@ -871,6 +894,15 @@
 					>
 						<SquareTerminal class="size-4" />
 					</a>
+					{#if hasEditor}
+						<IconButton
+							label="Open in VS Code"
+							onclick={() => void openEditor(deviceId, dir)}
+							class="max-sm:hidden"
+						>
+							<SquareCode class="size-4" />
+						</IconButton>
+					{/if}
 				{/if}
 				<Button
 					size="xs"
@@ -921,6 +953,11 @@
 						<MenuItem icon={SquareTerminal} href={terminalHref(terminalPath, deviceId, dir)}>
 							Open terminal here
 						</MenuItem>
+						{#if hasEditor}
+							<MenuItem icon={SquareCode} onSelect={() => void openEditor(deviceId, dir)}>
+								Open in VS Code
+							</MenuItem>
+						{/if}
 					{/if}
 				</Menu>
 			</div>

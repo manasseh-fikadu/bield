@@ -81,6 +81,10 @@ Remote images in Markdown files don't load, since Bield's [content security poli
 
 The Docker page reaches another machine's Docker through the same SSH login, by forwarding its Docker socket. Nothing needs to listen on a port, and you don't have to turn on Docker's TCP API. Bield finds the system socket, a rootless one and Docker Desktop's. The SSH user has to be able to use the socket. For the system Docker, that means being in the `docker` group, which is as good as root on the machine. See [the Docker section of SECURITY.md](../SECURITY.md#files-docker-and-what-bield-reaches-out-to).
 
+## VS Code
+
+With SSH access, Bield can also install code-server on the machine and open it as VS Code in your browser, on a port of its own. See [VS Code in the browser](vscode.md).
+
 ## Install an agent over SSH
 
 If a machine has SSH access, the dialog for adding its agent can run the install for you instead of showing you a command to paste. See [The agent](agent.md#installing-it).

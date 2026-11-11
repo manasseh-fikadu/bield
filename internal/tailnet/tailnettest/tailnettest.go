@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"net/netip"
 	"slices"
+	"strconv"
 	"sync"
+	"syscall"
 
 	"github.com/manasseh-fikadu/bield/internal/tailnet"
 )
@@ -34,6 +36,7 @@ type Tailnet struct {
 	dial      func(ctx context.Context, network, addr string) (net.Conn, error)
 	running   chan struct{} // closed once the state is Running
 	ln        *listener
+	ports     map[int]*listener // the listeners ListenPort made, by port
 	closed    bool
 	port      uint16 // the last port Client dialed from
 }
@@ -207,11 +210,42 @@ func (t *Tailnet) Listen(ctx context.Context) (net.Listener, string, error) {
 	return t.ln, URL, nil
 }
 
-// Close closes the listener.
+// ListenPort returns an in-memory listener that Client connects to when a
+// request names port, and URL with the port.
+func (t *Tailnet) ListenPort(ctx context.Context, port int) (net.Listener, string, error) {
+	select {
+	case <-t.running:
+	case <-ctx.Done():
+		return nil, "", ctx.Err()
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil, "", net.ErrClosed
+	}
+	if ln := t.ports[port]; ln != nil && !ln.isClosed() {
+		return nil, "", fmt.Errorf("tailnettest: port %d is in use: %w", port, syscall.EADDRINUSE)
+	}
+	addr := netip.AddrPortFrom(netip.IPv4Unspecified(), uint16(port)) //nolint:gosec // G115: a test's port.
+	if len(t.status.Self.IPs) > 0 {
+		addr = netip.AddrPortFrom(t.status.Self.IPs[0], uint16(port)) //nolint:gosec // G115: a test's port.
+	}
+	ln := newListener(addr)
+	if t.ports == nil {
+		t.ports = map[int]*listener{}
+	}
+	t.ports[port] = ln
+	return ln, URL + ":" + strconv.Itoa(port), nil
+}
+
+// Close closes the listeners.
 func (t *Tailnet) Close() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.closed = true
+	for _, ln := range t.ports {
+		_ = ln.Close()
+	}
 	if t.ln != nil {
 		return t.ln.Close()
 	}
@@ -219,21 +253,33 @@ func (t *Tailnet) Close() error {
 }
 
 // Client returns an HTTP client whose requests reach the app as if they came
-// from the tailnet address from, so WhoIs identifies them as that device.
+// from the tailnet address from, so WhoIs identifies them as that device. A
+// request to a port that ListenPort listens on reaches that listener instead.
 func (t *Tailnet) Client(from netip.Addr) *http.Client {
 	return &http.Client{Transport: &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			t.mu.Lock()
-			ln := t.ln
-			t.port++
-			port := 40000 + t.port
-			t.mu.Unlock()
-			if ln == nil {
-				return nil, errors.New("tailnettest: the app isn't listening")
-			}
-			return ln.dial(ctx, netip.AddrPortFrom(from, port))
+		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+			return t.DialFrom(ctx, from, addr)
 		},
 	}}
+}
+
+// DialFrom connects to the app as Client does, from the tailnet address from,
+// or to the listener ListenPort made for addr's port.
+func (t *Tailnet) DialFrom(ctx context.Context, from netip.Addr, addr string) (net.Conn, error) {
+	t.mu.Lock()
+	ln := t.ln
+	if _, p, err := net.SplitHostPort(addr); err == nil {
+		if n, err := strconv.Atoi(p); err == nil && t.ports[n] != nil {
+			ln = t.ports[n]
+		}
+	}
+	t.port++
+	port := 40000 + t.port
+	t.mu.Unlock()
+	if ln == nil {
+		return nil, errors.New("tailnettest: the app isn't listening")
+	}
+	return ln.dial(ctx, netip.AddrPortFrom(from, port))
 }
 
 func cloneStatus(st tailnet.Status) tailnet.Status {
@@ -282,6 +328,15 @@ func (l *listener) Close() error {
 }
 
 func (l *listener) Addr() net.Addr { return l.addr }
+
+func (l *listener) isClosed() bool {
+	select {
+	case <-l.done:
+		return true
+	default:
+		return false
+	}
+}
 
 // dial connects to the listener from the address from.
 func (l *listener) dial(ctx context.Context, from netip.AddrPort) (net.Conn, error) {

@@ -8,7 +8,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
 .DEFAULT_GOAL := help
-.PHONY: help build web dev dev-api dev-web demo demo-api site docs site-demo social test e2e screenshots recording bench load lint types prices clean
+.PHONY: help build web dev dev-api dev-web demo demo-api site docs site-demo social test e2e screenshots recording bench load lint types prices code-server clean
 
 ## build: build ./bield with the web UI embedded
 build: web
@@ -100,6 +100,10 @@ types:
 ## prices: refresh the model prices in internal/pricing/prices.json from LiteLLM's list
 prices:
 	$(GO) run ./internal/pricing/gen
+
+## code-server: pin the latest code-server release, and its SHA-256s, in internal/editor/release.json
+code-server:
+	$(GO) run ./internal/editor/gen
 
 ## clean: remove build output
 clean:

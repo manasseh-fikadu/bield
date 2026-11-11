@@ -46,6 +46,9 @@ For shell completion, `bield completion bash` prints a script for bash (`source 
 | `bield docker start`, `stop`, `restart <device> <container>` | Control a container | admin |
 | `bield docker logs <device> <container>` | A container's logs. `--follow` keeps going | admin |
 | `bield files ls`, `cat`, `get`, `put`, `write` | List, read, download, upload and replace files on a device | admin |
+| `bield editor <device>` | Whether [VS Code](vscode.md) is installed and running on a device, and its address | admin |
+| `bield editor install`, `stop`, `remove <device>` | Install or update code-server on a device and wait for it, stop it, or delete it. `remove --keep-data` keeps its settings and extensions | admin |
+| `bield editor open <device> [folder]` | Start VS Code on a device and print its address, to open in a browser | admin, in person |
 | `bield enroll` | Make an install command for the [agent](agent.md) | admin |
 | `bield settings`, `settings set <name=value>...` | Show or change [the settings](settings.md) | admin |
 | `bield access`, `access set`, `remove`, `who-can-view` | Who has a role in Bield | admin |

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -95,6 +96,50 @@ func newStub(t *testing.T) *stub {
 		s.requests = append(s.requests, "PUT write?"+r.URL.Query().Encode()+fmt.Sprintf(" length=%d", r.ContentLength))
 		s.mu.Unlock()
 		reply(w, api.FileEntry{Path: r.URL.Query().Get("path"), Size: int64(len(body))})
+	})
+	// The NAS's editor installs in two asks, once the install has started.
+	installing := 0
+	mux.HandleFunc("GET /api/devices/nas1/editor", func(w http.ResponseWriter, _ *http.Request) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		e := api.DeviceEditor{State: api.EditorStateNotInstalled, Latest: "4.145.2", OpenBy: []string{}}
+		switch {
+		case installing == 0:
+		case installing < 3:
+			installing++
+			e.Install = &api.EditorInstall{Running: true, Version: "4.145.2", By: "alice@example.com"}
+		default:
+			e.State, e.Version, e.URL, e.Running = api.EditorStateInstalled, "4.145.2", "https://bield.example.ts.net:4710", true
+			e.OpenBy = []string{"alice@example.com"}
+			e.Install = &api.EditorInstall{OK: true, Version: "4.145.2", By: "alice@example.com", Output: "Installed code-server 4.145.2"}
+		}
+		reply(w, e)
+	})
+	mux.HandleFunc("POST /api/devices/nas1/editor/install", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		installing = 1
+		s.requests = append(s.requests, r.Method+" "+r.URL.Path)
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusAccepted)
+		reply(w, api.EditorInstall{Running: true, Version: "4.145.2", By: "alice@example.com"})
+	})
+	mux.HandleFunc("POST /api/devices/nas1/editor/start", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.requests = append(s.requests, r.Method+" "+r.URL.Path)
+		s.mu.Unlock()
+		reply(w, api.EditorOpen{URL: "https://bield.example.ts.net:4710"})
+	})
+	mux.HandleFunc("POST /api/devices/nas1/editor/stop", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.requests = append(s.requests, r.Method+" "+r.URL.Path)
+		s.mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("DELETE /api/devices/nas1/editor", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		s.requests = append(s.requests, r.Method+" "+r.URL.Path+"?"+r.URL.RawQuery)
+		s.mu.Unlock()
+		reply(w, api.EditorRun{OK: true, Output: "Removed code-server"})
 	})
 	s.Server = httptest.NewServer(mux)
 	t.Cleanup(s.Close)
@@ -233,4 +278,30 @@ func TestOldBield(t *testing.T) {
 	t.Cleanup(srv.Close)
 	s := &stub{Server: srv}
 	s.run(t, "", "devices").want(t, cli.ExitFailed, "", "this Bield (v0.1.0) is older than this bield command")
+}
+
+func TestEditor(t *testing.T) {
+	t.Parallel()
+	s := newStub(t)
+	s.run(t, "", "editor", "nas").want(t, 0, "not installed", "")
+	s.run(t, "", "editor", "install", "nas").want(t, 0, "Installed VS Code (code-server 4.145.2) on NAS", "downloads about 230 MB")
+	r := s.run(t, "", "editor", "nas")
+	r.want(t, 0, "https://bield.example.ts.net:4710", "")
+	r.want(t, 0, "Open by", "")
+	s.run(t, "", "editor", "open", "nas", "/srv/my app").want(t, 0, "https://bield.example.ts.net:4710?folder=%2Fsrv%2Fmy+app", "")
+
+	// Stopping and removing need --yes.
+	s.run(t, "", "editor", "stop", "nas").want(t, cli.ExitUsage, "", "add --yes")
+	s.run(t, "", "editor", "remove", "nas").want(t, cli.ExitUsage, "", "add --yes")
+	s.run(t, "", "editor", "stop", "nas", "--yes").want(t, 0, "Stopped VS Code on NAS", "")
+	s.run(t, "", "editor", "remove", "nas", "--keep-data", "--yes").want(t, 0, "Removed code-server", "")
+	want := []string{
+		"POST /api/devices/nas1/editor/install",
+		"POST /api/devices/nas1/editor/start",
+		"POST /api/devices/nas1/editor/stop",
+		"DELETE /api/devices/nas1/editor?keep=data",
+	}
+	if got := s.saw(); !slices.Equal(got, want) {
+		t.Errorf("requests = %q, want %q", got, want)
+	}
 }

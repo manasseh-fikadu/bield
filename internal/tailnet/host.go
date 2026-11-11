@@ -2,11 +2,13 @@ package tailnet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
+	"syscall"
 
 	"tailscale.com/client/local"
 	"tailscale.com/ipn"
@@ -22,6 +24,9 @@ type Host struct {
 
 	mu sync.Mutex
 	ln net.Listener
+	// domain is the name the app's certificate is for, if Listen chose
+	// HTTPS, so other ports serve HTTPS too.
+	domain string
 }
 
 // HostOptions configures NewHost.
@@ -72,23 +77,10 @@ func (h *Host) Listen(ctx context.Context) (net.Listener, string, error) {
 		return nil, "", err
 	}
 
-	var lns []net.Listener
-	var lc net.ListenConfig
-	for _, ip := range st.TailscaleIPs {
-		addr := netip.AddrPortFrom(ip, uint16(h.port)) //nolint:gosec // G115: config checks the port is in range.
-		ln, err := lc.Listen(ctx, "tcp", addr.String())
-		if err != nil {
-			// An IPv6 address can fail on a machine with IPv6 turned off.
-			h.log.Warn("listen on a tailnet address", "address", addr.String(), "error", err)
-			continue
-		}
-		lns = append(lns, ln)
+	ln, err := listenOn(ctx, st.TailscaleIPs, h.port, h.log)
+	if err != nil {
+		return nil, "", err
 	}
-	if len(lns) == 0 {
-		return nil, "", fmt.Errorf("can't listen on any of this machine's tailnet IPs on port %d; "+
-			"Bield's host mode needs tailscaled to use a TUN device, not userspace networking", h.port)
-	}
-	var ln net.Listener = newMultiListener(lns)
 
 	url := appURL("http", hostForURL(st), h.port)
 	if domain, ok := certDomain(st); ok {
@@ -108,6 +100,9 @@ func (h *Host) Listen(ctx context.Context) (net.Listener, string, error) {
 		default:
 			ln = tlsListener(ln, h.lc.GetCertificate)
 			url = appURL("https", domain, h.port)
+			h.mu.Lock()
+			h.domain = domain
+			h.mu.Unlock()
 		}
 	}
 
@@ -115,6 +110,55 @@ func (h *Host) Listen(ctx context.Context) (net.Listener, string, error) {
 	h.ln = ln
 	h.mu.Unlock()
 	return ln, url, nil
+}
+
+// ListenPort listens on port of each of the machine's tailnet IPs, over HTTPS
+// if Listen chose it.
+func (h *Host) ListenPort(ctx context.Context, port int) (net.Listener, string, error) {
+	st, err := waitRunning(ctx, h.lc, func(ipn.State) {})
+	if err != nil {
+		return nil, "", err
+	}
+	ln, err := listenOn(ctx, st.TailscaleIPs, port, h.log)
+	if err != nil {
+		return nil, "", err
+	}
+	h.mu.Lock()
+	domain := h.domain
+	h.mu.Unlock()
+	if domain != "" {
+		return tlsListener(ln, h.lc.GetCertificate), appURL("https", domain, port), nil
+	}
+	return ln, appURL("http", hostForURL(st), port), nil
+}
+
+// listenOn listens on port of each of ips, as one listener. An IP it can't
+// listen on is skipped, unless it can't listen on any.
+func listenOn(ctx context.Context, ips []netip.Addr, port int, log *slog.Logger) (net.Listener, error) {
+	var (
+		lns     []net.Listener
+		lc      net.ListenConfig
+		lastErr error
+	)
+	for _, ip := range ips {
+		addr := netip.AddrPortFrom(ip, uint16(port)) //nolint:gosec // G115: the callers check the port is in range.
+		ln, err := lc.Listen(ctx, "tcp", addr.String())
+		if err != nil {
+			// An IPv6 address can fail on a machine with IPv6 turned off.
+			log.Warn("listen on a tailnet address", "address", addr.String(), "error", err)
+			lastErr = err
+			continue
+		}
+		lns = append(lns, ln)
+	}
+	if len(lns) == 0 {
+		if errors.Is(lastErr, syscall.EADDRINUSE) {
+			return nil, fmt.Errorf("port %d of this machine's tailnet IPs is in use: %w", port, lastErr)
+		}
+		return nil, fmt.Errorf("can't listen on any of this machine's tailnet IPs on port %d; "+
+			"Bield's host mode needs tailscaled to use a TUN device, not userspace networking", port)
+	}
+	return newMultiListener(lns), nil
 }
 
 // fetchCert gets the certificate for domain now, which also finds out whether

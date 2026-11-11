@@ -27,6 +27,7 @@ A flag wins over its environment variable, and the variable wins over the defaul
 | `--port` | `BIELD_PORT` | `4700` | The port Bield serves on in host mode, on each of the machine's tailnet IPs. Embedded mode always uses 443 (80 without HTTPS). |
 | `--data-dir` | `BIELD_DATA_DIR` | `~/.config/bield` | Where Bield keeps its data, listed under [the data directory](#the-data-directory). The default is `bield` in the user's config directory, which is `$XDG_CONFIG_HOME` if it's set, and `~/Library/Application Support` on macOS. |
 | `--host-root` | `BIELD_HOST_ROOT` | `/` | The directory whose `proc/` and `sys/` Bield measures its machine from. Only for a container that mounts the host's under another path, such as `/host`. See [Docker](docker.md#measuring-the-host). |
+| `--editor-ports` | `BIELD_EDITOR_PORTS` | `4710-4799` | The ports of Bield's tailnet name that [VS Code](vscode.md) is served on, one for each machine that has it, so each gets an origin of its own. A range such as `9000-9009`, or one port. It can't hold the port Bield is served on. |
 | `--admins` | `BIELD_ADMINS` | none | Logins to make Bield's first admins, separated by commas, along with the owner of Bield's node. Bield reads it only while it has no admins. See [Admins and viewers](tailscale.md#admins-and-viewers). |
 | `--demo` | `BIELD_DEMO` | off | Run against a made-up tailnet. Takes `true` or `false`. See [Demo mode](demo.md). |
 | `--demo-listen` | `BIELD_DEMO_LISTEN` | `127.0.0.1:4700` | Where the demo is served. |

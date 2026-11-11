@@ -18,6 +18,7 @@
 	import DeviceActions from '#lib/devices/DeviceActions.svelte';
 	import DeviceHistory from '#lib/devices/DeviceHistory.svelte';
 	import DeviceSettingsDialog from '#lib/devices/DeviceSettingsDialog.svelte';
+	import EditorCard from '#lib/devices/EditorCard.svelte';
 	import RunningNow from '#lib/devices/RunningNow.svelte';
 	import ServicesCard from '#lib/devices/ServicesCard.svelte';
 	import SSHCard from '#lib/devices/SSHCard.svelte';
@@ -416,6 +417,7 @@
 		{#if device.ssh}
 			<!-- Only admins get device.ssh. -->
 			<SSHCard {device} {now} />
+			<EditorCard {device} {now} />
 		{/if}
 		{#if device.measuredBy === 'hub' && (live.snapshot?.collectors ?? []).some((c) => c.name === 'systemd units')}
 			<ServicesCard {units} {containers} {now} />
