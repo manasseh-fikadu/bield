@@ -140,14 +140,17 @@ func (h *handler) installEditor(w http.ResponseWriter, r *http.Request) {
 	// The install, and the activity log's line of who did it and how, go on
 	// after the request is over.
 	logCtx := context.WithoutCancel(r.Context())
-	name := h.deviceName(r, d)
+	// The machine Bield runs on is two devices in embedded mode, and the
+	// activity log names its editor one way, as opening it does.
+	logID := h.opts.Editors.DeviceID(accessID)
+	name := h.deviceName(r, logID)
 	go func() {
 		ctx, cancel := context.WithTimeout(logCtx, editorInstallTimeout)
 		defer cancel()
 		res, err := h.opts.Editors.Install(ctx, d, who)
 		// The script stopped code-server, so the connections to it are dead.
 		h.dropEditorConns(accessID)
-		e := store.Event{Kind: string(EventKindEditor), DeviceID: d, Actor: who}
+		e := store.Event{Kind: string(EventKindEditor), DeviceID: logID, Actor: who}
 		out := res.Output
 		var script *editor.ScriptError
 		switch {
@@ -278,7 +281,8 @@ func (h *handler) stopEditor(w http.ResponseWriter, r *http.Request) {
 		h.editorError(w, r, err)
 		return
 	}
-	h.logAction(r, EventKindEditor, d, "Stopped VS Code on "+h.deviceName(r, d))
+	logID := h.opts.Editors.DeviceID(accessID)
+	h.logAction(r, EventKindEditor, logID, "Stopped VS Code on "+h.deviceName(r, logID))
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -309,11 +313,12 @@ func (h *handler) removeEditor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.editorJobs.forget(accessID)
-	msg := "Removed VS Code from " + h.deviceName(r, d)
+	logID := h.opts.Editors.DeviceID(accessID)
+	msg := "Removed VS Code from " + h.deviceName(r, logID)
 	if keep {
 		msg += ", and kept its settings and extensions"
 	}
-	h.logAction(r, EventKindEditor, d, msg)
+	h.logAction(r, EventKindEditor, logID, msg)
 	h.writeJSON(w, r, http.StatusOK, EditorRun{OK: true, Output: tail(strings.TrimSpace(out))})
 }
 
