@@ -20,6 +20,7 @@ Start with the [README](../README.md) for what Bield is and a two-minute quickst
 | [The agent](agent.md) | Per-machine metrics: what it sends, how to install, update, revoke and remove it |
 | [AI usage](coding.md) | Tokens, estimated cost and limits of Claude Code, Codex, OpenCode and Pi, per machine |
 | [SSH access, terminals and files](ssh.md) | Setting up Bield's key or Tailscale SSH, the terminal, the file manager |
+| [VS Code in the browser](vscode.md) | code-server on a machine, opened from Bield: installing, opening, ports, extensions, who can use it |
 | [The command line](cli.md) | `bield devices`, `bield alerts ack` and the rest, for people, scripts and AI agents |
 | [MCP server](mcp.md) | `bield mcp`: typed tools for Claude Code, Codex and Cursor, read-only by default |
 | [Notifications](notifications.md) | ntfy, Telegram, email, Discord, Slack and webhooks, and when they fire |

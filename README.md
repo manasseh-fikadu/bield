@@ -15,6 +15,7 @@ Bield is a self-hosted control plane for the machines on your tailnet. It's one 
 - **Alerts.** For offline machines, full disks, expiring Tailscale keys, failing checks, crashed containers and failed services. They reach your phone through ntfy, Telegram, email, Discord, Slack or any webhook ([Notifications](docs/notifications.md)).
 - **Docker.** Containers, logs, live stats, images, volumes and networks on any machine Bield can reach, and start, stop and restart.
 - **Terminal and files.** A shell in the browser, which keeps running in tmux after you close the tab, and a file manager that edits and previews ([SSH access](docs/ssh.md)).
+- **VS Code.** A machine in VS Code in the browser: Bield installs code-server on it over SSH and opens it in a tab of its own ([VS Code in the browser](docs/vscode.md)).
 - **Roles and a log.** Admins and read-only viewers, decided by tailnet identity, and an activity log of who did what.
 - **A command line.** `bield devices`, `bield alerts ack 5` and the rest, for people, scripts and AI agents, with `--json` everywhere and the same roles as the web app ([The command line](docs/cli.md)).
 
@@ -99,7 +100,7 @@ Bield logs in to your machines, so whoever controls Bield controls them. These a
 - **It's hard to trick a browser into acting.** Anything that changes something needs a header that other websites can't send, and a strict content security policy keeps scripts and frames out.
 - **Machines are untrusted.** An agent gets a secret of its own that only works from its own machine, and it can report metrics and do nothing else. Everything a machine says is shown as text. Bield's SSH key only works from Bield's addresses, and it pins each machine's host key.
 - **Docker is limited on purpose.** Bield can list, read, start, stop and restart containers. It can't create, exec or prune.
-- **It keeps a log.** Terminals opened, files changed, containers restarted, settings and roles changed: each is a line in the activity log.
+- **It keeps a log.** Terminals and editors opened, files changed, containers restarted, settings and roles changed: each is a line in the activity log.
 - **What it holds is sensitive.** The database has notification tokens, unencrypted, and Bield's data directory has its SSH key. Both are readable only by Bield's user. Keep the machine as you would a bastion host.
 
 Bield has had an outside review, and v0.1.1 fixes what it found. It's a young project, and more people trying to break it is welcome. [SECURITY.md](SECURITY.md) has the full threat model and says how to report a problem privately.
@@ -112,6 +113,7 @@ Bield has had an outside review, and v0.1.1 fixes what it found. It's a young pr
 | [Tailscale](docs/tailscale.md), [Headscale](docs/headscale.md) | Joining the tailnet, signing in, admins and viewers |
 | [The agent](docs/agent.md) | Per-machine metrics |
 | [SSH access](docs/ssh.md) | Terminals, files and Docker on other machines |
+| [VS Code](docs/vscode.md) | VS Code in the browser on a machine |
 | [The command line](docs/cli.md) | `bield devices`, `bield alerts ack`, for people, scripts and AI agents |
 | [MCP server](docs/mcp.md) | `bield mcp`: typed tools for AI agents, read-only by default |
 | [Notifications](docs/notifications.md) | Where alerts go, and when |

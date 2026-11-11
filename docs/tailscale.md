@@ -43,8 +43,8 @@ If you log Bield in as yourself, its node has your access, and nothing more is n
     "tag:bield": ["autogroup:admin"],
   },
   "grants": [
-    // Everyone on the tailnet can open Bield.
-    { "src": ["autogroup:member"], "dst": ["tag:bield"], "ip": ["tcp:443", "tcp:80"] },
+    // Everyone on the tailnet can open Bield, and the machines' VS Code.
+    { "src": ["autogroup:member"], "dst": ["tag:bield"], "ip": ["tcp:443", "tcp:80", "tcp:4710-4799"] },
     // Tagged servers that run the agent can send it their metrics.
     { "src": ["tag:server"], "dst": ["tag:bield"], "ip": ["tcp:443", "tcp:80"] },
     // Bield can reach every device, to ping it and to open SSH.

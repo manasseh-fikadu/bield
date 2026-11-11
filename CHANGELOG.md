@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- VS Code in the browser on a machine. An admin installs code-server on it from the machine's page, over SSH, and opens it in a tab of its own, or opens the folder they're in from the file manager. Bield checks the download against the SHA-256 it pins, code-server listens on a private socket on the machine, and it stops by itself after 30 minutes with no one connected. Each machine's editor is served on a port of Bield's own, from 4710 (`BIELD_EDITOR_PORTS`), so your tailnet policy has to let you reach those ports. Opening and closing it is in the activity log, and `bield editor` does it from the command line. See [VS Code in the browser](docs/vscode.md).
+
 ## 0.5.0 - 2026-11-11
 
 This release adds scoped API tokens, so a tagged server, a CI job or an AI agent can use Bield's API, command line and MCP server, and lets `bield` join the tailnet by itself on machines without Tailscale. The agent doesn't change, so there's nothing to update on your machines. Bield adds a table for the tokens and a column to the activity log when it starts, which needs no action from you.
