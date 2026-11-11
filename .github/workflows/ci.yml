@@ -44,6 +44,8 @@ jobs:
           go tool tygo generate
           git diff --exit-code -- web/src/lib/api/types.ts
       - run: go vet ./...
+      - name: Install zsh and fish, for the completion tests
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh fish
       - run: go test -race -shuffle=on ./...
 
   lint:

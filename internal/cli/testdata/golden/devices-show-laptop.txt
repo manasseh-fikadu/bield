@@ -1,0 +1,8 @@
+alice-laptop
+ID              laptop
+Status          online: Relayed through DERP
+Kind            desktop
+DNS name        alice-laptop.example.ts.net
+Addresses       100.64.0.2
+System          macOS
+Path            relay 

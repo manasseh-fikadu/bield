@@ -6,6 +6,7 @@ import type {
 	AlertSeverity,
 	Container,
 	Device,
+	Event,
 	EventKind,
 	EventLevel,
 	Unit
@@ -198,6 +199,21 @@ export const eventKindLabels: Record<EventKind, string> = {
 
 /** The kinds of event only admins see: who has a role, SSH access, terminals and files. */
 export const adminEventKinds: EventKind[] = ['access', 'ssh', 'terminal', 'files'];
+
+/**
+ * Who did an event and how, such as "by alice@example.com with the token
+ * deploy, with the CLI", or '' if no one did.
+ */
+export function eventActor(e: Pick<Event, 'actor' | 'token' | 'via'>): string {
+	if (!e.actor) {
+		return '';
+	}
+	const how = [
+		e.token ? `with the token ${e.token}` : '',
+		e.via === 'cli' ? 'with the CLI' : e.via === 'mcp' ? 'with MCP' : ''
+	].filter(Boolean);
+	return [`by ${e.actor}${how.length > 0 ? ` ${how[0]}` : ''}`, ...how.slice(1)].join(', ');
+}
 
 /** The text class of an event's level. */
 export const eventLevelText: Record<EventLevel, string> = {

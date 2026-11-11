@@ -244,7 +244,7 @@ func (h *handler) addCheck(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "add a check", err)
 		return
 	}
-	h.log.Info("added a check", "check", c.ID, "name", c.Name, "by", callerOf(r).who.LoginName)
+	h.log.Info("added a check", "check", c.ID, "name", c.Name, "by", callerOf(r).login())
 	h.logAction(r, EventKindCheck, "", "Added the check "+c.Name)
 	h.writeJSON(w, r, http.StatusCreated, h.checkAnswer(c))
 }
@@ -275,7 +275,7 @@ func (h *handler) changeCheck(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "change a check", err)
 		return
 	}
-	h.log.Info("changed a check", "check", c.ID, "name", c.Name, "by", callerOf(r).who.LoginName)
+	h.log.Info("changed a check", "check", c.ID, "name", c.Name, "by", callerOf(r).login())
 	h.logAction(r, EventKindCheck, "", "Changed the check "+c.Name)
 	h.writeJSON(w, r, http.StatusOK, h.checkAnswer(c))
 }
@@ -297,7 +297,7 @@ func (h *handler) deleteCheck(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, "delete a check", err)
 		return
 	}
-	h.log.Info("deleted a check", "check", id, "by", callerOf(r).who.LoginName)
+	h.log.Info("deleted a check", "check", id, "by", callerOf(r).login())
 	h.logAction(r, EventKindCheck, "", "Deleted the check "+old.Check.Name)
 	w.WriteHeader(http.StatusNoContent)
 }

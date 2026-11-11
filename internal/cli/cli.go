@@ -52,6 +52,10 @@ type Env struct {
 	// Now returns the time that ages in the output are counted from. Nil is
 	// time.Now.
 	Now func() time.Time
+
+	// node is bield's own Tailscale node, when BIELD_TS_AUTHKEY asks for one.
+	// Run sets it.
+	node *tsNode
 }
 
 func (e Env) getenv(key string) string {
@@ -147,6 +151,8 @@ func Run(ctx context.Context, env Env, args []string) int {
 		ctx, cancel = context.WithTimeout(ctx, g.timeout)
 		defer cancel()
 	}
+	env.node = newTSNode(env)
+	defer env.node.close()
 	call := &Call{Ctx: ctx, Env: env, cmd: cmd, global: g, flags: vals, Args: pos}
 	if err := call.checkArgs(); err != nil {
 		return report(env, g, err)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -271,12 +272,19 @@ func serveOn(t *testing.T, tn *tailnettest.Tailnet, h http.Handler) {
 // returns the events it sends.
 func readEvents(t *testing.T, tn *tailnettest.Tailnet, from netip.Addr, path string, gzip bool) <-chan event {
 	t.Helper()
+	return readEventsWith(t, tn, from, path, gzip, nil)
+}
+
+// readEventsWith is readEvents for a request with header.
+func readEventsWith(t *testing.T, tn *tailnettest.Tailnet, from netip.Addr, path string, gzip bool, header http.Header) <-chan event {
+	t.Helper()
 	client := tn.Client(from)
 	t.Cleanup(client.CloseIdleConnections)
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, tailnettest.URL+path, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	maps.Copy(req.Header, header)
 	if !gzip {
 		// The client asks for gzip and decodes it unless told otherwise.
 		req.Header.Set("Accept-Encoding", "identity")

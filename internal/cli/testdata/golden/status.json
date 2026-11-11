@@ -1,0 +1,50 @@
+{
+  "hub": {
+    "name": "Bield",
+    "setupDone": false,
+    "version": "v0.0.0-test",
+    "dnsName": "bield.example.ts.net",
+    "tailnet": "example.com",
+    "controlUrl": "",
+    "thresholds": {
+      "diskWarn": 85,
+      "diskCritical": 95,
+      "memoryWarn": 92,
+      "cpuWarn": 90,
+      "cpuWindowMinutes": 5,
+      "offlineMinutes": 10,
+      "keyExpiryDays": 14,
+      "checkFailures": 2
+    },
+    "demo": false
+  },
+  "me": {
+    "signedIn": true,
+    "login": "alice@example.com",
+    "name": "alice@example.com",
+    "device": "alice-laptop.example.ts.net",
+    "role": "admin"
+  },
+  "health": {
+    "score": null,
+    "label": "unknown",
+    "passing": 0,
+    "failing": 0,
+    "unavailable": 5,
+    "total": 5
+  },
+  "devices": {
+    "total": 5,
+    "online": 5,
+    "attention": 0,
+    "offline": 0,
+    "unknown": 0
+  },
+  "alerts": {
+    "open": 1,
+    "critical": 0,
+    "warning": 1,
+    "acknowledged": 0,
+    "snoozed": 0
+  }
+}

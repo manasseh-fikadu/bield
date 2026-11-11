@@ -100,7 +100,7 @@ const (
 // installs the agent on one machine, with a new enrollment code in it.
 func (h *handler) newEnrollmentCode(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
-	code, expires, err := h.opts.Store.NewEnrollmentCode(r.Context(), callerOf(r).who.LoginName, now)
+	code, expires, err := h.opts.Store.NewEnrollmentCode(r.Context(), callerOf(r).login(), now)
 	if err != nil {
 		h.fail(w, r, "make an enrollment code", err)
 		return
@@ -156,7 +156,7 @@ func (h *handler) installAgent(w http.ResponseWriter, r *http.Request) {
 		h.sshError(w, r, ssh.ErrNotSetUp)
 		return
 	}
-	code, _, err := h.opts.Store.NewEnrollmentCode(r.Context(), callerOf(r).who.LoginName, time.Now())
+	code, _, err := h.opts.Store.NewEnrollmentCode(r.Context(), callerOf(r).login(), time.Now())
 	if err != nil {
 		h.fail(w, r, "make an enrollment code", err)
 		return
@@ -196,7 +196,7 @@ func (h *handler) runOnDevice(w http.ResponseWriter, r *http.Request, d tailnet.
 		h.opts.Feed.Poke()
 	default:
 		h.logEvent(r, store.Event{
-			Level: string(EventLevelError), Kind: string(EventKindAgent), DeviceID: d.ID, Actor: callerOf(r).who.LoginName,
+			Level: string(EventLevelError), Kind: string(EventKindAgent), DeviceID: d.ID, Actor: callerOf(r).login(),
 			Message: "The agent " + what + " on " + name + " over SSH failed",
 		})
 	}
@@ -347,7 +347,7 @@ func (h *handler) revokeAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.opts.Feed.Poke()
-	h.log.Info("revoked a device's agent", "device", d.ID, "by", callerOf(r).who.LoginName)
+	h.log.Info("revoked a device's agent", "device", d.ID, "by", callerOf(r).login())
 	h.logAction(r, EventKindAgent, d.ID, "Revoked the agent on "+h.deviceName(r, d.ID))
 	w.WriteHeader(http.StatusNoContent)
 }

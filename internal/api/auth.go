@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/store"
 	"github.com/manasseh-fikadu/bield/internal/tailnet"
@@ -36,9 +37,12 @@ func viaOf(r *http.Request) string {
 type caller struct {
 	// who is nil for an anonymous caller.
 	who *tailnet.Identity
-	// node is the ID of the node the request came from, if Tailscale said,
-	// even if the caller is anonymous.
-	node string
+	// node and device are the ID and MagicDNS name of the node the request
+	// came from, if Tailscale said, even if the caller is anonymous.
+	node, device string
+	// token is the API token the request came with, if it came with one.
+	// who is nil then, since the token speaks for the caller, not Tailscale.
+	token *store.APIToken
 	// level is anyone, viewers or admins. guard always sets it, so a request
 	// that skipped guard has noLevel and can't use any route.
 	level level
@@ -57,6 +61,31 @@ func (c caller) role() Role {
 	default:
 		return ""
 	}
+}
+
+// login returns the login that answers for what the caller does: the person
+// Tailscale named, or the admin who made the caller's API token. It's "" for
+// an anonymous caller.
+func (c caller) login() string {
+	switch {
+	case c.token != nil:
+		return c.token.CreatedBy
+	case c.who != nil:
+		return c.who.LoginName
+	}
+	return ""
+}
+
+// actorKey tells callers apart for the activity log: two callers with the
+// same login are one unless one of them came with an API token.
+func (c caller) actorKey() string { return c.login() + "\x00" + c.tokenName() }
+
+// tokenName returns the name of the caller's API token, or "".
+func (c caller) tokenName() string {
+	if c.token == nil {
+		return ""
+	}
+	return c.token.Name
 }
 
 type callerKey struct{}
@@ -78,7 +107,8 @@ func callerOf(r *http.Request) caller {
 //     open one.
 //
 // Then it asks Tailscale who is on the other end of the connection, and the
-// store what role they have. No header can change the answer.
+// store what role they have. No header can change the answer, except an API
+// token (see identifyToken), which speaks for the caller instead.
 func (h *handler) guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		snap := h.opts.Snapshot()
@@ -105,7 +135,24 @@ func (h *handler) guard(next http.Handler) http.Handler {
 			return
 		}
 		c := h.identify(r.Context(), r.RemoteAddr, self.ID)
+		if secret := bearer(r); strings.HasPrefix(secret, store.TokenPrefix) {
+			// Any request that names a token is the token's, or refused.
+			var (
+				status int
+				msg    string
+			)
+			if c, status, msg = h.identifyToken(r.Context(), c, secret); status != 0 {
+				if status == http.StatusUnauthorized {
+					w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+				}
+				h.deny(w, r, status, msg)
+				return
+			}
+		}
 		ctx := store.WithVia(context.WithValue(r.Context(), callerKey{}, c), viaOf(r))
+		if c.token != nil {
+			ctx = store.WithToken(ctx, c.token.Name)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -124,18 +171,108 @@ func (h *handler) identify(ctx context.Context, remoteAddr, selfID string) calle
 		h.log.Warn("ask Tailscale who sent a request", "remote_addr", remoteAddr, "error", err)
 		return caller{level: anyone, reason: ReasonWhoIsFailed}
 	case who.NodeID == selfID:
-		return caller{node: who.NodeID, level: anyone, reason: ReasonBieldMachine}
+		return caller{node: who.NodeID, device: who.NodeName, level: anyone, reason: ReasonBieldMachine}
 	case len(who.Tags) > 0:
-		return caller{node: who.NodeID, level: anyone, reason: ReasonTaggedDevice}
+		return caller{node: who.NodeID, device: who.NodeName, level: anyone, reason: ReasonTaggedDevice}
 	case who.LoginName == "":
-		return caller{node: who.NodeID, level: anyone, reason: ReasonNoUser}
+		return caller{node: who.NodeID, device: who.NodeName, level: anyone, reason: ReasonNoUser}
 	}
 	l, err := h.levelOf(ctx, who.LoginName)
 	if err != nil {
 		// If Bield can't tell what someone's role is, they have none.
-		return caller{who: who, node: who.NodeID, level: anyone, reason: ReasonRoleLookupFailed}
+		return caller{who: who, node: who.NodeID, device: who.NodeName, level: anyone, reason: ReasonRoleLookupFailed}
 	}
-	return caller{who: who, node: who.NodeID, level: l}
+	return caller{who: who, node: who.NodeID, device: who.NodeName, level: l}
+}
+
+// identifyToken makes peer, the caller Tailscale named, the caller that
+// secret, an API token, speaks for: from any machine, even a tagged one or
+// Bield's own, since whoever holds the token is who an admin gave it to. Its
+// level is the token's role, or its maker's role now if that's lower, so an
+// admin who loses their role takes their tokens' power with them. It returns
+// the status and message to deny the request with if the token doesn't work,
+// or 0, since a request that names a token mustn't quietly go on without it.
+func (h *handler) identifyToken(ctx context.Context, peer caller, secret string) (caller, int, string) {
+	const next = "ask one of Bield's admins for a new one"
+	now := time.Now()
+	tok, err := h.opts.Store.TokenBySecret(ctx, secret, now)
+	switch {
+	case errors.Is(err, store.ErrUnknownToken):
+		return caller{}, http.StatusUnauthorized,
+			"Bield doesn't know this API token; check that it was copied whole, or " + next
+	case errors.Is(err, store.ErrTokenRevoked):
+		return caller{}, http.StatusUnauthorized,
+			"the API token " + tok.Name + " was revoked on " + tok.RevokedAt.UTC().Format("2006-01-02 15:04 MST") + "; " + next
+	case errors.Is(err, store.ErrTokenExpired):
+		return caller{}, http.StatusUnauthorized,
+			"the API token " + tok.Name + " expired on " + tok.ExpiresAt.UTC().Format("2006-01-02 15:04 MST") + "; " + next
+	case err != nil:
+		if ctx.Err() == nil {
+			h.log.Error("look up an API token", "error", err)
+		}
+		return caller{}, http.StatusServiceUnavailable, "Bield couldn't check this API token"
+	}
+	c := caller{node: peer.node, device: peer.device, token: &tok}
+	c.level, c.reason = h.tokenLevel(ctx, tok)
+	if !tok.LastUsedAt.After(now.Add(-time.Minute)) {
+		if err := h.opts.Store.TouchToken(ctx, tok.ID, c.node, now); err != nil && ctx.Err() == nil {
+			h.log.Warn("note an API token's use", "token", tok.Name, "error", err)
+		}
+	}
+	return c, 0, ""
+}
+
+// tokenLevel returns the level of a caller with tok, and the reason for it if
+// it isn't the token's own: the lower of the token's role and its maker's.
+// The maker's role is the one they were given, not the viewer's role that
+// anyone on the tailnet may have, so a person who is removed takes their
+// tokens with them whoever can view Bield.
+func (h *handler) tokenLevel(ctx context.Context, tok store.APIToken) (level, string) {
+	own := viewers
+	if tok.Role == store.Admin {
+		own = admins
+	}
+	role, err := h.opts.Store.OwnRole(ctx, tok.CreatedBy)
+	var maker level
+	switch {
+	case err != nil:
+		if ctx.Err() == nil {
+			h.log.Error("look up an API token's maker's role", "login", tok.CreatedBy, "error", err)
+		}
+		return anyone, ReasonRoleLookupFailed
+	case role == store.Admin:
+		maker = admins
+	case role == store.Viewer:
+		maker = viewers
+	default:
+		return anyone, ReasonTokenMakerHasNoRole
+	}
+	return min(own, maker), ""
+}
+
+// levelNow returns the level c has now, for a response that outlives the
+// request guard checked, such as a stream or a terminal. A token that was
+// revoked or expired since has none. It returns an error if the store can't
+// say.
+func (h *handler) levelNow(ctx context.Context, c caller) (level, error) {
+	if c.token == nil {
+		if c.who == nil {
+			return c.level, nil
+		}
+		return h.levelOf(ctx, c.who.LoginName)
+	}
+	tok, err := h.opts.Store.Token(ctx, c.token.ID, time.Now())
+	switch {
+	case errors.Is(err, store.ErrUnknownToken), errors.Is(err, store.ErrTokenRevoked), errors.Is(err, store.ErrTokenExpired):
+		return anyone, nil
+	case err != nil:
+		return anyone, err
+	}
+	l, reason := h.tokenLevel(ctx, tok)
+	if reason == ReasonRoleLookupFailed {
+		return anyone, errors.New("look up an API token's maker's role")
+	}
+	return l, nil
 }
 
 // levelOf returns the level of a signed-in caller, from the role the store

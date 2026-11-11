@@ -37,11 +37,14 @@ func eventLine(v *View, e api.Event) {
 	by := ""
 	if e.Actor != "" {
 		by = v.Paint(dim, "  by "+e.Actor)
+		if e.Token != "" {
+			by += v.Paint(dim, " with the token "+e.Token)
+		}
 		switch e.Via {
 		case api.ViaCLI:
-			by += v.Paint(dim, " with the CLI")
+			by += v.Paint(dim, comma(e.Token)+" with the CLI")
 		case api.ViaMCP:
-			by += v.Paint(dim, " with MCP")
+			by += v.Paint(dim, comma(e.Token)+" with MCP")
 		}
 	}
 	v.Printf("%s  %-9s %s%s\n", v.Paint(dim, clock(e.At)), e.Kind, text, by)
@@ -138,4 +141,13 @@ func followEvents(c *Call, q client.EventsQuery, first []api.Event) error {
 		return nil
 	}
 	return err
+}
+
+// comma returns "," if token isn't empty, so "with the token deploy, with the
+// CLI" reads as two parts.
+func comma(token string) string {
+	if token == "" {
+		return ""
+	}
+	return ","
 }

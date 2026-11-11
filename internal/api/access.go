@@ -37,7 +37,7 @@ func (h *handler) changeAccess(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if changed {
-			h.log.Info("changed who can view Bield", "by", callerOf(r).who.LoginName, "who_can_view", who)
+			h.log.Info("changed who can view Bield", "by", callerOf(r).login(), "who_can_view", who)
 			msg := "Let only the users with a role view Bield"
 			if who == store.Tailnet {
 				msg = "Let anyone on the tailnet view Bield"
@@ -75,7 +75,7 @@ func (h *handler) setRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if changed {
-		h.log.Info("gave a user a role", "by", callerOf(r).who.LoginName, "login", login, "role", string(role))
+		h.log.Info("gave a user a role", "by", callerOf(r).login(), "login", login, "role", string(role))
 		article := "a"
 		if role == store.Admin {
 			article = "an"
@@ -97,7 +97,7 @@ func (h *handler) removeUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if removed {
-		h.log.Info("took a user's role away", "by", callerOf(r).who.LoginName, "login", login)
+		h.log.Info("took a user's role away", "by", callerOf(r).login(), "login", login)
 		h.logAction(r, EventKindAccess, "", "Took "+login+"'s role away")
 	}
 	h.writeAccess(w, r)

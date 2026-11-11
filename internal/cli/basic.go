@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/manasseh-fikadu/bield/internal/api"
 	"github.com/manasseh-fikadu/bield/internal/client"
@@ -13,10 +16,17 @@ func basicCommands() []*Command {
 	return []*Command{
 		{
 			Name: "connect", Args: "[url]", Max: 1, Run: runConnect,
+			Flags: []Flag{{
+				Name: "with-token", Kind: Bool,
+				Usage: "read an API token from standard input, check it and save it with the address",
+			}},
 			NoTool:  "it saves an address on this machine, which the person setting up the server does once",
 			Summary: "save where Bield is, and check that it answers",
 			What: "Bield's address is the MagicDNS name of its node, such as https://bield.example.ts.net. " +
-				"This machine has to be on the same tailnet. Without an address, it shows the one in use.",
+				"This machine has to be on the same tailnet. Without an address, it shows the one in use. " +
+				"On a machine no person is logged in to, such as a tagged server or a CI runner, pass --with-token " +
+				"and an API token on standard input; an admin makes one in Bield's settings or with bield tokens create. " +
+				"The token is saved with the address and sent to no other. BIELD_TOKEN does the same without saving it.",
 		},
 		{Name: "whoami", Summary: "show who Bield thinks you are, and your role", Run: runWhoami},
 		{Name: "status", Summary: "sum up the tailnet: health, devices and open alerts", Run: runStatus},
@@ -37,7 +47,21 @@ func runConnect(c *Call) error {
 	if err != nil {
 		return err
 	}
-	cl, err := client.New(client.Options{URL: u.String(), Version: c.Env.Version, HTTP: c.Env.HTTP})
+	token, err := connectToken(c, u.String())
+	if err != nil {
+		return err
+	}
+	opts := client.Options{URL: u.String(), Version: c.Env.Version, HTTP: c.Env.HTTP, Token: token}
+	if opts.Token == "" {
+		// BIELD_TOKEN, as every other command would send it.
+		opts.Token = c.Env.getenv("BIELD_TOKEN")
+	}
+	if c.Env.node != nil {
+		if opts.HTTP, err = c.Env.node.client(c.Ctx); err != nil {
+			return err
+		}
+	}
+	cl, err := client.New(opts)
 	if err != nil {
 		return err
 	}
@@ -51,7 +75,7 @@ func runConnect(c *Call) error {
 		return err
 	}
 	saved := true
-	if err := c.Env.saveConfig(config{URL: u.String()}); err != nil {
+	if err := c.Env.saveConfig(config{URL: u.String(), Token: token}); err != nil {
 		saved = false
 		c.Notef("bield: couldn't save the address: %v", err)
 	}
@@ -69,8 +93,44 @@ func runConnect(c *Call) error {
 	})
 }
 
+// connectToken returns the API token bield connect saves with the address
+// addr: the one on standard input with --with-token, or else the one saved
+// with addr already, so connecting again to the same Bield keeps it.
+func connectToken(c *Call, addr string) (string, error) {
+	if !c.Bool("with-token") {
+		// No config, or one Bield can't read, has no token to keep.
+		if cfg, err := c.Env.loadConfig(); err == nil && sameURL(cfg.URL, addr) {
+			return cfg.Token, nil
+		}
+		return "", nil
+	}
+	if c.Env.Stdin == nil {
+		return "", usagef(c.cmd, "--with-token reads the token from standard input, and there's none")
+	}
+	line, err := bufio.NewReader(io.LimitReader(c.Env.Stdin, 4096)).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("read the token from standard input: %w", err)
+	}
+	token := strings.TrimSpace(line)
+	if token == "" {
+		return "", usagef(c.cmd, "--with-token reads the token from standard input, and it was empty; "+
+			"try: bield connect <url> --with-token < token.txt")
+	}
+	return token, nil
+}
+
 // describeMe says who Bield thinks a caller is.
 func describeMe(me api.Me) string {
+	if me.Token != "" {
+		from := ""
+		if me.Device != "" {
+			from = " from " + me.Device
+		}
+		if me.Role == "" {
+			return fmt.Sprintf("You are using the API token %s%s, made by %s, which can't do anything now", me.Token, from, me.Login)
+		}
+		return fmt.Sprintf("You are using the API token %s%s, made by %s, with the role %s", me.Token, from, me.Login, me.Role)
+	}
 	switch {
 	case !me.SignedIn:
 		return "Bield doesn't know who you are"

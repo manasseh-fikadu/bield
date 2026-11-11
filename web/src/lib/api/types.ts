@@ -53,6 +53,18 @@ export interface Me {
    * doesn't know a signed-in caller's role: one of the Reason constants.
    */
   reason?: string;
+  /**
+   * Token is the name of the API token the request came with, if it came
+   * with one. Login is then the admin who made the token, Name is empty,
+   * and Role is what the token may do now: its own role, or its maker's if
+   * that's lower.
+   */
+  token?: string;
+  /**
+   * TokenRole is the role the token was made with, if the request came
+   * with one.
+   */
+  tokenRole?: Role;
 }
 /**
  * ReasonUnknownDevice means the request didn't come from a device that
@@ -83,9 +95,14 @@ export const ReasonWhoIsFailed = "whois-failed";
  */
 export const ReasonRoleLookupFailed = "role-lookup-failed";
 /**
+ * ReasonTokenMakerHasNoRole means the request came with an API token
+ * whose maker has no role in Bield now, so the token can't do anything.
+ */
+export const ReasonTokenMakerHasNoRole = "token-maker-has-no-role";
+/**
  * Why a caller is anonymous, or has no role, in Me.Reason.
  */
-export type Reason = typeof ReasonUnknownDevice | typeof ReasonTaggedDevice | typeof ReasonNoUser | typeof ReasonBieldMachine | typeof ReasonWhoIsFailed | typeof ReasonRoleLookupFailed;
+export type Reason = typeof ReasonUnknownDevice | typeof ReasonTaggedDevice | typeof ReasonNoUser | typeof ReasonBieldMachine | typeof ReasonWhoIsFailed | typeof ReasonRoleLookupFailed | typeof ReasonTokenMakerHasNoRole;
 /**
  * Role is what a signed-in caller may do in Bield.
  */
@@ -150,6 +167,96 @@ export interface ChangeAccess {
    * WhoCanView, if it's set, changes who can view Bield.
    */
   whoCanView?: WhoCanView;
+}
+/**
+ * PeopleOnly is the error a caller with an API token gets from a route only
+ * people can use, whatever the token's role.
+ */
+export const PeopleOnly = "only a person can do this, not an API token, whatever its role; do it from a machine you're logged in to";
+/**
+ * An APIToken lets a caller that Tailscale can't name, such as an agent on a
+ * tagged server or in CI, use the API with a role, by sending it as
+ * "Authorization: Bearer <token>". GET /api/tokens lists them. Only people
+ * can list, make or revoke tokens, and never with a token.
+ */
+export interface APIToken {
+  id: number /* int64 */;
+  name: string;
+  /**
+   * Hint is the token's last few characters, so people can tell which one
+   * they hold.
+   */
+  hint: string;
+  /**
+   * Role is the most the token may do.
+   */
+  role: Role;
+  /**
+   * ActsAs is what the token may do now: Role, or its maker's role if
+   * that's lower. It's empty if the token can't do anything, because it
+   * expired, was revoked, or its maker has no role.
+   */
+  actsAs?: Role;
+  /**
+   * CreatedBy is the login of the admin who made it.
+   */
+  createdBy: string;
+  createdAt: string /* RFC 3339 */;
+  expiresAt: string /* RFC 3339 */;
+  expired: boolean;
+  /**
+   * RevokedAt is when an admin revoked it, if one did, and RevokedBy their
+   * login. A revoked token stays in the list, and keeps its name, so a
+   * name in the activity log always means one token.
+   */
+  revokedAt?: string /* RFC 3339 */;
+  revokedBy?: string;
+  /**
+   * LastUsedAt is when the token was last used, to the minute, if it was.
+   */
+  lastUsedAt?: string /* RFC 3339 */;
+  /**
+   * LastUsedDeviceID and LastUsedFrom are the ID and name of the device it
+   * was last used from, if Tailscale knew it.
+   */
+  lastUsedDeviceId?: string;
+  lastUsedFrom?: string;
+}
+/**
+ * NewAPIToken is the body of POST /api/tokens, which makes an API token and
+ * answers with a NewAPITokenResult.
+ */
+export interface NewAPIToken {
+  /**
+   * Name is 1 to 40 letters, digits, dots, dashes and underscores, and no
+   * other token may have or have had it, whatever its case.
+   */
+  name: string;
+  /**
+   * Role is RoleViewer if it's empty.
+   */
+  role?: Role;
+  /**
+   * Days is how long the token works, from 1 to MaxTokenDays. It's
+   * DefaultTokenDays if it's 0.
+   */
+  days?: number /* int */;
+}
+/**
+ * How long an API token works, in days.
+ */
+export const DefaultTokenDays = 30;
+/**
+ * How long an API token works, in days.
+ */
+export const MaxTokenDays = 365;
+/**
+ * NewAPITokenResult is the answer to POST /api/tokens. Secret is the token
+ * itself, which Bield doesn't keep, so this is the only time it's shown.
+ */
+export interface NewAPITokenResult {
+  token: APIToken;
+  secret: string;
 }
 /**
  * SetRole is the body of PUT /api/access/users/{login}, which gives a
@@ -1836,6 +1943,11 @@ export interface Event {
    * client says in its User-Agent, so it labels the event and proves nothing.
    */
   via?: string;
+  /**
+   * Token is the name of the API token the actor's request came with, if
+   * it came with one. Actor is then the token's maker. Only admins get it.
+   */
+  token?: string;
 }
 /**
  * ViaCLI is a change made with the bield command line (#49).

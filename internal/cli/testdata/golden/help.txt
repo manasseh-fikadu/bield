@@ -1,0 +1,60 @@
+Commands that talk to a running Bield:
+  connect [url]                         save where Bield is, and check that it answers
+  whoami                                show who Bield thinks you are, and your role
+  status                                sum up the tailnet: health, devices and open alerts
+  devices                               list the devices on the tailnet and how they are doing
+  devices show <device>                 show everything Bield knows about a device
+  devices history <device>              show a device's CPU, memory, network and latency over time
+  devices usage <device>                show what uses a device's CPU and memory now
+  devices set <device>                  change a device's name, kind, notes, offline alert or thresholds (admins)
+  alerts                                list the alerts that are open
+  alerts show <id>                      show an alert, with the notes on it
+  alerts ack <id>                       acknowledge an open alert: you are on it (admins)
+  alerts unack <id>                     take back an acknowledgement (admins)
+  alerts snooze <id>                    hide an open alert for a while (admins)
+  alerts wake <id>                      end an alert's snooze (admins)
+  alerts note <id> <text...>            write a note on an alert, open or resolved (admins)
+  events                                show the activity log: what happened and who did it
+  checks                                list the checks and whether they pass
+  checks show <check>                   show a check and its latest result
+  checks history <check>                show a check's uptime and latency over time
+  checks run <check>                    run a check now (admins)
+  checks add                            add a check on a URL, a TCP port or a host name (admins)
+  checks pause <check>                  stop a check from running until you resume it (admins)
+  checks resume <check>                 run a paused check again (admins)
+  checks delete <check>                 delete a check and its history (admins)
+  docker ps [device]                    list containers
+  docker images [device]                list images
+  docker volumes [device]               list volumes
+  docker networks [device]              list networks
+  docker start <device> <container>     start a container (admins)
+  docker stop <device> <container>      stop a container (admins)
+  docker restart <device> <container>   restart a container (admins)
+  docker logs <device> <container>      print a container's logs (admins)
+  files ls <device> [path]              list a folder on a device (admins)
+  files cat <device> <path>             print a file on a device (admins)
+  files get <device> <path> [local]     download a file from a device (admins)
+  files put <device> <local> [folder]   upload a file to a folder on a device (admins)
+  files write <device> <path>           replace a text file on a device with standard input (admins)
+  enroll                                make an install command that adds a machine's agent (admins)
+  settings                              show Bield's settings and what they are by default (admins)
+  settings set <name=value>...          change settings; only the ones you name change (admins)
+  access                                show who has a role in Bield, and who else can view it (admins)
+  access set <login> <admin|viewer>     give a Tailscale login a role (admins)
+  access remove <login>                 take a login's role away (admins)
+  access who-can-view [tailnet|listed]  show or set who can view Bield besides the users with a role (admins)
+  tokens                                list the API tokens, revoked ones too, without the tokens themselves (admins)
+  tokens create <name>                  make an API token, and print it once (admins)
+  tokens revoke <token>                 revoke an API token, by its name or ID (admins)
+  completion <bash|zsh|fish>            print a script that completes bield's commands and flags in a shell
+  mcp                                   run an MCP server over stdio, for AI agents that take typed tools
+
+Flags every command takes:
+  --url <address>    Where Bield is (env BIELD_URL; "bield connect" saves it)
+  --json             Print JSON, with the API's field names, and errors as JSON on stderr
+  -y, --yes          Allow a command that stops, deletes or overwrites something
+  --timeout <time>   How long to wait for Bield (default 30s)
+  --no-color         No color (also off when piped, or with NO_COLOR set)
+  -h, --help         Show help for a command
+
+Exit codes: 0 done, 1 failed, 2 wrong usage, 3 not found, 4 not allowed.

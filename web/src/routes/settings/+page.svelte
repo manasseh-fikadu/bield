@@ -14,6 +14,7 @@
 	import NotificationSettings from '#lib/settings/NotificationSettings.svelte';
 	import RetentionSettings from '#lib/settings/RetentionSettings.svelte';
 	import SetupCard from '#lib/settings/SetupCard.svelte';
+	import TokenSettings from '#lib/settings/TokenSettings.svelte';
 	import UnitSettings from '#lib/settings/UnitSettings.svelte';
 	import Card from '#lib/ui/Card.svelte';
 	import PageHeader from '#lib/ui/PageHeader.svelte';
@@ -28,7 +29,8 @@
 		{ value: 'notifications', label: 'Notifications' },
 		{ value: 'units', label: 'Watched units' },
 		{ value: 'retention', label: 'Retention' },
-		{ value: 'access', label: 'Access' }
+		{ value: 'access', label: 'Access' },
+		{ value: 'tokens', label: 'API tokens' }
 	];
 
 	const tab = $derived.by(() => {
@@ -84,6 +86,7 @@
 		<TabPanel value="units"><UnitSettings {view} onsaved={saved} /></TabPanel>
 		<TabPanel value="retention"><RetentionSettings {view} onsaved={saved} /></TabPanel>
 		<TabPanel value="access"><AccessSettings {view} /></TabPanel>
+		<TabPanel value="tokens"><TokenSettings {view} /></TabPanel>
 	</Tabs>
 {:else if failure}
 	<Card>

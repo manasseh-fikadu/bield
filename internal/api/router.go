@@ -54,6 +54,9 @@ func (l level) String() string {
 type route struct {
 	pattern string
 	need    level
+	// people says only a person Tailscale names can use the route, and not a
+	// caller with an API token, whatever its role.
+	people bool
 }
 
 // anyMethod reports whether the route's pattern matches every method, as
@@ -85,21 +88,45 @@ func newRouter(h *handler) *router {
 // read registers a GET route, which answers HEAD too, for callers at level
 // need or above.
 func (rt *router) read(pattern string, need level, next http.HandlerFunc) {
+	rt.add(readRoute(pattern, need), next)
+}
+
+func readRoute(pattern string, need level) route {
 	if !strings.HasPrefix(pattern, http.MethodGet+" ") {
 		panic("api: read route " + pattern + " isn't a GET")
 	}
-	rt.add(route{pattern, need}, next)
+	return route{pattern: pattern, need: need}
 }
 
 // write registers a route that changes something, such as "PUT
 // /api/access/users/{login}". Only admins can use it.
 func (rt *router) write(pattern string, next http.HandlerFunc) {
+	rt.add(writeRoute(pattern), next)
+}
+
+func writeRoute(pattern string) route {
 	switch method, _, _ := strings.Cut(pattern, " "); method {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 	default:
 		panic("api: write route " + pattern + " needs a POST, PUT, PATCH or DELETE")
 	}
-	rt.add(route{pattern, admins}, next)
+	return route{pattern: pattern, need: admins}
+}
+
+// forAdminsInPerson registers a route for admins, as read does for a GET and
+// write for anything else, but only for people: a caller with an API token
+// can't use it, whatever its role. It's for what would let a token outgrow
+// what its maker meant it for, such as making more tokens, giving someone a
+// role, or opening a shell.
+func (rt *router) forAdminsInPerson(pattern string, next http.HandlerFunc) {
+	var r route
+	if strings.HasPrefix(pattern, http.MethodGet+" ") {
+		r = readRoute(pattern, admins)
+	} else {
+		r = writeRoute(pattern)
+	}
+	r.people = true
+	rt.add(r, next)
 }
 
 // agent registers a route for enrolled agents, such as "POST
@@ -109,7 +136,7 @@ func (rt *router) agent(pattern string, next http.HandlerFunc) {
 	if !strings.Contains(pattern, " ") {
 		panic("api: agent route " + pattern + " needs a method")
 	}
-	rt.add(route{pattern, agentSecret}, next)
+	rt.add(route{pattern: pattern, need: agentSecret}, next)
 }
 
 // enroll registers a route that enrolls agents. A machine can use it if it
@@ -119,14 +146,14 @@ func (rt *router) enroll(pattern string, next http.HandlerFunc) {
 	if !strings.Contains(pattern, " ") {
 		panic("api: enroll route " + pattern + " needs a method")
 	}
-	rt.add(route{pattern, enrollCode}, next)
+	rt.add(route{pattern: pattern, need: enrollCode}, next)
 }
 
 // anyMethod registers a pattern without a method, such as "/" for the web UI,
 // for callers at level need or above. Anything but a GET, HEAD or OPTIONS
 // needs an admin.
 func (rt *router) anyMethod(pattern string, need level, next http.Handler) {
-	r := route{pattern, need}
+	r := route{pattern: pattern, need: need}
 	if !r.anyMethod() {
 		panic("api: route " + pattern + " names a method, so register it with read or write")
 	}
@@ -166,6 +193,10 @@ func (h *handler) allow(r route, next http.Handler) http.Handler {
 		}
 		c := callerOf(req)
 		need := r.needs(req.Method)
+		if r.people && c.token != nil {
+			h.deny(w, req, http.StatusForbidden, PeopleOnly)
+			return
+		}
 		if need != noLevel && c.level >= need {
 			next.ServeHTTP(w, req)
 			return
@@ -240,14 +271,22 @@ func (h *handler) codeDenial(err error) (int, string) {
 	}
 }
 
-// bearer returns the bearer token in req's Authorization header, or "".
+// bearer returns the bearer token in req's Authorization header, or "". The
+// scheme's case doesn't matter, as RFC 9110 says, and nor does the space
+// around the token, so a token can't be skipped by being written oddly.
 func bearer(req *http.Request) string {
-	token, _ := strings.CutPrefix(req.Header.Get("Authorization"), "Bearer ")
-	return token
+	scheme, token, ok := strings.Cut(strings.TrimSpace(req.Header.Get("Authorization")), " ")
+	if !ok || !strings.EqualFold(scheme, "Bearer") {
+		return ""
+	}
+	return strings.TrimSpace(token)
 }
 
 // denial says why c can't make a request with method that needs a level.
 func denial(c caller, need level, method string) string {
+	if c.token != nil {
+		return tokenDenial(c, need)
+	}
 	var msg string
 	switch {
 	case need == viewers && c.who != nil:
@@ -263,4 +302,21 @@ func denial(c caller, need level, method string) string {
 		msg += ", and Tailscale didn't say who you are"
 	}
 	return msg
+}
+
+// tokenDenial says why c, a caller with an API token, can't make a request
+// that needs a level.
+func tokenDenial(c caller, need level) string {
+	name := "the API token " + c.token.Name
+	switch {
+	case c.reason == ReasonTokenMakerHasNoRole:
+		return name + " can't do anything, since " + c.token.CreatedBy + ", who made it, has no role in Bield now"
+	case c.reason == ReasonRoleLookupFailed:
+		return "Bield couldn't look up the role of " + c.token.CreatedBy + ", who made " + name
+	case need == admins && c.token.Role == store.Admin:
+		return name + " acts as a viewer, since " + c.token.CreatedBy + ", who made it, is a viewer now; this needs an admin"
+	case need == admins:
+		return name + " is a viewer token; this needs an admin token"
+	}
+	return name + " can't do this"
 }

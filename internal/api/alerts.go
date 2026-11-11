@@ -129,7 +129,7 @@ func (h *handler) ackAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	now := time.Now()
-	a, err := h.opts.Alerts.Ack(r.Context(), id, callerOf(r).who.LoginName, r.Method == http.MethodPut, now)
+	a, err := h.opts.Alerts.Ack(r.Context(), id, callerOf(r).login(), r.Method == http.MethodPut, now)
 	h.answerAlert(w, r, a, err, now)
 }
 
@@ -153,7 +153,7 @@ func (h *handler) snoozeAlert(w http.ResponseWriter, r *http.Request) {
 		}
 		until = now.Add(time.Duration(body.Minutes) * time.Minute)
 	}
-	a, err := h.opts.Alerts.Snooze(r.Context(), id, callerOf(r).who.LoginName, until, now)
+	a, err := h.opts.Alerts.Snooze(r.Context(), id, callerOf(r).login(), until, now)
 	h.answerAlert(w, r, a, err, now)
 }
 
@@ -186,7 +186,7 @@ func (h *handler) addAlertNote(w http.ResponseWriter, r *http.Request) {
 		h.writeJSON(w, r, http.StatusBadRequest, ErrorBody{Error: err.Error()})
 		return
 	}
-	n, err := h.opts.Alerts.AddNote(r.Context(), id, callerOf(r).who.LoginName, text, time.Now())
+	n, err := h.opts.Alerts.AddNote(r.Context(), id, callerOf(r).login(), text, time.Now())
 	switch {
 	case errors.Is(err, store.ErrNoAlert):
 		h.noAlert(w, r, "no alert has this ID")
@@ -227,7 +227,7 @@ func (h *handler) listEvents(w http.ResponseWriter, r *http.Request) {
 	for _, e := range events[:min(len(events), limit)] {
 		out.Events = append(out.Events, Event{
 			ID: e.ID, At: e.At, Level: EventLevel(e.Level), Kind: EventKind(e.Kind),
-			Message: e.Message, DeviceID: e.DeviceID, Actor: e.Actor, Via: e.Via,
+			Message: e.Message, DeviceID: e.DeviceID, Actor: e.Actor, Via: e.Via, Token: e.Token,
 		})
 	}
 	h.writeJSON(w, r, http.StatusOK, out)
@@ -235,7 +235,7 @@ func (h *handler) listEvents(w http.ResponseWriter, r *http.Request) {
 
 // logAction adds what an admin did to the activity log.
 func (h *handler) logAction(r *http.Request, kind EventKind, deviceID, message string) {
-	h.logEvent(r, store.Event{Kind: string(kind), Message: message, DeviceID: deviceID, Actor: callerOf(r).who.LoginName})
+	h.logEvent(r, store.Event{Kind: string(kind), Message: message, DeviceID: deviceID, Actor: callerOf(r).login()})
 }
 
 // logEvent adds an event to the activity log, now and at the info level

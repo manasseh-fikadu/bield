@@ -4,7 +4,13 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { isAdmin } from '#lib/access.js';
-	import { adminEventKinds, eventKindLabels, eventLevelStatus, mergeById } from '#lib/alerts.js';
+	import {
+		adminEventKinds,
+		eventActor,
+		eventKindLabels,
+		eventLevelStatus,
+		mergeById
+	} from '#lib/alerts.js';
 	import { getEvents } from '#lib/api/client.js';
 	import type { CollectorState, Event, EventKind } from '#lib/api/types.js';
 	import { ago, dateTime } from '#lib/format.js';
@@ -185,11 +191,7 @@
 										>
 									{/if}
 									{#if e.actor}
-										· by {e.actor}{e.via === 'cli'
-											? ' with the CLI'
-											: e.via === 'mcp'
-												? ' with MCP'
-												: ''}
+										· {eventActor(e)}
 									{/if}
 								</p>
 							</div>

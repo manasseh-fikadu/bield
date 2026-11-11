@@ -1,0 +1,15 @@
+{
+  "whoCanView": "listed",
+  "users": [
+    {
+      "login": "alice@example.com",
+      "role": "admin",
+      "since": "<time>"
+    },
+    {
+      "login": "bob@example.com",
+      "role": "viewer",
+      "since": "<time>"
+    }
+  ]
+}

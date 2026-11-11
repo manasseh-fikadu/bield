@@ -1,0 +1,133 @@
+[
+  {
+    "id": "bield",
+    "name": "bield",
+    "hostName": "bield",
+    "dnsName": "bield.example.ts.net",
+    "os": "linux",
+    "kind": "server",
+    "ips": [
+      "100.64.0.1"
+    ],
+    "online": true,
+    "self": true,
+    "status": "online",
+    "statusReason": "This hub",
+    "path": {
+      "kind": "self"
+    },
+    "rxBytes": 0,
+    "txBytes": 0,
+    "settings": {
+      "displayName": "",
+      "alertOffline": true,
+      "thresholds": {},
+      "notes": ""
+    },
+    "docker": false
+  },
+  {
+    "id": "server",
+    "name": "web-1",
+    "hostName": "web-1",
+    "dnsName": "web-1.example.ts.net",
+    "os": "linux",
+    "kind": "server",
+    "ips": [
+      "100.64.0.4"
+    ],
+    "online": true,
+    "status": "online",
+    "statusReason": "Relayed through DERP",
+    "path": {
+      "kind": "derp"
+    },
+    "rxBytes": 0,
+    "txBytes": 0,
+    "settings": {
+      "displayName": "",
+      "alertOffline": true,
+      "thresholds": {},
+      "notes": ""
+    },
+    "docker": false
+  },
+  {
+    "id": "laptop",
+    "name": "alice-laptop",
+    "hostName": "alice-laptop",
+    "dnsName": "alice-laptop.example.ts.net",
+    "os": "macOS",
+    "kind": "desktop",
+    "ips": [
+      "100.64.0.2"
+    ],
+    "online": true,
+    "status": "online",
+    "statusReason": "Relayed through DERP",
+    "path": {
+      "kind": "derp"
+    },
+    "rxBytes": 0,
+    "txBytes": 0,
+    "settings": {
+      "displayName": "",
+      "alertOffline": true,
+      "thresholds": {},
+      "notes": ""
+    },
+    "docker": false
+  },
+  {
+    "id": "tablet",
+    "name": "carol-tablet",
+    "hostName": "carol-tablet",
+    "dnsName": "carol-tablet.example.ts.net",
+    "os": "iOS",
+    "kind": "tablet",
+    "ips": [
+      "100.64.0.5"
+    ],
+    "online": true,
+    "status": "online",
+    "statusReason": "Relayed through DERP",
+    "path": {
+      "kind": "derp"
+    },
+    "rxBytes": 0,
+    "txBytes": 0,
+    "settings": {
+      "displayName": "",
+      "alertOffline": false,
+      "thresholds": {},
+      "notes": ""
+    },
+    "docker": false
+  },
+  {
+    "id": "phone",
+    "name": "bob-phone",
+    "hostName": "bob-phone",
+    "dnsName": "bob-phone.example.ts.net",
+    "os": "android",
+    "kind": "phone",
+    "ips": [
+      "100.64.0.3"
+    ],
+    "online": true,
+    "status": "online",
+    "statusReason": "Relayed through DERP",
+    "path": {
+      "kind": "derp"
+    },
+    "rxBytes": 0,
+    "txBytes": 0,
+    "settings": {
+      "displayName": "",
+      "alertOffline": false,
+      "thresholds": {},
+      "notes": ""
+    },
+    "docker": false
+  }
+]

@@ -107,7 +107,7 @@ func (h *handler) setSSH(w http.ResponseWriter, r *http.Request) {
 		body.Port = ssh.DefaultPort
 	}
 	before := h.sshOf(id)
-	_, err := h.opts.SSH.SetUp(r.Context(), id, body.User, body.Port, callerOf(r).who.LoginName)
+	_, err := h.opts.SSH.SetUp(r.Context(), id, body.User, body.Port, callerOf(r).login())
 	if h.sshError(w, r, err) {
 		return
 	}
@@ -124,7 +124,7 @@ func (h *handler) setSSH(w http.ResponseWriter, r *http.Request) {
 // Bield log in to the machine it runs on as the user it runs as.
 func (h *handler) authorizeSSH(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	a, added, err := h.opts.SSH.AuthorizeHere(r.Context(), id, callerOf(r).who.LoginName)
+	a, added, err := h.opts.SSH.AuthorizeHere(r.Context(), id, callerOf(r).login())
 	if h.sshError(w, r, err) {
 		return
 	}
@@ -168,7 +168,7 @@ func (h *handler) trustHostKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logEvent(r, store.Event{
-		Level: string(EventLevelWarning), Kind: string(EventKindSSH), DeviceID: id, Actor: callerOf(r).who.LoginName,
+		Level: string(EventLevelWarning), Kind: string(EventKindSSH), DeviceID: id, Actor: callerOf(r).login(),
 		Message: "Trusted the new SSH host key of " + h.deviceName(r, id) + ", " + body.Fingerprint,
 	})
 	h.writeJSON(w, r, http.StatusOK, h.sshOf(id))
@@ -182,7 +182,7 @@ func (h *handler) resetHostKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.logEvent(r, store.Event{
-		Level: string(EventLevelWarning), Kind: string(EventKindSSH), DeviceID: id, Actor: callerOf(r).who.LoginName,
+		Level: string(EventLevelWarning), Kind: string(EventKindSSH), DeviceID: id, Actor: callerOf(r).login(),
 		Message: "Reset the SSH host key of " + h.deviceName(r, id) + ", so Bield trusts the key it offers next",
 	})
 	h.writeJSON(w, r, http.StatusOK, h.sshOf(id))
