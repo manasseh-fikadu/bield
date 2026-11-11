@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.5.0 - 2026-11-11
+
+This release adds scoped API tokens, so a tagged server, a CI job or an AI agent can use Bield's API, command line and MCP server, and lets `bield` join the tailnet by itself on machines without Tailscale. The agent doesn't change, so there's nothing to update on your machines. Bield adds a table for the tokens and a column to the activity log when it starts, which needs no action from you.
+
 ### Added
 
 - Scoped API tokens, for machines no person is logged in to, such as a tagged server, a CI job or an AI agent that should have less access than you. An admin makes one in Settings, under API tokens, or with `bield tokens create`, with a role and an expiry of up to a year. Use it with `BIELD_TOKEN` or `bield connect <url> --with-token`, and `bield mcp` takes it too. A token never does more than the admin who made it can now, and it can't open terminals, make tokens or change who has access. Changes made with one are in the activity log with its name. See [API tokens](docs/cli.md#api-tokens).
