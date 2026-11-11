@@ -39,6 +39,14 @@ var demoRefusals = []demoRefusal{
 		"POST /api/devices/{id}/files/copy",
 		"POST /api/devices/{id}/files/delete",
 	}},
+	// GET /api/devices/{id}/editor says so itself, so the device page
+	// loads without a refused request.
+	{"VS Code is", []string{
+		"POST /api/devices/{id}/editor/install",
+		"POST /api/devices/{id}/editor/start",
+		"POST /api/devices/{id}/editor/stop",
+		"DELETE /api/devices/{id}/editor",
+	}},
 	{"Starting, stopping and restarting containers is", []string{
 		"POST /api/devices/{id}/docker/containers/{cid}/start",
 		"POST /api/devices/{id}/docker/containers/{cid}/stop",

@@ -2040,9 +2040,14 @@ export const EventKindFiles = "files";
  */
 export const EventKindNotification = "notification";
 /**
+ * EventKindEditor is VS Code that an admin installed, updated, removed,
+ * opened, closed or stopped on a device.
+ */
+export const EventKindEditor = "editor";
+/**
  * The kinds of Event.
  */
-export type EventKind = typeof EventKindDevice | typeof EventKindAgent | typeof EventKindAlert | typeof EventKindCheck | typeof EventKindContainer | typeof EventKindAccess | typeof EventKindSettings | typeof EventKindSSH | typeof EventKindTerminal | typeof EventKindFiles | typeof EventKindNotification;
+export type EventKind = typeof EventKindDevice | typeof EventKindAgent | typeof EventKindAlert | typeof EventKindCheck | typeof EventKindContainer | typeof EventKindAccess | typeof EventKindSettings | typeof EventKindSSH | typeof EventKindTerminal | typeof EventKindFiles | typeof EventKindNotification | typeof EventKindEditor;
 /**
  * EventList is the response to GET /api/events?before=&after=&limit=&kind=&device=:
  * events, newest first. Before and After are event IDs.
@@ -3681,4 +3686,137 @@ export interface CodingSummary {
  */
 export interface SetCoding {
   enabled: boolean;
+}
+/**
+ * DeviceEditor is VS Code in the browser on a device, for admins: the
+ * response to GET /api/devices/{id}/editor. Bield runs code-server on the
+ * device, as the user it logs in as over SSH, and serves its editor on a
+ * port of Bield's own for each device.
+ */
+export interface DeviceEditor {
+  state: EditorState;
+  /**
+   * Reason says why the device can't have VS Code, while the State is
+   * EditorStateUnavailable.
+   */
+  reason?: string;
+  /**
+   * Error says why Bield couldn't ask the device what it has, such as
+   * that it's offline. The rest is what Bield knew before.
+   */
+  error?: string;
+  /**
+   * Version is the code-server version on the device, and Latest the
+   * one Bield installs. They differ when an update is waiting.
+   */
+  version?: string;
+  latest: string;
+  /**
+   * Running says code-server runs on the device now.
+   */
+  running: boolean;
+  /**
+   * URL is where the editor is served, once it's installed, and Port its
+   * port. URL is empty while Bield can't listen on the port, and
+   * ListenError says why.
+   */
+  url?: string;
+  port?: number /* int */;
+  listenError?: string;
+  /**
+   * Secure says the editor is served over HTTPS. Without it, browsers
+   * turn off parts of VS Code, such as webviews and the clipboard.
+   */
+  secure: boolean;
+  /**
+   * Home is the home folder of the user Bield logs in as, which the
+   * editor opens.
+   */
+  home?: string;
+  /**
+   * Download is the size of code-server's download for the device, and
+   * Disk about how much free space installing it takes, in bytes, while
+   * it isn't installed. Free is how much the home folder has, if the
+   * device said.
+   */
+  download?: number /* int64 */;
+  disk?: number /* int64 */;
+  free?: number /* int64 */;
+  /**
+   * OpenBy are the logins of the admins who have the editor open now.
+   */
+  openBy: string[];
+  /**
+   * Install is the install under way, or else the last one Bield ran
+   * since it started, until VS Code is removed.
+   */
+  install?: EditorInstall;
+}
+/**
+ * EditorInstall is an install or an update of code-server on a device,
+ * which runs in the background: the response to POST
+ * /api/devices/{id}/editor/install, and part of the DeviceEditor.
+ */
+export interface EditorInstall {
+  /**
+   * Running says it's under way. Until then, OK says whether it worked.
+   */
+  running: boolean;
+  ok: boolean;
+  /**
+   * Version is the version it installs.
+   */
+  version: string;
+  /**
+   * By is the login of the admin who started it.
+   */
+  by: string;
+  startedAt: string /* RFC 3339 */;
+  endedAt?: string /* RFC 3339 */;
+  /**
+   * Output is the end of what the script printed, errors included, or why
+   * it couldn't run, once it's over.
+   */
+  output?: string;
+}
+/**
+ * EditorState says whether a device has VS Code.
+ */
+/**
+ * EditorStateUnavailable means the device can't have VS Code, or Bield
+ * can't tell yet, such as before SSH access is set up.
+ */
+export const EditorStateUnavailable = "unavailable";
+/**
+ * EditorStateNotInstalled means an admin can install it.
+ */
+export const EditorStateNotInstalled = "not-installed";
+export const EditorStateInstalled = "installed";
+/**
+ * EditorStateMissing means Bield installed it, and its files are gone
+ * from the device. Installing it again puts them back.
+ */
+export const EditorStateMissing = "missing";
+/**
+ * The states of a DeviceEditor.
+ */
+export type EditorState = typeof EditorStateUnavailable | typeof EditorStateNotInstalled | typeof EditorStateInstalled | typeof EditorStateMissing;
+/**
+ * EditorRun is the response to DELETE /api/devices/{id}/editor, which runs
+ * a script over SSH on the device. A script that fails is still a 200, with
+ * OK false.
+ */
+export interface EditorRun {
+  ok: boolean;
+  /**
+   * Output is the end of what the script printed, errors included.
+   */
+  output: string;
+}
+/**
+ * EditorOpen is the response to POST /api/devices/{id}/editor/start: where
+ * to open the editor, which runs now.
+ */
+export interface EditorOpen {
+  url: string;
 }

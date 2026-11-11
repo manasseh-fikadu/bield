@@ -26,6 +26,7 @@ import (
 	"github.com/manasseh-fikadu/bield/internal/config"
 	"github.com/manasseh-fikadu/bield/internal/demo"
 	"github.com/manasseh-fikadu/bield/internal/docker"
+	"github.com/manasseh-fikadu/bield/internal/editor"
 	"github.com/manasseh-fikadu/bield/internal/hostmetrics"
 	"github.com/manasseh-fikadu/bield/internal/notify"
 	"github.com/manasseh-fikadu/bield/internal/settings"
@@ -240,6 +241,22 @@ func runServe(ctx context.Context, cfg config.Config, stderr io.Writer, open ope
 		}
 		world.AuthorizeSSH(key.PublicKey())
 	}
+	// Each device's editor is served on a port of the node of its own. A
+	// demo has no machines to run one on.
+	var editors *editor.Manager
+	if world == nil {
+		editors = editor.NewManager(editor.Options{
+			Remote:  remote,
+			Store:   st,
+			Tailnet: poller.Snapshot,
+			Listen:  node.ListenPort,
+			Ports:   editor.Ports{First: cfg.EditorPorts.First, Last: cfg.EditorPorts.Last},
+			Logger:  logger,
+		})
+		if err := editors.Load(ctx); err != nil {
+			return errors.Join(fmt.Errorf("load the editors: %w", err), res.ln.Close(), srvs.stop(ctx))
+		}
+	}
 	feedOpts := api.FeedOptions{
 		Version:        buildVersion(),
 		Demo:           world != nil,
@@ -353,6 +370,7 @@ func runServe(ctx context.Context, cfg config.Config, stderr io.Writer, open ope
 		Settings: prefs,
 		Notify:   notifier,
 		Systemd:  units,
+		Editors:  editors,
 		// config.Parse has checked it.
 		Tailscale: api.TailscaleMode(cfg.Tailscale),
 		Demo:      world != nil,
@@ -363,6 +381,9 @@ func runServe(ctx context.Context, cfg config.Config, stderr io.Writer, open ope
 	// Shutdown waits for every response to finish, and live streams don't
 	// until they're told to.
 	app.RegisterOnShutdown(func() { close(stopping) })
+	if editors != nil {
+		wg.Go(func() { editors.Run(ctx) })
+	}
 	appURL.Store(&res.url)
 	logger.Info("bield is running", "version", buildVersion(), "url", res.url, "data_dir", cfg.DataDir)
 
