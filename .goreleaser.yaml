@@ -87,31 +87,31 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release adds [an MCP server](https://github.com/manasseh-fikadu/bield/blob/main/docs/mcp.md) for AI agents such as Claude Code, Codex and Cursor, and fixes installing the agent on machines whose login has no systemd session, such as DietPi over Dropbear.
+    This release adds [scoped API tokens](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md#api-tokens), for the machines and agents that Tailscale can't name a person for, and lets `bield` join the tailnet by itself where Tailscale isn't installed.
 
-    - `bield mcp` runs next to the agent and gives it typed tools, made from the command line's commands, with the roles the web app has. `claude mcp add bield -- bield mcp` sets it up in Claude Code.
-    - It is read-only unless you start it with `--allow-changes`, and the activity log says when a change came from MCP.
-    - Installing the agent as root now makes a system service, which needs no login session and keeps running after you log out. Other users get their running systemd found for them. If systemd can't run the agent, the installer says what to do before it changes anything, instead of leaving a machine that sent one heartbeat and went quiet.
-    - Re-running the install as root replaces a user service left by an older install, so a machine doesn't end up with two agents.
+    - An admin makes a token in Settings, under API tokens, or with `bield tokens create`, with a name, a role (viewer by default) and an expiry of up to a year. Bield shows it once and keeps only its hash. Use it with `BIELD_TOKEN` or `bield connect <url> --with-token`. `bield mcp` takes it too.
+    - A token never does more than the admin who made it can now: demote them and their admin tokens act as viewers, remove them and their tokens stop. Revoking one stops it at once, ends the streams it opened, and keeps its name, so a name in the activity log always means one token.
+    - Tokens can't open terminals, make or revoke tokens, change who has access, or change the Public URL. An admin token can still write files on your machines, which is as good as a shell there, so prefer viewer tokens and treat a leaked admin token like a leaked admin laptop.
+    - Changes made with a token are in the activity log under its maker, with the token's name.
+    - With an auth key in `BIELD_TS_AUTHKEY`, the command line and `bield mcp` join the tailnet inside their own process for as long as they run, so a container or a CI runner needs no Tailscale. See [Machines without Tailscale](https://github.com/manasseh-fikadu/bield/blob/main/docs/cli.md#machines-without-tailscale).
 
-    The agent itself doesn't change (it's still 1.4.0), so there's nothing to update on machines where it already runs. There is no database change. An MCP client on a tagged server, in CI or on the machine Bield runs on can't use `bield mcp` yet, since Bield doesn't know who they are. Scoped tokens for them are still to come.
+    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. Bield adds a table for the tokens and a column to the activity log when it starts, which needs no action from you.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - `bield mcp` with Claude Code against the demo: read-only, it listed the devices, found the failing check and read its history with no shell command, and saw only read-only tools. With `--allow-changes` it acknowledged an alert, and the event said it came from MCP.
-    - The same agent, read-only, against a real Bield on a real tailnet.
-    - The MCP server over stdio with a fake tailnet in Go tests, and the tools that need a machine against a stub server.
-    - The agent installer in a Debian 12 container with real systemd and a stand-in for Bield, logged in with no session: as root (service running, heartbeats continuing after a restart, reinstall, uninstall), as a user with no session (refused before enrolling), as a user with lingering on, and as root over an older user service.
+    - Tokens on a real Tailscale tailnet, from Bield's own machine, which is anonymous without one: viewer and admin tokens, the routes only people can use, `bield connect --with-token`, a revoke ending a live `--follow` within seconds, and `bield mcp` with each kind of token.
+    - Tokens on Headscale 0.29.7, made by a person from their own machine and used from a tagged server: a maker demoted and removed, revoking, and the Settings tab in a browser over plain HTTP.
+    - `BIELD_TS_AUTHKEY` on Headscale, from a Debian container with no Tailscale in it, for the command line and `bield mcp`.
+    - An independent security review of the tokens. The four things it found are fixed in this release.
+    - Shell completion in bash 5.2, zsh 5.9 and fish 3.6.
 
     ### What has not been run
 
-    - The agent installer on a real Raspberry Pi or on DietPi.
-    - Codex and Cursor against `bield mcp`. Its setup for them follows their documented config.
-    - The Docker and file tools called by an agent against a real machine.
-    - Upgrading from v0.3.0 to this release in place.
-    - What the [v0.3.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.3.0) list for the command line on a Mac and the zsh and fish completion scripts. Nothing in this release changes that.
+    - Making a token in the web app on a real Tailscale tailnet (it was made through the same code path, not the page).
+    - `BIELD_TS_AUTHKEY` with a Tailscale auth key, as opposed to a Headscale one.
+    - Codex and Cursor against `bield mcp`, and the command line on a Mac.
     - What the [v0.2.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.2.0) list under "What has not been run", which is coding usage on a Mac, OpenCode read with the `sqlite3` command, and Pi on a real install. Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
