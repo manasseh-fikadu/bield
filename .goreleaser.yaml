@@ -87,30 +87,26 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release adds [VS Code in the browser](https://github.com/manasseh-fikadu/bield/blob/main/docs/vscode.md): open a machine in VS Code from its page in Bield, with nothing to sign in to and no work for Bield's own machine.
+    This release fixes [VS Code in the browser](https://github.com/manasseh-fikadu/bield/blob/main/docs/vscode.md), which v0.6.0 added, while it loads the first time.
 
-    - An admin installs it from the machine's page, or with `bield editor install`. The machine downloads code-server from GitHub, and Bield checks the download against the SHA-256 it pins for that version before it installs it. It needs SSH access, Linux or macOS on x86-64 or ARM64 with glibc, and about 1 GB free in the home folder.
-    - **Open VS Code** on the machine's page, or **Open in VS Code** in the file manager for the folder you're in, opens it in a new tab. code-server runs as the user Bield logs in as, listens on a private socket in that user's home and nowhere on the network, and stops by itself after 30 minutes with no one connected.
-    - Each machine's editor is served on a port of Bield's own, from 4710 (`BIELD_EDITOR_PORTS`), so what VS Code runs in your browser can't reach Bield's API or another machine's editor. **If your tailnet policy only lets people reach port 443 of Bield, allow ports 4710 to 4799 too.** The editor is on the tailnet only, not behind a Public URL.
-    - It's for admins in person, like the terminal: viewers and API tokens can't open it. Installs, updates, opens, closes, stops and removals are in the activity log.
-    - Extensions come from Open VSX, not Microsoft's marketplace, so Copilot, Remote - SSH and Live Share aren't there.
+    - VS Code no longer says "The editor failed to load" while it's still loading. Its first load is about 6 MB, and over a relayed connection that takes longer than the 10 seconds VS Code waits before it says so. Now its page says it's loading, and says it failed only after two minutes. Your browser keeps what it downloaded, so the next load is quick.
+    - The activity log names the machine Bield runs on one way for its editor, where installing it from one of its two device pages used the other name.
+    - The editor's port sends each of its security headers once, not twice.
 
-    The agent doesn't change (it's still 1.4.0), so there's nothing to update on your machines. Bield adds a table for the editors when it starts, which needs no action from you.
+    The agent doesn't change (it's still 1.4.0), and there's no database change. If you skipped [v0.6.0](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0), read its notes: VS Code is served on ports 4710 to 4799 of Bield, which your tailnet policy has to allow.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - VS Code on Headscale 0.29.7 over plain HTTP, with an admin and a viewer opening it from their own machines in Chromium, and the machine Bield runs on as the target: installing from the card, opening it from the file manager at a folder, editing and saving a file, the terminal, installing an extension from Open VSX, stopping it and starting it again from its own page, and removing it with and without its settings.
-    - What the editor's port refuses: a viewer, an admin demoted while their editor was open (cut off within 10 seconds), API tokens, requests from other sites, and a machine with no SSH access.
-    - The install, start, stop and remove scripts with a real `sh`, and the API, the editor's port and `bield editor` against a fake tailnet and SSH server in Go tests.
+    - VS Code's real page, with Bield's change, in Chromium in dark and light: it says it's loading at once, and says it failed only after two minutes.
+    - The editor's port in Go tests: the page is asked for uncompressed and changed, other pages and compressed ones are left as they came, and each header is sent once.
+    - v0.6.0 itself on a real Tailscale tailnet over HTTPS: VS Code installed on the machine Bield runs on, and opened from a laptop through a relay. That run is where this was found.
 
     ### What has not been run
 
-    - VS Code over HTTPS, which turns on webviews and the clipboard that plain HTTP turns off, and a Tailscale tailnet: the test tailnet was Headscale.
-    - Tailscale SSH with Tailscale's own control server as the way Bield reaches the editor. Headscale allows it for `accept` rules.
-    - A Mac as the machine VS Code runs on, a machine other than the one Bield runs on, and Safari.
-    - What the [v0.5.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.5.0) list under "What has not been run". Nothing in this release changes that.
+    - This release on the live tailnet, before it was published.
+    - What the [v0.6.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0) list under "What has not been run", apart from HTTPS and a Tailscale tailnet, which the run above covered.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |
