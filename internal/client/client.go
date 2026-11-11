@@ -267,9 +267,7 @@ func (c *Client) Explain(ctx context.Context, err error) error {
 		// The token's role has nothing to do with it.
 		return e
 	}
-	if hint := Hint(me); hint != "" && !strings.EqualFold(hint, e.Message) {
-		e.Hint = hint
-	}
+	e.Hint = newPart(Hint(me), e.Message)
 	return e
 }
 
@@ -422,4 +420,13 @@ func tokenHint(me api.Me) string {
 		return fmt.Sprintf("the API token %s is a viewer token; this needs an admin token", me.Token)
 	}
 	return ""
+}
+
+// newPart returns what hint adds to msg: all of it, or what follows msg if
+// hint starts with it, or "" if it says nothing more.
+func newPart(hint, msg string) string {
+	if len(hint) >= len(msg) && strings.EqualFold(hint[:len(msg)], msg) {
+		return strings.TrimLeft(hint[len(msg):], "; ")
+	}
+	return hint
 }
