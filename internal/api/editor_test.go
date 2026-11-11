@@ -117,6 +117,16 @@ func (f *fakeLaptop) ran() []string {
 type codeServer struct{}
 
 func (codeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/workbench" {
+		// VS Code's page, which says what the proxy asked for.
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("X-Frame-Options", "DENY")
+		//nolint:gosec // G705: a test server answering what it was asked.
+		_, _ = fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>%s</title></head><body>`+
+			`<div id="vscode-startup-fallback"><h1>The editor failed to load</h1></div></body></html>`,
+			"encoding="+r.Header.Get("Accept-Encoding"))
+		return
+	}
 	if r.URL.Path == "/ws" {
 		// websocket.Accept checks the Origin against the Host, as code-server does.
 		conn, err := websocket.Accept(w, r, nil)
@@ -329,6 +339,31 @@ func TestEditor_installAndOpen(t *testing.T) {
 			t.Errorf("%s = %q, want %q", k, got, want)
 		}
 	}
+	for _, k := range []string{"X-Frame-Options", "Content-Security-Policy", "Cross-Origin-Resource-Policy", "X-Content-Type-Options"} {
+		if got := res.Header.Values(k); len(got) != 1 {
+			t.Errorf("%s = %q, want it once", k, got)
+		}
+	}
+
+	// VS Code's page comes uncompressed, and says it's loading for longer
+	// than its own 10 seconds.
+	req = portRequest(t, http.MethodGet, url+"/workbench", map[string]string{
+		"Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, br",
+	})
+	res, err = e.tn.Client(laptopIP).Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ = io.ReadAll(res.Body)
+	_ = res.Body.Close()
+	if page := string(b); !strings.Contains(page, "<title>encoding=identity</title>") ||
+		!strings.Contains(page, "Loading VS Code") || strings.Index(page, "bield-failed") > strings.Index(page, "</head>") {
+		t.Errorf("VS Code's page = %q", page)
+	}
+	if got := res.Header.Values("X-Frame-Options"); len(got) != 1 || got[0] != "SAMEORIGIN" {
+		t.Errorf("X-Frame-Options = %q, want SAMEORIGIN once", got)
+	}
+
 	var (
 		status int
 		body   string

@@ -2,11 +2,13 @@ package api
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"html/template"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -59,14 +61,20 @@ func (h *handler) editorPort(accessID string) http.Handler {
 			// can set one that this one would get. code-server only reads its
 			// login cookie, which --auth none never uses.
 			pr.Out.Header.Del("Cookie")
+			// A page comes uncompressed, so loadingStyle can go in it. It's a
+			// few KB: what's large is the scripts it loads.
+			if opensPage(pr.In) {
+				pr.Out.Header.Set("Accept-Encoding", "identity")
+			}
 		},
 		Transport: transport,
 		ModifyResponse: func(res *http.Response) error {
 			res.Header.Del("Set-Cookie")
 			editorHeaders(res.Header)
-			return nil
+			return addLoadingStyle(res)
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			editorHeaders(w.Header())
 			h.editorUnreachable(w, r, accessID, err)
 		},
 		ErrorLog: slog.NewLogLogger(h.log.Handler(), slog.LevelDebug),
@@ -122,6 +130,11 @@ func (h *handler) editorPort(accessID string) http.Handler {
 			w = &trackingWriter{ResponseWriter: w, track: func(conn net.Conn) net.Conn {
 				return h.editorSessions.add(accessID, c, conn)
 			}}
+		}
+		// The proxy adds code-server's headers to these, and ModifyResponse
+		// puts Bield's back on them, so each is there once.
+		for _, k := range editorHeaderNames {
+			w.Header().Del(k)
 		}
 		proxy.ServeHTTP(w, r)
 	})
@@ -199,11 +212,78 @@ func (h *handler) devicePageURL(deviceID string) string {
 
 // editorHeaders sets the headers every answer from an editor's port has.
 // code-server frames its own pages, for webviews, so only it may frame them.
+// Its own Content-Security-Policy stays, and this one is added to it.
 func editorHeaders(h http.Header) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "SAMEORIGIN")
-	h.Add("Content-Security-Policy", "frame-ancestors 'self'")
+	h.Add("Content-Security-Policy", editorFramePolicy)
 	h.Set("Cross-Origin-Resource-Policy", "same-origin")
+}
+
+const editorFramePolicy = "frame-ancestors 'self'"
+
+// editorHeaderNames are the headers editorHeaders sets.
+var editorHeaderNames = []string{"X-Content-Type-Options", "X-Frame-Options", "Content-Security-Policy", "Cross-Origin-Resource-Policy"}
+
+// startupFallback is the element of VS Code's page that says the editor
+// failed to load. VS Code's script removes it as soon as it runs, and the
+// page shows it after 10 seconds if it hasn't run yet.
+const startupFallback = `<div id="vscode-startup-fallback">`
+
+// loadingStyle goes in VS Code's page. The script the page waits for is
+// about 6 MB compressed, which takes longer than 10 seconds the first time
+// over a relayed connection, so VS Code said it had failed while it was
+// still loading. This says it's loading, and keeps the failure for two
+// minutes. code-server's policy allows inline styles. If it stopped, the
+// page would be VS Code's own again.
+const loadingStyle = `<style>
+#vscode-startup-fallback{visibility:visible;animation:none}
+#vscode-startup-fallback>*{visibility:hidden;animation:bield-failed 0s linear 120s forwards}
+#vscode-startup-fallback::before{content:"Loading VS Code\2026\AThe first time takes longest. Your browser keeps it for the next.";white-space:pre-line;font-size:13px;line-height:1.6;margin-bottom:16px;opacity:.85;animation:bield-gone 0s linear 120s forwards}
+@keyframes bield-failed{to{visibility:visible}}
+@keyframes bield-gone{to{visibility:hidden;font-size:0;margin:0}}
+</style>
+`
+
+// readCloser reads from one reader and closes another.
+type readCloser struct {
+	io.Reader
+	io.Closer
+}
+
+// maxEditorPage is the largest page addLoadingStyle reads. VS Code's is
+// about 5 KB.
+const maxEditorPage = 1 << 20
+
+// addLoadingStyle puts loadingStyle in res if it's VS Code's page: a whole
+// HTML page, uncompressed, with startupFallback in it. Anything else passes
+// as it came.
+func addLoadingStyle(res *http.Response) error {
+	ct, _, _ := strings.Cut(res.Header.Get("Content-Type"), ";")
+	if res.StatusCode != http.StatusOK || !strings.EqualFold(strings.TrimSpace(ct), "text/html") ||
+		res.Header.Get("Content-Encoding") != "" || res.ContentLength > maxEditorPage {
+		return nil
+	}
+	body, err := io.ReadAll(io.LimitReader(res.Body, maxEditorPage+1))
+	if err != nil {
+		return err
+	}
+	if len(body) > maxEditorPage {
+		// Too big to be VS Code's page: it goes on whole, as it came.
+		res.Body = readCloser{io.MultiReader(bytes.NewReader(body), res.Body), res.Body}
+		return nil
+	}
+	_ = res.Body.Close()
+	page := string(body)
+	head := strings.Index(page, "</head>")
+	if head >= 0 && strings.Contains(page, startupFallback) {
+		page = page[:head] + loadingStyle + page[head:]
+		res.Header.Del("ETag")
+	}
+	res.Body = io.NopCloser(strings.NewReader(page))
+	res.ContentLength = int64(len(page))
+	res.Header.Set("Content-Length", strconv.Itoa(len(page)))
+	return nil
 }
 
 // editorCrossSite says why a request to an editor's port mustn't be served,

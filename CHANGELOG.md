@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Fixed
+
+- VS Code no longer says "The editor failed to load" while it's still loading. Its first load over a relayed connection takes longer than the 10 seconds VS Code waits, so Bield's editor port has it say it's loading, and shows the failure only after two minutes. The activity log also names the machine Bield runs on one way for its editor, and the editor's port sends each of its security headers once.
+
 ## 0.6.0 - 2026-11-11
 
 This release adds VS Code in the browser: Bield installs code-server on a machine over SSH and opens it in a tab of its own. The agent doesn't change, so there's nothing to update on your machines. Bield adds a table for the editors when it starts, which needs no action from you. If your tailnet policy only lets people reach port 443 of Bield, allow ports 4710 to 4799 too, where the editors are served.

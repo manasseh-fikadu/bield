@@ -1,9 +1,12 @@
 package api
 
 import (
+	"io"
 	"net"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -139,6 +142,57 @@ func TestEditorCrossSite(t *testing.T) {
 			r.Header = tt.header
 			if why := editorCrossSite(r, origin); (why == "") != tt.ok {
 				t.Errorf("editorCrossSite = %q, want allowed %v", why, tt.ok)
+			}
+		})
+	}
+}
+
+func TestAddLoadingStyle(t *testing.T) {
+	t.Parallel()
+	vscode := "<!DOCTYPE html><html><head><style>x</style></head><body>" + startupFallback + "<h1>The editor failed to load</h1></div></body></html>"
+	big := "<html><head></head><body>" + startupFallback + strings.Repeat("x", maxEditorPage) + "</body></html>"
+	tests := []struct {
+		name        string
+		status      int
+		contentType string
+		encoding    string
+		body        string
+		want        string
+	}{
+		{"VS Code's page", http.StatusOK, "text/html; charset=utf-8", "", vscode,
+			strings.Replace(vscode, "</head>", loadingStyle+"</head>", 1)},
+		{"another page", http.StatusOK, "text/html", "", "<html><head></head><body>hi</body></html>",
+			"<html><head></head><body>hi</body></html>"},
+		{"a script", http.StatusOK, "text/javascript", "", vscode, vscode},
+		{"a compressed page", http.StatusOK, "text/html", "br", vscode, vscode},
+		{"an error", http.StatusNotFound, "text/html", "", vscode, vscode},
+		{"a page too big to be VS Code's", http.StatusOK, "text/html", "", big, big},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := &http.Response{
+				StatusCode: tt.status, Header: http.Header{"Content-Type": {tt.contentType}, "Etag": {`"1"`}},
+				Body: io.NopCloser(strings.NewReader(tt.body)), ContentLength: -1,
+			}
+			if tt.encoding != "" {
+				res.Header.Set("Content-Encoding", tt.encoding)
+			}
+			if err := addLoadingStyle(res); err != nil {
+				t.Fatal(err)
+			}
+			got, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("body = %.200q…, want %.200q…", got, tt.want)
+			}
+			changed := tt.want != tt.body
+			if changed && (res.ContentLength != int64(len(got)) || res.Header.Get("Content-Length") != strconv.Itoa(len(got))) {
+				t.Errorf("length = %d and %q, want %d", res.ContentLength, res.Header.Get("Content-Length"), len(got))
+			}
+			if changed != (res.Header.Get("ETag") == "") {
+				t.Errorf("ETag = %q after a change %v", res.Header.Get("ETag"), changed)
 			}
 		})
 	}
