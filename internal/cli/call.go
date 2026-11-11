@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/api"
@@ -100,13 +101,40 @@ func (c *Call) Client() (*client.Client, error) {
 	if c.client != nil {
 		return c.client, nil
 	}
-	addr, _ := c.address()
-	cl, err := client.New(client.Options{URL: addr, Version: c.Env.Version, HTTP: c.Env.HTTP})
+	cl, err := client.New(c.clientOptions())
 	if err != nil {
 		return nil, err
 	}
 	c.client = cl
 	return cl, nil
+}
+
+// clientOptions returns the options of the client for the Bield that the
+// command talks to: its address, and the API token to send it, if any.
+func (c *Call) clientOptions() client.Options {
+	addr, _ := c.address()
+	return client.Options{URL: addr, Version: c.Env.Version, HTTP: c.Env.HTTP, Token: c.token(addr)}
+}
+
+// token returns the API token to send to the Bield at addr: BIELD_TOKEN, or
+// else the one bield connect saved with addr. A saved token goes to no other
+// address, so --url can't send it somewhere else.
+func (c *Call) token(addr string) string {
+	if t := c.Env.getenv("BIELD_TOKEN"); t != "" {
+		return t
+	}
+	cfg, err := c.Env.loadConfig()
+	if err != nil || cfg.Token == "" || !sameURL(cfg.URL, addr) {
+		return ""
+	}
+	return cfg.Token
+}
+
+// sameURL reports whether a and b are the same Bield address.
+func sameURL(a, b string) bool {
+	ua, errA := client.ParseURL(a)
+	ub, errB := client.ParseURL(b)
+	return errA == nil && errB == nil && strings.EqualFold(ua.String(), ub.String())
 }
 
 // address returns where Bield is and how the command line knows: "--url",
@@ -201,6 +229,9 @@ func writeJSONLine(w io.Writer, v any) error {
 // config is what bield connect saves.
 type config struct {
 	URL string `json:"url"`
+	// Token is an API token for the Bield at URL, if bield connect was given
+	// one with --with-token.
+	Token string `json:"token,omitempty"`
 }
 
 func (e Env) configPath() string {
@@ -235,5 +266,19 @@ func (e Env) saveConfig(cfg config) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(b, '\n'), 0o600)
+	// It may hold a token, so it's only ever the owner's: a new file, made
+	// 0600, takes the old one's place, whatever the old one's mode was.
+	f, err := os.CreateTemp(filepath.Dir(path), ".cli-*.json")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(f.Name()) }()
+	if _, err := f.Write(append(b, '\n')); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), path)
 }

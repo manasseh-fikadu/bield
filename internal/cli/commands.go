@@ -12,6 +12,7 @@ func init() {
 		dockerCommands(),
 		fileCommands(),
 		adminCommands(),
+		tokenCommands(),
 		completionCommands(),
 		mcpCommands(),
 	)

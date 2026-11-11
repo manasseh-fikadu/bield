@@ -288,6 +288,22 @@ func (c *Client) SetWhoCanView(ctx context.Context, who api.WhoCanView) (a api.A
 	return a, c.do(ctx, http.MethodPatch, "/api/access", nil, api.ChangeAccess{WhoCanView: who}, &a)
 }
 
+// Tokens returns the API tokens. Only a person can ask, not a token.
+func (c *Client) Tokens(ctx context.Context) (ts []api.APIToken, err error) {
+	return ts, c.do(ctx, http.MethodGet, "/api/tokens", nil, nil, &ts)
+}
+
+// NewToken makes an API token, and returns it with its secret, which Bield
+// shows only this once.
+func (c *Client) NewToken(ctx context.Context, t api.NewAPIToken) (r api.NewAPITokenResult, err error) {
+	return r, c.do(ctx, http.MethodPost, "/api/tokens", nil, t, &r)
+}
+
+// RevokeToken revokes the API token with id at once.
+func (c *Client) RevokeToken(ctx context.Context, id int64) error {
+	return c.do(ctx, http.MethodDelete, "/api/tokens/"+strconv.FormatInt(id, 10), nil, nil, nil)
+}
+
 // ListFiles lists a folder on a device. Without a path, it's the home folder
 // of the user Bield logs in as.
 func (c *Client) ListFiles(ctx context.Context, device, path string) (l api.FileListing, err error) {

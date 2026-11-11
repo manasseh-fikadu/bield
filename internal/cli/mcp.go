@@ -140,6 +140,8 @@ func toolDescription(c *Command) string {
 }
 
 // argDescriptions says what each argument of a tool is, by its name.
+//
+//nolint:gosec // G101: "token" is the name of an argument, not a credential.
 var argDescriptions = map[string]string{
 	"device":    "the device: its ID or a name, as the devices tool lists them",
 	"check":     "the check: its ID or name, as the checks tool lists them",
@@ -150,6 +152,7 @@ var argDescriptions = map[string]string{
 	"login":     "a Tailscale login, such as alice@example.com",
 	"role":      "the role to give",
 	"who":       "who can view Bield; leave it out to see the current value",
+	"token":     "the API token: its name, as the tokens tool lists them, or its ID",
 	"settings":  "the settings to change, each as name=value, such as thresholds.diskWarn=85",
 }
 
@@ -254,8 +257,9 @@ func (s *mcpServer) client() (*client.Client, error) {
 	if s.cl != nil {
 		return s.cl, nil
 	}
-	addr, _ := (&Call{Env: s.env, global: s.global}).address()
-	cl, err := client.New(client.Options{URL: addr, Name: api.MCPUserAgent, Version: s.env.Version, HTTP: s.env.HTTP})
+	opts := (&Call{Env: s.env, global: s.global}).clientOptions()
+	opts.Name = api.MCPUserAgent
+	cl, err := client.New(opts)
 	if err != nil {
 		return nil, err
 	}

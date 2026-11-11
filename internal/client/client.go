@@ -3,8 +3,10 @@
 // server answers with (see internal/api).
 //
 // Bield signs a caller in by asking Tailscale who is on the other end of the
-// connection, so a client holds no credentials: it must run on a machine on
-// the tailnet, and Bield sees the person who is logged in there.
+// connection, so a client needs no credentials: it runs on a machine on the
+// tailnet, and Bield sees the person who is logged in there. A machine that
+// no person is logged in to, such as a tagged server or a CI runner, can send
+// an API token instead (Options.Token).
 package client
 
 import (
@@ -22,6 +24,7 @@ import (
 	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/api"
+	"github.com/manasseh-fikadu/bield/internal/store"
 )
 
 // Options configures New.
@@ -36,6 +39,9 @@ type Options struct {
 	// HTTP sends the requests. Nil is a client that gives a server 30
 	// seconds to start answering, and any time at all to finish.
 	HTTP *http.Client
+	// Token is an API token to send with every request, which Bield then
+	// acts on instead of who Tailscale says is asking. Empty sends none.
+	Token string
 }
 
 // A Client talks to one Bield.
@@ -43,6 +49,7 @@ type Client struct {
 	base      *url.URL
 	hc        *http.Client
 	userAgent string
+	token     string
 }
 
 // New returns a Client for opts.URL. See ParseURL for the forms it takes.
@@ -68,7 +75,11 @@ func New(opts Options) (*Client, error) {
 	if opts.Version != "" {
 		ua += "/" + opts.Version
 	}
-	return &Client{base: base, hc: hc, userAgent: ua}, nil
+	token := strings.TrimSpace(opts.Token)
+	if token != "" && !strings.HasPrefix(token, store.TokenPrefix) {
+		return nil, fmt.Errorf("that isn't a Bield API token, which starts with %s; make one in Bield's Settings, under API tokens", store.TokenPrefix)
+	}
+	return &Client{base: base, hc: hc, userAgent: ua, token: token}, nil
 }
 
 // ParseURL turns what someone typed for Bield's address into its base URL. A
@@ -93,6 +104,9 @@ func ParseURL(s string) (*url.URL, error) {
 
 // URL returns the address of the Bield the client talks to.
 func (c *Client) URL() string { return c.base.String() }
+
+// HasToken reports whether the client sends an API token.
+func (c *Client) HasToken() bool { return c.token != "" }
 
 // An Error is a response from Bield that says no.
 type Error struct {
@@ -146,6 +160,9 @@ func (c *Client) request(ctx context.Context, method, path string, q url.Values,
 	}
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
@@ -228,6 +245,11 @@ func (c *Client) Explain(ctx context.Context, err error) error {
 		return err
 	}
 	switch e.Status {
+	case http.StatusUnauthorized:
+		if c.token != "" {
+			e.Hint = "check BIELD_TOKEN, or the token bield connect saved"
+		}
+		return e
 	case http.StatusMisdirectedRequest:
 		e.Hint = "the address names this Bield by something other than its own name on the tailnet; use its MagicDNS name, such as https://bield.example.ts.net"
 		return e
@@ -241,6 +263,10 @@ func (c *Client) Explain(ctx context.Context, err error) error {
 	if meErr != nil {
 		return err
 	}
+	if me.Token != "" && e.Message == api.PeopleOnly {
+		// The token's role has nothing to do with it.
+		return e
+	}
 	if hint := Hint(me); hint != "" {
 		e.Hint = hint
 	}
@@ -250,6 +276,9 @@ func (c *Client) Explain(ctx context.Context, err error) error {
 // Hint says in a sentence why Bield treats the caller as it does and what to
 // do about it, or "" if there is nothing to add: the caller is an admin.
 func Hint(me api.Me) string {
+	if me.Token != "" {
+		return tokenHint(me)
+	}
 	switch {
 	case me.Reason == api.ReasonTaggedDevice:
 		return "this machine is tagged in Tailscale, so it belongs to no one and Bield doesn't know who you are; " +
@@ -378,4 +407,19 @@ func (c *Client) Watch(ctx context.Context, fn func(api.Snapshot) error) error {
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// tokenHint is Hint for a caller with an API token.
+func tokenHint(me api.Me) string {
+	switch {
+	case me.Reason == api.ReasonTokenMakerHasNoRole:
+		return fmt.Sprintf("the API token %s can't do anything, since %s, who made it, has no role in Bield now; ask an admin for a new token", me.Token, me.Login)
+	case me.Reason == api.ReasonRoleLookupFailed:
+		return "Bield couldn't look up the role of the token's maker just now; try again in a moment"
+	case me.Role == api.RoleViewer && me.TokenRole == api.RoleAdmin:
+		return fmt.Sprintf("the API token %s acts as a viewer, since %s, who made it, is a viewer now; this needs an admin", me.Token, me.Login)
+	case me.Role == api.RoleViewer:
+		return fmt.Sprintf("the API token %s is a viewer token; this needs an admin token", me.Token)
+	}
+	return ""
 }

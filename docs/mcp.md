@@ -42,9 +42,9 @@ To let the agent make changes, add `--allow-changes` after `mcp`. The server tak
 
 ## Who the agent is
 
-The agent acts as the Tailscale user logged in on its machine, the same as the command line, so Bield's roles apply as they do in the browser. There is nothing to log in to and no token. A viewer who runs `bield mcp --allow-changes` sees the admin tools, and Bield refuses them when they are called.
+The agent acts as the Tailscale user logged in on its machine, the same as the command line, so Bield's roles apply as they do in the browser. There is nothing to log in to. A viewer who runs `bield mcp --allow-changes` sees the admin tools, and Bield refuses them when they are called.
 
-A machine with a tag in Tailscale belongs to no one, so Bield doesn't know who is asking and refuses. So does Bield's own machine. The agent has to run on a machine a person is logged in to, until there are scoped tokens.
+A machine with a tag in Tailscale belongs to no one, so Bield doesn't know who is asking and refuses. So does Bield's own machine. There, give the agent an [API token](cli.md#api-tokens): set `BIELD_TOKEN` in the server's environment in the agent's MCP config, or save one with `bield connect <url> --with-token`. The agent then acts as the token, with its role, and never with more than the admin who made it. A token is also the way to give an agent on your own laptop less than your role: a viewer token keeps it read-only whatever `--allow-changes` says. Making a token isn't a tool, since an agent shouldn't hand itself credentials.
 
 ## What read-only means
 
@@ -110,6 +110,5 @@ A change made through MCP is in the activity log with the person's login, and sa
 
 ## What it doesn't do
 
-- **Scoped API tokens.** An MCP server on a tagged server or in CI needs them, and so does the command line.
 - **Running a command on a device.** That's a decision that needs its own approval step and its own record.
 - **A remote MCP endpoint** served by Bield over HTTP. `bield mcp` runs next to the agent.
