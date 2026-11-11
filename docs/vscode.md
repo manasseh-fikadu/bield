@@ -83,6 +83,7 @@ The activity log says who installed, updated, removed and stopped VS Code on whi
 | The install fails with the SHA-256 | The download wasn't the file Bield pinned. Try again; if it fails again, something on the way changes downloads |
 | The new tab can't connect | Your tailnet policy doesn't let your device reach the editor's port. See [Where it's served](#where-its-served) |
 | The card says Bield can't listen on the port | Another program on Bield's machine has it (host mode). Free it, or change `BIELD_EDITOR_PORTS` and remove and install VS Code again on that machine |
+| It says "Loading VS Code…" for a long time | The first load downloads about 6 MB of VS Code, which takes a while through a relay (the device page's Path says if your connection is relayed). Your browser keeps it, so the next load is quick. If it still hasn't loaded after two minutes, the page says VS Code failed to load: look in the browser's console |
 | VS Code says it can't reconnect | code-server stopped, as it does after 30 minutes with no window open, or the machine went offline. Reload the tab |
 | Markdown preview and some extensions' panels are blank | Bield is served over plain HTTP. Turn on HTTPS in your tailnet |
 | code-server stops right after it starts | Look in `~/.local/share/bield/code-server/run/log` on the machine. If logind ends the user's processes when a session ends, see [On the machine](#on-the-machine) |
