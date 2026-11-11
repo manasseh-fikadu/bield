@@ -129,19 +129,29 @@ func TestTokens_make(t *testing.T) {
 	if rec := send(t, h, http.MethodDelete, target, laptopIP, ""); rec.Code != http.StatusNoContent {
 		t.Fatalf("DELETE %s = %d %s, want 204", target, rec.Code, rec.Body)
 	}
-	if rec := send(t, h, http.MethodDelete, target, laptopIP, ""); rec.Code != http.StatusNotFound {
-		t.Errorf("DELETE %s twice = %d, want 404", target, rec.Code)
+	if rec := send(t, h, http.MethodDelete, target, laptopIP, ""); rec.Code != http.StatusConflict {
+		t.Errorf("DELETE %s twice = %d, want 409", target, rec.Code)
 	}
 	if rec := send(t, h, http.MethodDelete, "/api/tokens/nope", laptopIP, ""); rec.Code != http.StatusNotFound {
 		t.Errorf("DELETE /api/tokens/nope = %d, want 404", rec.Code)
 	}
 	rec = withToken(t, h, http.MethodGet, "/api/me", serverIP, made.Secret, "")
-	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "revoked") ||
+	if rec.Code != http.StatusUnauthorized || !strings.Contains(rec.Body.String(), "the API token ci.deploy_1 was revoked on") ||
 		!strings.Contains(rec.Header().Get("WWW-Authenticate"), "invalid_token") {
 		t.Errorf("GET /api/me with a revoked token = %d %s %v, want 401 that says it was revoked", rec.Code, rec.Body, rec.Header())
 	}
 	if events := activity(t, h); events[0].Message != "Revoked the API token ci.deploy_1" {
 		t.Errorf("activity after revoking = %+v", events[0])
+	}
+	// It stays listed, revoked, and its name isn't used again.
+	list = nil
+	get(t, h, "/api/tokens", laptopIP, &list)
+	if len(list) != 2 || list[1].RevokedAt == nil || list[1].RevokedBy != alice || list[1].ActsAs != "" {
+		t.Errorf("GET /api/tokens after revoking = %+v, want ci.deploy_1 revoked by alice", list)
+	}
+	rec = send(t, h, http.MethodPost, "/api/tokens", laptopIP, `{"name": "ci.deploy_1"}`)
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "names aren't used twice") {
+		t.Errorf("POST /api/tokens with a revoked token's name = %d %s, want 409", rec.Code, rec.Body)
 	}
 }
 
@@ -334,7 +344,7 @@ func TestStream_tokenRevoked(t *testing.T) {
 		synctest.Wait()
 		nextSnapshot(t, events)
 
-		if _, err := st.DeleteToken(context.Background(), tok.ID); err != nil {
+		if _, err := st.RevokeToken(context.Background(), tok.ID, alice, time.Now()); err != nil {
 			t.Fatal(err)
 		}
 		time.Sleep(api.RoleCheckInterval)

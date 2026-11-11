@@ -29,7 +29,7 @@ export function tokenNameProblem(name: string, taken: readonly string[] = []): s
 	}
 	const lower = s.toLowerCase();
 	if (taken.some((t) => t.toLowerCase() === lower)) {
-		return `Another token is called ${s}. Pick another name, or revoke that one first.`;
+		return `A token was already called ${s}. Names aren't used twice, even after a token is revoked, so the activity log always means one token. Pick another name.`;
 	}
 	return '';
 }
@@ -39,13 +39,18 @@ export function tokenHintLabel(hint: string): string {
 	return `bield_…${hint}`;
 }
 
+/** Whether a token is done with: revoked or expired, so it can't be used or revoked. */
+export function tokenDone(token: APIToken): boolean {
+	return token.expired || token.revokedAt !== undefined;
+}
+
 /**
  * A sentence for a token that can do less than its role, or '' if it can do
- * all of it. An expired token is marked as such elsewhere, so this says
- * nothing about it.
+ * all of it. An expired or revoked token is marked as such elsewhere, so this
+ * says nothing about it.
  */
 export function actsAsNote(token: APIToken): string {
-	if (token.expired || token.actsAs === token.role) {
+	if (tokenDone(token) || token.actsAs === token.role) {
 		return '';
 	}
 	if (!token.actsAs) {

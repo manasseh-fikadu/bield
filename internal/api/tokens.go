@@ -68,7 +68,8 @@ func (h *handler) newToken(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case errors.Is(err, store.ErrTokenName):
 		h.writeJSON(w, r, http.StatusConflict, ErrorBody{
-			Error: "another API token is called " + body.Name + "; pick another name, or revoke that one first",
+			Error: "an API token was already called " + body.Name + ", and names aren't used twice, even after a token is " +
+				"revoked, so the activity log always means one token; pick another name",
 		})
 		return
 	case err != nil:
@@ -83,17 +84,21 @@ func (h *handler) newToken(w http.ResponseWriter, r *http.Request) {
 
 // revokeToken answers DELETE /api/tokens/{id}, which revokes an API token at
 // once: the next request with it is refused, and a stream it opened ends
-// within a role check.
+// within a role check. The token stays in the list, revoked, and keeps its
+// name.
 func (h *handler) revokeToken(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
 		h.writeJSON(w, r, http.StatusNotFound, ErrorBody{Error: "no such API token"})
 		return
 	}
-	t, err := h.opts.Store.DeleteToken(r.Context(), id)
+	t, err := h.opts.Store.RevokeToken(r.Context(), id, callerOf(r).login(), time.Now())
 	switch {
 	case errors.Is(err, store.ErrUnknownToken):
 		h.writeJSON(w, r, http.StatusNotFound, ErrorBody{Error: "no such API token"})
+		return
+	case errors.Is(err, store.ErrTokenRevoked):
+		h.writeJSON(w, r, http.StatusConflict, ErrorBody{Error: "the API token " + t.Name + " was revoked already"})
 		return
 	case err != nil:
 		h.fail(w, r, "revoke an API token", err)
@@ -113,7 +118,11 @@ func (h *handler) apiToken(r *http.Request, t store.APIToken) APIToken {
 	if t.Role == store.Admin {
 		out.Role = RoleAdmin
 	}
-	if !out.Expired {
+	if t.Revoked() {
+		at := t.RevokedAt
+		out.RevokedAt, out.RevokedBy = &at, t.RevokedBy
+	}
+	if !out.Expired && !t.Revoked() {
 		if l, _ := h.tokenLevel(r.Context(), t); l >= viewers {
 			out.ActsAs = (caller{level: l}).role()
 		}

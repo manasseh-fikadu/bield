@@ -23,12 +23,15 @@ const tokenTouchEvery = time.Minute
 
 // Why the store can't find or make an API token.
 var (
-	// ErrUnknownToken means Bield didn't make the token, or it was revoked.
+	// ErrUnknownToken means Bield didn't make the token.
 	ErrUnknownToken = errors.New("unknown API token")
 	// ErrTokenExpired means the token expired.
 	ErrTokenExpired = errors.New("the API token expired")
-	// ErrTokenName means another token has the name.
-	ErrTokenName = errors.New("another API token has this name")
+	// ErrTokenRevoked means an admin revoked the token.
+	ErrTokenRevoked = errors.New("the API token was revoked")
+	// ErrTokenName means another token has, or had, the name. A revoked
+	// token keeps its name, so a name always means one token.
+	ErrTokenName = errors.New("another API token has or had this name")
 )
 
 // An APIToken is a token that lets a caller use the API with a role, without
@@ -51,7 +54,14 @@ type APIToken struct {
 	// LastUsedNode is the node ID of the machine it was last used from, if
 	// Tailscale knew it.
 	LastUsedNode string
+	// RevokedAt is when an admin revoked it, or zero, and RevokedBy their
+	// login.
+	RevokedAt time.Time
+	RevokedBy string
 }
+
+// Revoked reports whether an admin revoked t.
+func (t APIToken) Revoked() bool { return !t.RevokedAt.IsZero() }
 
 // Expired reports whether t has expired at now.
 func (t APIToken) Expired(now time.Time) bool { return !now.Before(t.ExpiresAt) }
@@ -59,7 +69,7 @@ func (t APIToken) Expired(now time.Time) bool { return !now.Before(t.ExpiresAt) 
 // NewToken makes an API token called name with role, for the admin with login
 // by, that works until expires. It returns the token, which the store doesn't
 // keep, and what it does keep. It returns ErrTokenName if another token has
-// the name, whatever its case.
+// the name, whatever its case, even one that was revoked.
 func (s *Store) NewToken(ctx context.Context, name string, role Role, by string, now, expires time.Time) (string, APIToken, error) {
 	if role != Admin && role != Viewer {
 		return "", APIToken{}, fmt.Errorf("unknown role %q", role)
@@ -85,18 +95,18 @@ func (s *Store) NewToken(ctx context.Context, name string, role Role, by string,
 // tokenColumns are the columns scanToken reads, in order.
 //
 //nolint:gosec // G101: column names, not a credential.
-const tokenColumns = "id, name, hint, role, created_by, created_at, expires_at, last_used_at, last_used_node"
+const tokenColumns = "id, name, hint, role, created_by, created_at, expires_at, last_used_at, last_used_node, revoked_at, revoked_by"
 
 type scanner interface{ Scan(dest ...any) error }
 
 func scanToken(row scanner) (APIToken, error) {
 	var (
-		t                APIToken
-		created, expires int64
-		lastUsed         sql.NullInt64
-		lastNode         sql.NullString
+		t                 APIToken
+		created, expires  int64
+		lastUsed, revoked sql.NullInt64
+		lastNode, revoker sql.NullString
 	)
-	if err := row.Scan(&t.ID, &t.Name, &t.Hint, &t.Role, &t.CreatedBy, &created, &expires, &lastUsed, &lastNode); err != nil {
+	if err := row.Scan(&t.ID, &t.Name, &t.Hint, &t.Role, &t.CreatedBy, &created, &expires, &lastUsed, &lastNode, &revoked, &revoker); err != nil {
 		return APIToken{}, err
 	}
 	t.CreatedAt, t.ExpiresAt = time.UnixMilli(created), time.UnixMilli(expires)
@@ -104,10 +114,13 @@ func scanToken(row scanner) (APIToken, error) {
 		t.LastUsedAt = time.UnixMilli(lastUsed.Int64)
 	}
 	t.LastUsedNode = lastNode.String
+	if revoked.Valid {
+		t.RevokedAt, t.RevokedBy = time.UnixMilli(revoked.Int64), revoker.String
+	}
 	return t, nil
 }
 
-// Tokens returns every API token, expired ones too, by name.
+// Tokens returns every API token, expired and revoked ones too, by name.
 func (s *Store) Tokens(ctx context.Context) ([]APIToken, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT "+tokenColumns+" FROM api_tokens ORDER BY name")
 	if err != nil {
@@ -129,7 +142,8 @@ func (s *Store) Tokens(ctx context.Context) ([]APIToken, error) {
 }
 
 // TokenBySecret returns the API token secret is, if it works at now.
-// Otherwise it returns ErrUnknownToken, or ErrTokenExpired with the token.
+// Otherwise it returns ErrUnknownToken, or ErrTokenRevoked or ErrTokenExpired
+// with the token.
 func (s *Store) TokenBySecret(ctx context.Context, secret string, now time.Time) (APIToken, error) {
 	if !strings.HasPrefix(secret, TokenPrefix) {
 		return APIToken{}, ErrUnknownToken
@@ -150,6 +164,8 @@ func (s *Store) tokenWhere(ctx context.Context, where string, arg any, now time.
 		return APIToken{}, ErrUnknownToken
 	case err != nil:
 		return APIToken{}, fmt.Errorf("look up an API token: %w", err)
+	case t.Revoked():
+		return t, ErrTokenRevoked
 	case t.Expired(now):
 		return t, ErrTokenExpired
 	}
@@ -170,13 +186,30 @@ func (s *Store) TouchToken(ctx context.Context, id int64, node string, now time.
 	return nil
 }
 
-// DeleteToken deletes the API token with id, and returns it, or
-// ErrUnknownToken if there's none.
-func (s *Store) DeleteToken(ctx context.Context, id int64) (APIToken, error) {
-	t, err := scanToken(s.db.QueryRowContext(ctx, "DELETE FROM api_tokens WHERE id = ? RETURNING "+tokenColumns, id))
+// RevokeToken revokes the API token with id at now, for the admin with login
+// by, and returns it. The token stops working, and keeps its row and its name.
+// It returns ErrUnknownToken if there's no such token, and ErrTokenRevoked if
+// it was revoked already.
+func (s *Store) RevokeToken(ctx context.Context, id int64, by string, now time.Time) (APIToken, error) {
+	var t APIToken
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		if t, err = scanToken(tx.QueryRowContext(ctx, "SELECT "+tokenColumns+" FROM api_tokens WHERE id = ?", id)); err != nil {
+			return err
+		}
+		if t.Revoked() {
+			return ErrTokenRevoked
+		}
+		t.RevokedAt, t.RevokedBy = time.UnixMilli(now.UnixMilli()), by
+		_, err = tx.ExecContext(ctx, "UPDATE api_tokens SET revoked_at = ?, revoked_by = ? WHERE id = ?",
+			t.RevokedAt.UnixMilli(), by, id)
+		return err
+	})
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return APIToken{}, ErrUnknownToken
+	case errors.Is(err, ErrTokenRevoked):
+		return t, ErrTokenRevoked
 	case err != nil:
 		return APIToken{}, fmt.Errorf("revoke an API token: %w", err)
 	}

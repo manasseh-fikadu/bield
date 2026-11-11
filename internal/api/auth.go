@@ -199,7 +199,10 @@ func (h *handler) identifyToken(ctx context.Context, peer caller, secret string)
 	switch {
 	case errors.Is(err, store.ErrUnknownToken):
 		return caller{}, http.StatusUnauthorized,
-			"Bield doesn't know this API token: an admin revoked it, or it was never one of Bield's; " + next
+			"Bield doesn't know this API token; check that it was copied whole, or " + next
+	case errors.Is(err, store.ErrTokenRevoked):
+		return caller{}, http.StatusUnauthorized,
+			"the API token " + tok.Name + " was revoked on " + tok.RevokedAt.UTC().Format("2006-01-02 15:04 MST") + "; " + next
 	case errors.Is(err, store.ErrTokenExpired):
 		return caller{}, http.StatusUnauthorized,
 			"the API token " + tok.Name + " expired on " + tok.ExpiresAt.UTC().Format("2006-01-02 15:04 MST") + "; " + next
@@ -260,7 +263,7 @@ func (h *handler) levelNow(ctx context.Context, c caller) (level, error) {
 	}
 	tok, err := h.opts.Store.Token(ctx, c.token.ID, time.Now())
 	switch {
-	case errors.Is(err, store.ErrUnknownToken), errors.Is(err, store.ErrTokenExpired):
+	case errors.Is(err, store.ErrUnknownToken), errors.Is(err, store.ErrTokenRevoked), errors.Is(err, store.ErrTokenExpired):
 		return anyone, nil
 	case err != nil:
 		return anyone, err

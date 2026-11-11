@@ -12,7 +12,7 @@ func tokenCommands() []*Command {
 	return []*Command{
 		{
 			Name: "tokens", Admin: true, ReadOnly: true, Run: runTokens,
-			Summary: "list the API tokens, without the tokens themselves",
+			Summary: "list the API tokens, revoked ones too, without the tokens themselves",
 			What: "API tokens let a machine no person is logged in to, such as a tagged server or a CI runner, use Bield. " +
 				"Only a person can list, make or revoke them, not a token.",
 		},
@@ -33,7 +33,8 @@ func tokenCommands() []*Command {
 		{
 			Name: "tokens revoke", Args: "<token>", Min: 1, Max: 1, Admin: true, Destructive: true, Run: runTokensRevoke,
 			Summary: "revoke an API token, by its name or ID",
-			What:    "Whatever uses it is refused from the next request on.",
+			What: "Whatever uses it is refused from the next request on. It stays in the list as revoked, and its name " +
+				"isn't used again, so a name in the activity log always means one token.",
 		},
 	}
 }
@@ -56,14 +57,17 @@ func runTokens(c *Call) error {
 		for _, tok := range tokens {
 			role := string(tok.Role)
 			switch {
-			case tok.Expired:
+			case tok.Expired, tok.RevokedAt != nil:
 			case tok.ActsAs == "":
 				role += " (does nothing: its maker has no role)"
 			case tok.ActsAs != tok.Role:
 				role += " (acts as " + string(tok.ActsAs) + ")"
 			}
 			expires := v.until(tok.ExpiresAt)
-			if tok.Expired {
+			switch {
+			case tok.RevokedAt != nil:
+				expires = v.Paint(dim, "revoked "+v.ago(*tok.RevokedAt)+" by "+tok.RevokedBy)
+			case tok.Expired:
 				expires = v.Paint(bad, "expired "+v.ago(tok.ExpiresAt))
 			}
 			used := "never"

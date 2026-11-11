@@ -47,6 +47,8 @@ describe('actsAsNote', () => {
 	test('maker has no role', () =>
 		expect(actsAsNote({ ...base, actsAs: undefined })).toContain('no role'));
 	test('expired', () => expect(actsAsNote({ ...base, actsAs: undefined, expired: true })).toBe(''));
+	test('revoked', () =>
+		expect(actsAsNote({ ...base, actsAs: undefined, revokedAt: '2026-11-11T00:00:00Z' })).toBe(''));
 });
 
 test('sentence', () => {

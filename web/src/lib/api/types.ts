@@ -194,7 +194,7 @@ export interface APIToken {
   /**
    * ActsAs is what the token may do now: Role, or its maker's role if
    * that's lower. It's empty if the token can't do anything, because it
-   * expired or its maker has no role.
+   * expired, was revoked, or its maker has no role.
    */
   actsAs?: Role;
   /**
@@ -204,6 +204,13 @@ export interface APIToken {
   createdAt: string /* RFC 3339 */;
   expiresAt: string /* RFC 3339 */;
   expired: boolean;
+  /**
+   * RevokedAt is when an admin revoked it, if one did, and RevokedBy their
+   * login. A revoked token stays in the list, and keeps its name, so a
+   * name in the activity log always means one token.
+   */
+  revokedAt?: string /* RFC 3339 */;
+  revokedBy?: string;
   /**
    * LastUsedAt is when the token was last used, to the minute, if it was.
    */
@@ -222,7 +229,7 @@ export interface APIToken {
 export interface NewAPIToken {
   /**
    * Name is 1 to 40 letters, digits, dots, dashes and underscores, and no
-   * other token may have it.
+   * other token may have or have had it, whatever its case.
    */
   name: string;
   /**

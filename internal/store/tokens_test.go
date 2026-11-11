@@ -86,19 +86,28 @@ func TestStore_tokens(t *testing.T) {
 		t.Fatalf("Tokens() = %+v, %v; want backup and ci", list, err)
 	}
 
-	gone, err := s.DeleteToken(ctx, tok.ID)
-	if err != nil || gone.Name != "ci" {
-		t.Fatalf("DeleteToken() = %+v, %v", gone, err)
+	gone, err := s.RevokeToken(ctx, tok.ID, "bob@example.com", now.Add(time.Hour))
+	if err != nil || gone.Name != "ci" || !gone.Revoked() || gone.RevokedBy != "bob@example.com" {
+		t.Fatalf("RevokeToken() = %+v, %v", gone, err)
 	}
-	if _, err := s.TokenBySecret(ctx, secret, now); !errors.Is(err, store.ErrUnknownToken) {
-		t.Errorf("TokenBySecret() after DeleteToken = %v, want ErrUnknownToken", err)
+	if got, err := s.TokenBySecret(ctx, secret, now); !errors.Is(err, store.ErrTokenRevoked) || got.Name != "ci" {
+		t.Errorf("TokenBySecret() after RevokeToken = %+v, %v; want ci and ErrTokenRevoked", got, err)
 	}
-	if _, err := s.DeleteToken(ctx, tok.ID); !errors.Is(err, store.ErrUnknownToken) {
-		t.Errorf("DeleteToken() twice = %v, want ErrUnknownToken", err)
+	if _, err := s.Token(ctx, tok.ID, now); !errors.Is(err, store.ErrTokenRevoked) {
+		t.Errorf("Token() after RevokeToken = %v, want ErrTokenRevoked", err)
 	}
-	// The name is free again.
-	if _, _, err := s.NewToken(ctx, "ci", store.Viewer, "alice@example.com", now, now.Add(time.Hour)); err != nil {
-		t.Errorf("NewToken() with a revoked token's name = %v", err)
+	if _, err := s.RevokeToken(ctx, tok.ID, "bob@example.com", now); !errors.Is(err, store.ErrTokenRevoked) {
+		t.Errorf("RevokeToken() twice = %v, want ErrTokenRevoked", err)
+	}
+	if _, err := s.RevokeToken(ctx, 999, "bob@example.com", now); !errors.Is(err, store.ErrUnknownToken) {
+		t.Errorf("RevokeToken() of no token = %v, want ErrUnknownToken", err)
+	}
+	// It stays in the list, and its name is never used again.
+	if list, err := s.Tokens(ctx); err != nil || len(list) != 2 || !list[1].Revoked() {
+		t.Errorf("Tokens() after RevokeToken = %+v, %v; want ci there, revoked", list, err)
+	}
+	if _, _, err := s.NewToken(ctx, "Ci", store.Viewer, "alice@example.com", now, now.Add(time.Hour)); !errors.Is(err, store.ErrTokenName) {
+		t.Errorf("NewToken() with a revoked token's name = %v, want ErrTokenName", err)
 	}
 }
 

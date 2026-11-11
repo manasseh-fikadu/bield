@@ -46,7 +46,7 @@ func TestRun_tokens(t *testing.T) {
 	if strings.Count(viewer, "\n") != 0 || !strings.HasPrefix(viewer, "bield_") {
 		t.Errorf("tokens create printed %q, want the token alone", viewer)
 	}
-	run(t, s, apitest.LaptopIP, "tokens", "create", "CI").want(t, cli.ExitFailed, "", "another API token is called CI")
+	run(t, s, apitest.LaptopIP, "tokens", "create", "CI").want(t, cli.ExitFailed, "", "an API token was already called CI")
 
 	// The tagged server is someone now, with the token's role.
 	runWithToken(t, s, viewer, "whoami").want(t, 0,
@@ -86,7 +86,10 @@ func TestRun_tokens(t *testing.T) {
 	run(t, s, apitest.LaptopIP, "tokens", "revoke", "ci").want(t, cli.ExitUsage, "", "--yes")
 	run(t, s, apitest.LaptopIP, "tokens", "revoke", "nope", "--yes").want(t, cli.ExitNotFound, "", "no API token is called nope")
 	run(t, s, apitest.LaptopIP, "tokens", "revoke", "CI", "--yes").want(t, 0, "Revoked the API token ci", "")
-	runWithToken(t, s, viewer, "whoami").want(t, cli.ExitDenied, "", "Bield doesn't know this API token")
+	runWithToken(t, s, viewer, "whoami").want(t, cli.ExitDenied, "", "the API token ci was revoked on")
+	run(t, s, apitest.LaptopIP, "tokens").want(t, 0, "revoked", "")
+	run(t, s, apitest.LaptopIP, "tokens", "revoke", "ci", "--yes").want(t, cli.ExitFailed, "", "was revoked already")
+	run(t, s, apitest.LaptopIP, "tokens", "create", "ci").want(t, cli.ExitFailed, "", "names aren't used twice")
 
 	runWithToken(t, s, "not-a-token", "whoami").want(t, cli.ExitFailed, "", "that isn't a Bield API token")
 }

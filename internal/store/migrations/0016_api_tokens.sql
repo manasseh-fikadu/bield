@@ -3,6 +3,9 @@
 -- one with a name, a role and an expiry. Only a hash of the token is kept, so
 -- the database can't be used to call the API. A token never acts with more
 -- than the role its maker has now, so created_by is kept as the login.
+--
+-- A revoked token keeps its row, and so its name: names are never reused, so
+-- a name in the activity log always means one token.
 CREATE TABLE api_tokens (
     id             INTEGER PRIMARY KEY,
     name           TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -14,7 +17,9 @@ CREATE TABLE api_tokens (
     created_at     INTEGER NOT NULL, -- Unix milliseconds
     expires_at     INTEGER NOT NULL, -- Unix milliseconds
     last_used_at   INTEGER,          -- Unix milliseconds, to the minute
-    last_used_node TEXT              -- the node ID the token was last used from
+    last_used_node TEXT,             -- the node ID the token was last used from
+    revoked_at     INTEGER,          -- Unix milliseconds, if it was revoked
+    revoked_by     TEXT              -- the login of the admin who revoked it
 ) STRICT;
 
 -- The name of the API token a change was made with, or '' if it wasn't. The

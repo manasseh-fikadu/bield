@@ -139,13 +139,18 @@ type APIToken struct {
 	Role Role `json:"role"`
 	// ActsAs is what the token may do now: Role, or its maker's role if
 	// that's lower. It's empty if the token can't do anything, because it
-	// expired or its maker has no role.
+	// expired, was revoked, or its maker has no role.
 	ActsAs Role `json:"actsAs,omitempty"`
 	// CreatedBy is the login of the admin who made it.
 	CreatedBy string    `json:"createdBy"`
 	CreatedAt time.Time `json:"createdAt"`
 	ExpiresAt time.Time `json:"expiresAt"`
 	Expired   bool      `json:"expired"`
+	// RevokedAt is when an admin revoked it, if one did, and RevokedBy their
+	// login. A revoked token stays in the list, and keeps its name, so a
+	// name in the activity log always means one token.
+	RevokedAt *time.Time `json:"revokedAt,omitempty"`
+	RevokedBy string     `json:"revokedBy,omitempty"`
 	// LastUsedAt is when the token was last used, to the minute, if it was.
 	LastUsedAt *time.Time `json:"lastUsedAt,omitempty"`
 	// LastUsedDeviceID and LastUsedFrom are the ID and name of the device it
@@ -158,7 +163,7 @@ type APIToken struct {
 // answers with a NewAPITokenResult.
 type NewAPIToken struct {
 	// Name is 1 to 40 letters, digits, dots, dashes and underscores, and no
-	// other token may have it.
+	// other token may have or have had it, whatever its case.
 	Name string `json:"name"`
 	// Role is RoleViewer if it's empty.
 	Role Role `json:"role,omitempty"`

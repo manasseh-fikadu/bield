@@ -1,5 +1,5 @@
 <!--
-	The API tokens tab: the tokens there are, expired ones too, with what each
+	The API tokens tab: the tokens there are, expired and revoked ones too, with what each
 	may do and when it was last used. Admins make tokens here and revoke them.
 	A token's secret is shown once, when it's made.
 -->
@@ -14,7 +14,7 @@
 	import { roleLabel } from '#lib/access.js';
 	import { ago, dateTime, shortDate } from '#lib/format.js';
 	import { live } from '#lib/live.svelte.js';
-	import { actsAsNote, tokenHintLabel } from '#lib/tokens.js';
+	import { actsAsNote, tokenDone, tokenHintLabel } from '#lib/tokens.js';
 	import Badge from '#lib/ui/Badge.svelte';
 	import Button from '#lib/ui/Button.svelte';
 	import Card from '#lib/ui/Card.svelte';
@@ -96,20 +96,26 @@
 		}
 		const t = revoking;
 		answering = true;
-		let gone = false;
+		let done = false;
 		try {
 			await revokeToken(t.id);
-			gone = true;
+			done = true;
 		} catch (err) {
-			// The client showed the error. A token that's not there any more is gone all the same.
-			gone = err instanceof ApiError && err.status === 404;
+			// The client showed the error. A token that's not there any more, or
+			// was revoked by someone else, is done all the same.
+			done = err instanceof ApiError && (err.status === 404 || err.status === 409);
 		} finally {
 			answering = false;
 			revokeOpen = false;
 		}
-		if (gone) {
-			tokens = (tokens ?? []).filter((x) => x.id !== t.id);
-			// The row, and the button the dialog would give focus back to, are gone.
+		if (done) {
+			// A revoked token stays in the list, with when and who, so ask again.
+			try {
+				tokens = await getTokens();
+			} catch {
+				tokens = (tokens ?? []).filter((x) => x.id !== t.id);
+			}
+			// The button the dialog would give focus back to is gone.
 			await tick();
 			if (matchMedia('(pointer: fine)').matches) {
 				document.getElementById(`${id}-make`)?.focus();
@@ -159,11 +165,12 @@
 		<ul class="divide-y divide-line">
 			{#each tokens as t (t.id)}
 				{@const note = actsAsNote(t)}
+				{@const done = tokenDone(t)}
 				<li class="flex items-start gap-3 px-4 py-3">
 					<span
 						class={[
 							'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-line bg-raised',
-							t.expired ? 'text-fg-faint' : 'text-fg-muted'
+							done ? 'text-fg-faint' : 'text-fg-muted'
 						]}
 					>
 						<KeyRound class="size-4" />
@@ -171,15 +178,14 @@
 					<div class="min-w-0 flex-1">
 						<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 							<span
-								class={[
-									'truncate text-[14px] font-medium',
-									t.expired ? 'text-fg-subtle' : 'text-fg'
-								]}
+								class={['truncate text-[14px] font-medium', done ? 'text-fg-subtle' : 'text-fg']}
 							>
 								{t.name}
 							</span>
 							<Badge tone={t.role === RoleAdmin ? 'amber' : 'gray'}>{roleLabel(t.role)}</Badge>
-							{#if t.expired}
+							{#if t.revokedAt}
+								<Badge tone="gray">Revoked</Badge>
+							{:else if t.expired}
 								<Badge tone="red">Expired</Badge>
 							{/if}
 						</div>
@@ -191,6 +197,12 @@
 								>{t.expired ? 'Expired' : 'Expires'} {shortDate(t.expiresAt)}</span
 							>
 						</p>
+						{#if t.revokedAt}
+							<p class="text-[12.5px] text-fg-subtle">
+								Revoked <span title={dateTime(t.revokedAt)}>{ago(t.revokedAt, now)}</span>
+								by {t.revokedBy}
+							</p>
+						{/if}
 						<p class="text-[12.5px] text-fg-subtle">
 							{#if t.lastUsedAt}
 								Last used <span title={dateTime(t.lastUsedAt)}>{ago(t.lastUsedAt, now)}</span>
@@ -213,9 +225,11 @@
 							<p class="mt-0.5 text-[12px] text-amber-fg">{note}</p>
 						{/if}
 					</div>
-					<IconButton label="Revoke {t.name}" onclick={() => ask(t)}>
-						<Trash2 class="size-4" />
-					</IconButton>
+					{#if !done}
+						<IconButton label="Revoke {t.name}" onclick={() => ask(t)}>
+							<Trash2 class="size-4" />
+						</IconButton>
+					{/if}
 				</li>
 			{/each}
 		</ul>
@@ -236,11 +250,9 @@
 	description="Scripts using it stop working at once."
 >
 	<p class="text-[13px] text-fg-muted">
-		{#if revoking?.expired}
-			It has expired already. Revoking it frees its name for a new token.
-		{:else}
-			Bield refuses it from now on, and it can't be brought back. Make a new token if you need one.
-		{/if}
+		Bield refuses it from now on, and it can't be brought back. It stays in this list as revoked,
+		and its name isn't used again, so the activity log always means one token. Make a new token if
+		you need one.
 	</p>
 	{#snippet footer()}
 		<Button variant="ghost" onclick={() => (revokeOpen = false)}>Cancel</Button>
