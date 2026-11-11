@@ -53,9 +53,13 @@ func TestRun_tokens(t *testing.T) {
 		"You are using the API token ci from web-1.example.ts.net, made by alice@example.com, with the role viewer", "")
 	runWithToken(t, s, viewer, "devices", "--json").want(t, 0, `"name"`, "")
 	id := openAlert(t, s, "disk", "Disk is full")
-	runWithToken(t, s, viewer, "alerts", "ack", jsonNum(id)).want(t, cli.ExitDenied, "", "the API token ci is a viewer token; this needs an admin token")
+	r := runWithToken(t, s, viewer, "alerts", "ack", jsonNum(id))
+	r.want(t, cli.ExitDenied, "", "the API token ci is a viewer token; this needs an admin token")
+	if n := strings.Count(strings.ToLower(r.stderr), "is a viewer token"); n != 1 {
+		t.Errorf("alerts ack with a viewer token said it %d times: %q", n, r.stderr)
+	}
 	// Tokens are for people to manage.
-	r := runWithToken(t, s, viewer, "tokens")
+	r = runWithToken(t, s, viewer, "tokens")
 	r.want(t, cli.ExitDenied, "", "only a person can do this")
 	if strings.Contains(r.stderr, "viewer token") {
 		t.Errorf("tokens with a token = %q, want no hint about its role", r.stderr)

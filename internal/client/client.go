@@ -267,7 +267,7 @@ func (c *Client) Explain(ctx context.Context, err error) error {
 		// The token's role has nothing to do with it.
 		return e
 	}
-	if hint := Hint(me); hint != "" {
+	if hint := Hint(me); hint != "" && !strings.EqualFold(hint, e.Message) {
 		e.Hint = hint
 	}
 	return e
