@@ -1,0 +1,26 @@
+{
+  "id": "laptop",
+  "name": "alice-laptop",
+  "hostName": "alice-laptop",
+  "dnsName": "alice-laptop.example.ts.net",
+  "os": "macOS",
+  "kind": "desktop",
+  "ips": [
+    "100.64.0.2"
+  ],
+  "online": true,
+  "status": "online",
+  "statusReason": "Relayed through DERP",
+  "path": {
+    "kind": "derp"
+  },
+  "rxBytes": 0,
+  "txBytes": 0,
+  "settings": {
+    "displayName": "",
+    "alertOffline": true,
+    "thresholds": {},
+    "notes": ""
+  },
+  "docker": false
+}

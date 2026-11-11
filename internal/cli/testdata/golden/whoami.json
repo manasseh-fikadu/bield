@@ -1,0 +1,7 @@
+{
+  "signedIn": true,
+  "login": "alice@example.com",
+  "name": "alice@example.com",
+  "device": "alice-laptop.example.ts.net",
+  "role": "admin"
+}

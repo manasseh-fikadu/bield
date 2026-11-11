@@ -1,0 +1,6 @@
+Bield v0.0.0-test at bield.example.ts.net
+You are alice@example.com on alice-laptop.example.ts.net, with the role admin
+
+Health          no live checks
+Devices         5: 5 online, 0 need attention, 0 offline
+Alerts          1: 0 critical, 1 warning (0 acknowledged, 0 snoozed)

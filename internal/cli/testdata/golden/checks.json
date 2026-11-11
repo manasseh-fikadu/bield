@@ -1,0 +1,16 @@
+[
+  {
+    "id": "<check-id>",
+    "name": "web",
+    "kind": "tcp",
+    "target": "100.64.0.4:443",
+    "endpoint": "100.64.0.4:443",
+    "group": "Custom",
+    "intervalSec": 60,
+    "timeoutMs": 5000,
+    "state": "pending",
+    "stateReason": "Waiting for the first result",
+    "failures": 0,
+    "uptime": null
+  }
+]

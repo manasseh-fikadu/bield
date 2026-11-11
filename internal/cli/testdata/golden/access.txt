@@ -1,0 +1,5 @@
+LOGIN              ROLE    SINCE
+alice@example.com  admin   <time>
+bob@example.com    viewer  <time>
+
+Who can view Bield: only the users above

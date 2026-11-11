@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "id": 3,
+      "at": "<time>",
+      "level": "info",
+      "kind": "access",
+      "message": "Made the API token ci, a viewer, which works until <date>",
+      "actor": "alice@example.com",
+      "via": "cli"
+    },
+    {
+      "id": 2,
+      "at": "<time>",
+      "level": "warning",
+      "kind": "alert",
+      "message": "Disk 91% full on web-1",
+      "deviceId": "bield"
+    },
+    {
+      "id": 1,
+      "at": "<time>",
+      "level": "info",
+      "kind": "check",
+      "message": "Added the check web",
+      "actor": "alice@example.com",
+      "via": "cli"
+    }
+  ],
+  "more": false
+}

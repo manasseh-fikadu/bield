@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "source": "metrics",
+    "deviceId": "bield",
+    "severity": "warning",
+    "state": "open",
+    "title": "Disk 91% full on web-1",
+    "detail": "",
+    "openedAt": "<time>",
+    "lastSeen": "<time>",
+    "notes": []
+  }
+]

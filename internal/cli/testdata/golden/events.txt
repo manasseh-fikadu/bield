@@ -1,0 +1,3 @@
+<time>  check     Added the check web  by alice@example.com with the CLI
+<time>  alert     Disk 91% full on web-1
+<time>  access    Made the API token ci, a viewer, which works until <date>  by alice@example.com with the CLI
