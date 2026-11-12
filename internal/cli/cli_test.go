@@ -218,6 +218,37 @@ func TestRun_devices(t *testing.T) {
 	run(t, s, apitest.PhoneIP, "status").want(t, 0, "5: 5 online, 0 need attention, 0 offline", "")
 }
 
+// devices set changes only what it's given. The relay alert, which is on by
+// default for servers only, follows a new kind unless an admin set it.
+func TestRun_devicesSet(t *testing.T) {
+	t.Parallel()
+	s := apitest.New(t)
+	relayed := func(device string) bool {
+		t.Helper()
+		var d api.Device
+		r := run(t, s, apitest.LaptopIP, "devices", "show", device, "--json")
+		if err := json.Unmarshal([]byte(r.stdout), &d); err != nil {
+			t.Fatalf("devices show %s --json = %q, %v", device, r.stdout, err)
+		}
+		return d.Settings.AlertRelayed
+	}
+	if !relayed("web-1") || relayed("alice-laptop") {
+		t.Fatal("want the relay alert on for the server and off for the laptop")
+	}
+
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--alert-relayed", "false").want(t, 0, "Changed the settings of web-1", "")
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--notes", "In the rack").want(t, 0, "", "")
+	if relayed("web-1") {
+		t.Error("after --alert-relayed false and a new note, web-1's relay alert is on")
+	}
+	run(t, s, apitest.LaptopIP, "devices", "set", "alice-laptop", "--kind", "server").want(t, 0, "", "")
+	if !relayed("alice-laptop") {
+		t.Error("the laptop made a server has its relay alert off, want a server's default")
+	}
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--alert-relayed", "maybe").
+		want(t, cli.ExitUsage, "", `--alert-relayed is true or false, not "maybe"`)
+}
+
 func TestRun_alertsAndEvents(t *testing.T) {
 	t.Parallel()
 	s := apitest.New(t)

@@ -107,6 +107,10 @@ type Feed struct {
 	// pingsUpTo is when the latest recorded ping was sent.
 	pingsUpTo time.Time
 	pingsErr  error
+	// directAt holds when each device last answered a ping directly, by ID,
+	// or is nil until it's read from the store.
+	directAt    map[string]time.Time
+	directAtErr error
 	// metricsAt holds when each device's metrics were last recorded, by
 	// the ID their history is kept under.
 	metricsAt   map[string]time.Time
@@ -264,6 +268,14 @@ func (f *Feed) fresh(ctx context.Context) *published {
 	return f.latest(ctx)
 }
 
+// current returns the latest snapshot, or nil if there's none yet. Unlike
+// latest, it never builds one.
+func (f *Feed) current() *published {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.cur
+}
+
 // latest returns the latest snapshot, building the first one if there's
 // none yet. It returns nil if the first can't be encoded.
 func (f *Feed) latest(ctx context.Context) *published {
@@ -304,6 +316,7 @@ func (f *Feed) publish(ctx context.Context) *published {
 	}
 	now := time.Now()
 	f.recordPings(ctx, src.tailnet.Pings)
+	src.directAt = f.directPaths(ctx)
 	f.recordMetrics(ctx, src, now)
 	src.settings = f.loadSettings(ctx)
 	src.enrolled = f.loadEnrollments(ctx)
@@ -326,6 +339,10 @@ func (f *Feed) publish(ctx context.Context) *published {
 
 	snap, machines := newSnapshot(src, now)
 	if e := f.opts.Alerts; e != nil {
+		src.open = make(map[string]bool)
+		for _, a := range e.Open() {
+			src.open[a.Key] = true
+		}
 		conds, isFresh := alertConditions(snap, machines, src, f.started, now)
 		e.Apply(ctx, conds, isFresh, now)
 		snap.Alerts = newAlerts(e.Open(), now)
@@ -407,7 +424,7 @@ func (f *Feed) recordPings(ctx context.Context, pings map[string]tailnet.PingRec
 		p := store.Ping{DeviceID: id, At: rec.At}
 		switch {
 		case rec.Result != nil:
-			p.Replied, p.RTT = true, rec.Result.Latency
+			p.Replied, p.Direct, p.RTT = true, !rec.Result.Relayed(), rec.Result.Latency
 		case !errors.Is(rec.Err, tailnet.ErrNoReply):
 			continue
 		}
@@ -428,6 +445,31 @@ func (f *Feed) recordPings(ctx context.Context, pings map[string]tailnet.PingRec
 		f.log.Info("recorded pings again")
 	}
 	f.pingsUpTo, f.pingsErr = upTo, nil
+	if f.directAt != nil {
+		for _, p := range batch {
+			if p.Direct && p.At.After(f.directAt[p.DeviceID]) {
+				f.directAt[p.DeviceID] = p.At
+			}
+		}
+	}
+}
+
+// directPaths returns when each device last answered a ping directly, by ID.
+// It reads them from the store the first time, and recordPings keeps them up
+// to date after that.
+func (f *Feed) directPaths(ctx context.Context) map[string]time.Time {
+	if f.directAt == nil {
+		m, err := f.opts.Store.DirectPaths(ctx)
+		if err != nil {
+			if ctx.Err() == nil && f.directAtErr == nil {
+				f.log.Warn("read when devices were last direct", "error", err)
+			}
+			f.directAtErr = err
+			return nil
+		}
+		f.directAt, f.directAtErr = m, nil
+	}
+	return f.directAt
 }
 
 // recordMetrics stores the metrics of each device that Bield measures, if

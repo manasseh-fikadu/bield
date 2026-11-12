@@ -251,6 +251,9 @@ type Thresholds struct {
 type AlertRules struct {
 	// Offline is a device that has been off the tailnet for too long.
 	Offline bool `json:"offline"`
+	// Relayed is a device that was direct, and that Bield's pings have
+	// reached through a relay for a while.
+	Relayed bool `json:"relayed"`
 	// KeyExpiry is a Tailscale key that is about to expire.
 	KeyExpiry bool `json:"keyExpiry"`
 	// AgentStopped is an agent that stopped reporting.
@@ -378,6 +381,7 @@ type ChangeThresholds struct {
 // ChangeRules turns AlertRules on or off.
 type ChangeRules struct {
 	Offline      *bool `json:"offline,omitempty"`
+	Relayed      *bool `json:"relayed,omitempty"`
 	KeyExpiry    *bool `json:"keyExpiry,omitempty"`
 	AgentStopped *bool `json:"agentStopped,omitempty"`
 	Disk         *bool `json:"disk,omitempty"`
@@ -468,6 +472,36 @@ type Snapshot struct {
 	// LastEventID is the ID of the activity log's latest event, so the app
 	// can tell when GET /api/events has more.
 	LastEventID int64 `json:"lastEventId"`
+	// Relay is Bield's suggestion of a peer relay for the devices it reaches
+	// through DERP.
+	Relay Relay `json:"relay"`
+}
+
+// Relay suggests a peer relay: a machine of yours that carries traffic
+// between devices that can't connect directly, in place of Tailscale's
+// shared DERP servers. Bield only sees its own connections, so it can't tell
+// how the devices reach each other, or whether a relay will help them.
+type Relay struct {
+	// Supported is whether the tailnet can have peer relays. Tailscale's
+	// coordination server can; Bield doesn't suggest one on another, such as
+	// Headscale, which has no released support for them yet.
+	Supported bool `json:"supported"`
+	// DERP lists the IDs of the online devices that Bield reaches through a
+	// DERP server now, which a peer relay might make faster.
+	DERP []string `json:"derp"`
+	// Candidates are the devices that could be the relay, best first, and at
+	// most three: online computers that Bield reaches directly, preferring
+	// ones at a public address, servers, ones that haven't just restarted, and
+	// a short round trip from Bield.
+	Candidates []RelayCandidate `json:"candidates"`
+}
+
+// RelayCandidate is a device that could be a peer relay.
+type RelayCandidate struct {
+	DeviceID string `json:"deviceId"`
+	// PublicAddress is whether Bield reaches it at a public IP address, which
+	// devices behind other networks' NATs can reach too.
+	PublicAddress bool `json:"publicAddress"`
 }
 
 // Hub is the Bield server itself.
@@ -705,6 +739,9 @@ type Path struct {
 	RTTMs *float64 `json:"rttMs,omitempty"`
 	// PingedAt is when the device was last pinged, if it has been.
 	PingedAt *time.Time `json:"pingedAt,omitempty"`
+	// DirectAt is when the device last answered a ping directly, not through
+	// a relay, if it has in the last 30 days.
+	DirectAt *time.Time `json:"directAt,omitempty"`
 	// Unanswered reports whether the device is online but didn't answer the
 	// last two pings, and the latest of them is recent.
 	Unanswered bool `json:"unanswered,omitempty"`
@@ -795,6 +832,11 @@ type DeviceSettings struct {
 	// offline. It's on by default, except for phones and tablets, which
 	// leave the tailnet all the time.
 	AlertOffline bool `json:"alertOffline"`
+	// AlertRelayed says whether to raise an alert when Bield's pings to the
+	// device, after it was direct, go through a relay for a while. It's on
+	// by default for servers only, since other devices move between
+	// networks.
+	AlertRelayed bool `json:"alertRelayed"`
 	// Thresholds are the thresholds an admin set for this device in place of
 	// the settings'.
 	Thresholds DeviceThresholds `json:"thresholds"`
@@ -822,6 +864,9 @@ type SetDeviceSettings struct {
 	Kind        DeviceKind `json:"kind,omitempty"`
 	// AlertOffline is on if it's left out, except for phones and tablets.
 	AlertOffline *bool `json:"alertOffline,omitempty"`
+	// AlertRelayed is on if it's left out for a server, and off for anything
+	// else.
+	AlertRelayed *bool `json:"alertRelayed,omitempty"`
 	// Thresholds are the device's own, and none if it's left out.
 	Thresholds DeviceThresholds `json:"thresholds,omitzero"`
 	Notes      string           `json:"notes,omitempty"`

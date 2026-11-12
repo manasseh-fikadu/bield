@@ -80,7 +80,7 @@ func TestSettings(t *testing.T) {
 		t.Errorf("thresholds = %+v, want what was sent", got)
 	}
 	v = patchSettings(t, h, `{"rules": {"cpu": false}}`)
-	if want := (api.AlertRules{Offline: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, Checks: true, Containers: true, Units: true, Collectors: true}); v.Settings.Rules != want ||
+	if want := (api.AlertRules{Offline: true, Relayed: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, Checks: true, Containers: true, Units: true, Collectors: true}); v.Settings.Rules != want ||
 		v.Settings.General.Name != "Home lab" || v.Settings.Thresholds.DiskWarn != 70 {
 		t.Errorf("settings after turning off one rule = %+v, want the other rules and the earlier changes kept", v.Settings)
 	}

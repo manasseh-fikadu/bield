@@ -21,6 +21,7 @@
   "settings": {
     "displayName": "",
     "alertOffline": true,
+    "alertRelayed": false,
     "thresholds": {},
     "notes": ""
   },

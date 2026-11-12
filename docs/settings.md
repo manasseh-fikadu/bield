@@ -20,6 +20,7 @@ Bield raises an alert when a rule's condition is true, and resolves it after the
 | Rule | Alert | Setting | Default | Severity |
 | --- | --- | --- | --- | --- |
 | Device offline | A device has left the tailnet. | Minutes offline before an alert (1 to 10080) | 10 | Warning |
+| Relayed connection | A device that was direct is reached through a relay. | | | Warning |
 | Key expiring | A device's Tailscale key is about to expire. | Days left before it does (1 to 365) | 14 | Warning, critical in the last 48 hours |
 | Agent stopped | An [agent](agent.md) hasn't sent a heartbeat for 90 seconds. | | | Warning |
 | Disk full | A device's disk is filling up. | Warning at, critical at (percent) | 85, 95 | Warning, then critical |
@@ -30,9 +31,10 @@ Bield raises an alert when a rule's condition is true, and resolves it after the
 | Systemd units | A unit on Bield's machine failed, or a watched one isn't running. | | | Warning |
 | Bield's own jobs | Something Bield gathers, such as the Tailscale status or Docker, keeps failing. | | | Warning |
 
-All ten rules are on by default. A few details:
+All eleven rules are on by default. A few details:
 
 - A device only alerts when it's offline if it has been seen before and its **Alert when offline** switch is on. That switch is on for everything except phones and tablets.
+- A device alerts when it's relayed if Bield's last five pings to it, a minute apart, came back through a DERP server or a peer relay, it was direct at some point in the last week, and its **Alert when relayed** switch is on. That switch is on for servers only, since laptops and phones move between networks and some networks only let relays through. A device that has never been direct, such as one behind a strict NAT, doesn't alert. The alert stays open while the device is offline, and resolves a minute after a ping comes back direct. Bield only sees its own connection to each device, so two other machines can be relayed to each other while both are direct to Bield.
 - Disk, memory and CPU alerts need measurements. Bield measures the machine it runs on if that's Linux, and every other machine needs [the agent](agent.md). The CPU figure is the average over the window you set.
 - Container alerts are about the containers on the machine Bield runs on. A container that is unhealthy or restarting alerts as a warning. One that is dead, was killed for using too much memory, or exited with an error alerts as critical. One that exited cleanly (exit code 0, 130, 137 or 143) alerts as a warning only if its restart policy is `always` or `unless-stopped`, so a one-shot job that finishes doesn't alert.
 - A unit alerts as failed whether Bield watches it or not. A [watched unit](#watched-units) that is inactive also alerts.
@@ -40,7 +42,7 @@ All ten rules are on by default. A few details:
 
 ### Per-device thresholds
 
-A device's page has an **Edit** button, which opens its settings: a display name, its type, notes (viewers can read them), the **Alert when offline** switch, and thresholds for **Disk warning**, **Disk critical**, **Memory**, **CPU** and **Offline after**. A field you leave empty uses the setting above. A critical disk level below the warning one is raised to the warning one. The CPU window and the other thresholds aren't a device's to change.
+A device's page has an **Edit** button, which opens its settings: a display name, its type, notes (viewers can read them), the **Alert when offline** and **Alert when relayed** switches, and thresholds for **Disk warning**, **Disk critical**, **Memory**, **CPU** and **Offline after**. A field you leave empty uses the setting above. A critical disk level below the warning one is raised to the warning one. The CPU window and the other thresholds aren't a device's to change.
 
 ## Notifications
 

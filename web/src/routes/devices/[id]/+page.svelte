@@ -338,12 +338,25 @@
 							<dd class="min-w-0"><TagChips tags={device.tags} class="justify-end" /></dd>
 						</div>
 					{/if}
-					<DataRow flat label="Route">{routeName(device).toLowerCase()}</DataRow>
+					<DataRow flat label="Route">
+						{routeName(device).toLowerCase()}
+						{#if live.snapshot?.relay.supported && live.snapshot.relay.derp.includes(device.id)}
+							·
+							<a
+								href={resolve('/devices/relay')}
+								class="underline decoration-line-heavy underline-offset-4 hover:text-fg"
+								>try a peer relay</a
+							>
+						{/if}
+					</DataRow>
 					{#if device.path.endpoint}
 						<DataRow flat label="Endpoint">{device.path.endpoint}</DataRow>
 					{/if}
 					{#if device.path.peerRelay}
 						<DataRow flat label="Peer relay">{device.path.peerRelay}</DataRow>
+					{/if}
+					{#if device.path.directAt && device.path.kind !== 'direct' && !device.self}
+						<DataRow flat label="Last direct">{ago(device.path.directAt, now)}</DataRow>
 					{/if}
 					<DataRow flat label="Home relay">{device.path.homeDerp ?? '—'}</DataRow>
 					{#if !device.self}

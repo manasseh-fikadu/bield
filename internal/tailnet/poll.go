@@ -82,6 +82,11 @@ type PingRecord struct {
 	// Misses is how many pings in a row, up to this one, the peer didn't
 	// answer in time. It starts again from zero while the peer is offline.
 	Misses int
+	// Relayed is how many replies in a row, up to this one, came through a
+	// DERP server or a peer relay. A direct reply sets it back to zero, a
+	// ping with no reply leaves it as it was, and it starts again from zero
+	// while the peer is offline, since a connection starts out relayed.
+	Relayed int
 }
 
 // NewPoller returns a Poller for tn. Nothing is polled until Run.
@@ -224,17 +229,24 @@ func (p *Poller) pingPeers(ctx context.Context) time.Duration {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for id, rec := range results {
-		if errors.Is(rec.Err, ErrNoReply) {
-			rec.Misses = p.snap.Pings[id].Misses + 1
-			results[id] = rec
+		prev := p.snap.Pings[id]
+		switch {
+		case rec.Result != nil && rec.Result.Relayed():
+			rec.Relayed = prev.Relayed + 1
+		case rec.Result == nil:
+			rec.Relayed = prev.Relayed
 		}
+		if errors.Is(rec.Err, ErrNoReply) {
+			rec.Misses = prev.Misses + 1
+		}
+		results[id] = rec
 	}
 	// Keep the last ping of a peer that's offline now, and forget peers that
 	// have left.
 	for _, d := range st.Peers {
 		if _, ok := results[d.ID]; !ok {
 			if old, ok := p.snap.Pings[d.ID]; ok {
-				old.Misses = 0
+				old.Misses, old.Relayed = 0, 0
 				results[d.ID] = old
 			}
 		}

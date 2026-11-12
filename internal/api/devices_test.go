@@ -59,8 +59,36 @@ func TestSetDeviceSettings(t *testing.T) {
 			device:   "bield",
 			body:     `{"displayName":"Hub","alertOffline":true,"notes":""}`,
 			wantCode: http.StatusOK,
-			want:     api.DeviceSettings{DisplayName: "Hub", AlertOffline: true},
+			want:     api.DeviceSettings{DisplayName: "Hub", AlertOffline: true, AlertRelayed: true},
 			stored:   store.DeviceSettings{DisplayName: "Hub"},
+		},
+		{
+			// The relay alert is off by default for a laptop, so turning it
+			// on is stored.
+			name:     "relay alert on a laptop",
+			device:   "laptop",
+			body:     `{"alertRelayed":true}`,
+			wantCode: http.StatusOK,
+			want:     api.DeviceSettings{AlertOffline: true, AlertRelayed: true},
+			stored:   store.DeviceSettings{AlertRelayed: new(true)},
+		},
+		{
+			// It's on by default for a server, which is what the kind the
+			// admin picks makes the laptop.
+			name:     "relay alert on a server",
+			device:   "laptop",
+			body:     `{"kind":"server","alertRelayed":true}`,
+			wantCode: http.StatusOK,
+			want:     api.DeviceSettings{Kind: api.DeviceKindServer, AlertOffline: true, AlertRelayed: true},
+			stored:   store.DeviceSettings{Kind: "server"},
+		},
+		{
+			name:     "relay alert off for the hub",
+			device:   "bield",
+			body:     `{"alertRelayed":false}`,
+			wantCode: http.StatusOK,
+			want:     api.DeviceSettings{AlertOffline: true},
+			stored:   store.DeviceSettings{AlertRelayed: new(false)},
 		},
 		{name: "unknown device", device: "toaster", body: `{"alertOffline":true}`, wantCode: http.StatusNotFound},
 		{name: "unknown kind", device: "laptop", body: `{"kind":"toaster"}`, wantCode: http.StatusBadRequest},
@@ -92,9 +120,9 @@ func TestSetDeviceSettings(t *testing.T) {
 				t.Fatal(err)
 			}
 			stored := all[tt.device]
+			same := func(a, b *bool) bool { return (a == nil) == (b == nil) && (a == nil || *a == *b) }
 			if stored.DisplayName != tt.stored.DisplayName || stored.Kind != tt.stored.Kind || stored.Notes != tt.stored.Notes ||
-				(stored.AlertOffline == nil) != (tt.stored.AlertOffline == nil) ||
-				stored.AlertOffline != nil && *stored.AlertOffline != *tt.stored.AlertOffline {
+				!same(stored.AlertOffline, tt.stored.AlertOffline) || !same(stored.AlertRelayed, tt.stored.AlertRelayed) {
 				t.Errorf("stored %+v, want %+v", stored, tt.stored)
 			}
 		})

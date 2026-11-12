@@ -263,6 +263,52 @@ func TestPoller_countsMisses(t *testing.T) {
 	})
 }
 
+// Relayed counts the replies in a row that came through a DERP server or a
+// peer relay. A direct reply starts it again, a ping with no reply leaves it,
+// and a peer that goes offline starts again from zero.
+func TestPoller_countsRelayedReplies(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		online := func(on bool) tailnet.Status {
+			st := testStatus(tailnet.StateRunning)
+			st.Peers = []tailnet.Device{{ID: "derp", IPs: []netip.Addr{derpIP}, Online: on, Relay: "fra"}}
+			return st
+		}
+		derp := &tailnet.PingResult{DERPRegion: "fra"}
+		tn := tailnettest.New(online(true))
+		tn.SetPing(derpIP, derp, nil)
+		p := runPoller(t, tn, nil)
+		time.Sleep(time.Second)
+		synctest.Wait()
+		if got := p.Snapshot().Pings["derp"].Relayed; got != 1 {
+			t.Fatalf("after the first reply through DERP, Relayed = %d, want 1", got)
+		}
+
+		for _, step := range []struct {
+			name string
+			res  *tailnet.PingResult
+			err  error
+			on   bool
+			want int
+		}{
+			{"a second reply through DERP", derp, nil, true, 2},
+			{"a ping with no reply", nil, tailnet.ErrNoReply, true, 2},
+			{"a reply through a peer relay", &tailnet.PingResult{PeerRelay: "198.51.100.7:40000:9"}, nil, true, 3},
+			{"a direct reply", &tailnet.PingResult{Endpoint: "203.0.113.3:41641"}, nil, true, 0},
+			{"through DERP again", derp, nil, true, 1},
+			{"offline", derp, nil, false, 0},
+			{"back, through DERP", derp, nil, true, 1},
+		} {
+			tn.SetPing(derpIP, step.res, step.err)
+			tn.SetStatus(online(step.on))
+			time.Sleep(tailnet.PingInterval)
+			synctest.Wait()
+			if got := p.Snapshot().Pings["derp"].Relayed; got != step.want {
+				t.Errorf("after %s, Relayed = %d, want %d", step.name, got, step.want)
+			}
+		}
+	})
+}
+
 // Changes tells its receiver each time the snapshot changes, and never
 // blocks the poller.
 func TestPoller_Changes(t *testing.T) {

@@ -355,7 +355,8 @@ func (d *Demo) seedPings(ctx context.Context, st *store.Store, span time.Duratio
 			if m.offlineFor > 0 && !t.Before(d.start.Add(-m.offlineFor)) {
 				continue
 			}
-			p := store.Ping{DeviceID: m.id, At: t, Replied: true, RTT: d.rttAt(m, t)}
+			direct := m.direct || (m.relayedFor > 0 && t.Before(d.start.Add(-m.relayedFor)))
+			p := store.Ping{DeviceID: m.id, At: t, Replied: true, Direct: direct, RTT: d.rttAt(m, t)}
 			if lostAt(m, t) {
 				p.Replied, p.RTT = false, 0
 			}
@@ -510,6 +511,12 @@ func (d *Demo) seedAlerts(ctx context.Context, st *store.Store, checks map[strin
 			Title: "Garage camera is failing", Detail: "Timed out after 10s · 3 failures in a row · http://pi-garage.tail-demo.ts.net:8081/",
 			OpenedAt: ago(garage.offlineFor - 13*time.Minute), SnoozedUntil: d.start.Add(5 * time.Hour), SnoozedBy: alex,
 		}, notes: []store.AlertNote{{At: ago(2 * time.Hour), Author: alex, Text: "The Pi lost its wifi again. I'll reboot the extender tonight."}}, notify: true},
+		{a: store.Alert{
+			Key: "relayed:" + nyc.id, Source: "device", DeviceID: nyc.id, Severity: "warning",
+			Title:    "New York VPS is relayed through DERP (nyc)",
+			Detail:   "Bield last reached it directly 3h ago. A relay is slower than a direct connection. It often means a firewall or the network changed on either side.",
+			OpenedAt: ago(nyc.relayedFor - 5*time.Minute),
+		}, notes: []store.AlertNote{{At: ago(2 * time.Hour), Author: alex, Text: "The provider moved it to a new host. Checking its firewall for UDP 41641."}}, notify: true},
 		{a: store.Alert{
 			Key: "key-expiry:" + work.id, Source: "device", DeviceID: work.id, Severity: "warning",
 			Title: "Tailscale key of Work laptop expires in 7 days", Detail: "Log it in to Tailscale again, or turn off key expiry for it in the Tailscale admin console.",

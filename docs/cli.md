@@ -33,7 +33,8 @@ For shell completion, `bield completion bash` prints a script for bash (`source 
 | `bield devices show <device>` | Everything Bield knows about one | viewer |
 | `bield devices history <device>` | CPU, memory, network and latency over `--range` 1h, 6h, 24h or 7d | viewer |
 | `bield devices usage <device>` | What uses a device's CPU and memory now | viewer |
-| `bield devices set <device>` | Change a device's name, kind, notes, offline alert or thresholds | admin |
+| `bield devices set <device>` | Change a device's name, kind, notes, alerts or thresholds | admin |
+| `bield relay` | Suggest a [peer relay](https://tailscale.com/kb/1591/peer-relays) for the devices Bield reaches through DERP, with the command to run on it and the grant for the policy file. `--via <device>` picks another machine, and `--port` the UDP port (40000) | viewer |
 | `bield alerts` | The alerts that are open. `--resolved` lists the ones that cleared, `--follow` keeps going | viewer |
 | `bield alerts show <id>` | An alert, with its notes | viewer |
 | `bield alerts ack`, `unack`, `snooze`, `wake` and `note` `<id>` | The same as the buttons on the Alerts page | admin |

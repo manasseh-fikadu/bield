@@ -34,6 +34,10 @@ type sources struct {
 	agents map[string]agents.Report
 	// settings holds the settings of the devices that have any, by ID.
 	settings map[string]store.DeviceSettings
+	// directAt holds when each device last answered a ping directly, by ID.
+	directAt map[string]time.Time
+	// open holds the keys of the alerts that were open before this snapshot.
+	open map[string]bool
 	// enrolled holds the enrollments of the agents, by the ID of the node
 	// each runs on.
 	enrolled map[string]store.Enrollment
@@ -77,6 +81,7 @@ func newSnapshot(src sources, now time.Time) (Snapshot, []machine) {
 		Collectors: []Collector{newCollector("Tailscale status", s.StatusAt, s.StatusErr)},
 		Uplink:     newUplink(s),
 		Devices:    []Device{},
+		Relay:      Relay{DERP: []string{}, Candidates: []RelayCandidate{}},
 	}
 	if h := src.host; h != nil {
 		var at time.Time
@@ -118,7 +123,7 @@ func newSnapshot(src sources, now time.Time) (Snapshot, []machine) {
 	var machines []machine
 	for i, d := range devices {
 		dev := deviceInput{
-			device: d, self: i == 0, settings: src.settings[d.ID],
+			device: d, self: i == 0, settings: src.settings[d.ID], directAt: src.directAt[d.ID],
 			thresholds: src.thresholdsFor(d.ID), rules: src.global.Rules,
 		}
 		// Bield measures the machine it runs on, and on a machine it can't
@@ -160,6 +165,7 @@ func newSnapshot(src sources, now time.Time) (Snapshot, []machine) {
 			cmp.Compare(a.DNSName, b.DNSName),
 		)
 	})
+	out.Relay = newRelay(out.Devices, st.ControlURL)
 	out.Checks = newChecks(src, out.Devices)
 	out.Health = newHealthScore(out.Checks)
 	hub := hubNames(st)
@@ -209,6 +215,9 @@ type deviceInput struct {
 	// self is true for Bield's own node.
 	self     bool
 	settings store.DeviceSettings
+	// directAt is when the device last answered a ping directly, if Bield
+	// knows.
+	directAt time.Time
 	// host is what Bield measured of the device, if it's the machine Bield
 	// runs on.
 	host *hostmetrics.Reading
@@ -240,7 +249,7 @@ func newDevice(s tailnet.Snapshot, in deviceInput, now time.Time) (Device, machi
 		Online:       d.Online,
 		LastSeen:     timePtr(d.LastSeen),
 		Self:         in.self,
-		Path:         newPath(s.PathTo(d, now), d),
+		Path:         newPath(s.PathTo(d, now), d, in.directAt),
 		RxBytes:      d.RxBytes,
 		TxBytes:      d.TxBytes,
 		KeyExpiry:    timePtr(d.KeyExpiry),
@@ -299,6 +308,7 @@ func newDevice(s tailnet.Snapshot, in deviceInput, now time.Time) (Device, machi
 		DisplayName:  in.settings.DisplayName,
 		Kind:         DeviceKind(in.settings.Kind),
 		AlertOffline: alertOffline(d, in.settings),
+		AlertRelayed: alertRelayed(out.Kind, in.settings),
 		Thresholds:   newDeviceThresholds(in.settings.Thresholds),
 		Notes:        in.settings.Notes,
 	}
@@ -309,8 +319,11 @@ func newDevice(s tailnet.Snapshot, in deviceInput, now time.Time) (Device, machi
 	return out, m
 }
 
-func newPath(p tailnet.Path, d tailnet.Device) Path {
-	out := Path{Kind: PathKind(p.Kind), HomeDERP: d.Relay, PingedAt: timePtr(p.PingedAt), Unanswered: p.Unanswered}
+func newPath(p tailnet.Path, d tailnet.Device, directAt time.Time) Path {
+	out := Path{
+		Kind: PathKind(p.Kind), HomeDERP: d.Relay, PingedAt: timePtr(p.PingedAt), Unanswered: p.Unanswered,
+		DirectAt: timePtr(directAt),
+	}
 	switch p.Kind {
 	case tailnet.PathDirect:
 		out.Endpoint = p.Endpoint
@@ -492,6 +505,23 @@ func alertOffline(d tailnet.Device, ds store.DeviceSettings) bool {
 		return *ds.AlertOffline
 	}
 	return defaultAlertOffline(d)
+}
+
+// alertRelayed reports whether to alert when a device of a kind, with
+// settings ds, falls from a direct path to a relay.
+func alertRelayed(kind DeviceKind, ds store.DeviceSettings) bool {
+	if ds.AlertRelayed != nil {
+		return *ds.AlertRelayed
+	}
+	return defaultAlertRelayed(kind)
+}
+
+// defaultAlertRelayed reports whether to alert when a device of a kind falls
+// from a direct path to a relay, if no admin said. A server stays where it
+// is, so a relay means something changed. Laptops and phones move between
+// networks, and some networks only let relays through.
+func defaultAlertRelayed(kind DeviceKind) bool {
+	return kind == DeviceKindServer
 }
 
 // defaultAlertOffline reports whether to alert when d goes offline, if no

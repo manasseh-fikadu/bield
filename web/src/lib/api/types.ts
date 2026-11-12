@@ -355,6 +355,11 @@ export interface AlertRules {
    */
   offline: boolean;
   /**
+   * Relayed is a device that was direct, and that Bield's pings have
+   * reached through a relay for a while.
+   */
+  relayed: boolean;
+  /**
    * KeyExpiry is a Tailscale key that is about to expire.
    */
   keyExpiry: boolean;
@@ -533,6 +538,7 @@ export interface ChangeThresholds {
  */
 export interface ChangeRules {
   offline?: boolean;
+  relayed?: boolean;
   keyExpiry?: boolean;
   agentStopped?: boolean;
   disk?: boolean;
@@ -655,6 +661,48 @@ export interface Snapshot {
    * can tell when GET /api/events has more.
    */
   lastEventId: number /* int64 */;
+  /**
+   * Relay is Bield's suggestion of a peer relay for the devices it reaches
+   * through DERP.
+   */
+  relay: Relay;
+}
+/**
+ * Relay suggests a peer relay: a machine of yours that carries traffic
+ * between devices that can't connect directly, in place of Tailscale's
+ * shared DERP servers. Bield only sees its own connections, so it can't tell
+ * how the devices reach each other, or whether a relay will help them.
+ */
+export interface Relay {
+  /**
+   * Supported is whether the tailnet can have peer relays. Tailscale's
+   * coordination server can; Bield doesn't suggest one on another, such as
+   * Headscale, which has no released support for them yet.
+   */
+  supported: boolean;
+  /**
+   * DERP lists the IDs of the online devices that Bield reaches through a
+   * DERP server now, which a peer relay might make faster.
+   */
+  derp: string[];
+  /**
+   * Candidates are the devices that could be the relay, best first, and at
+   * most three: online computers that Bield reaches directly, preferring
+   * ones at a public address, servers, ones that haven't just restarted, and
+   * a short round trip from Bield.
+   */
+  candidates: RelayCandidate[];
+}
+/**
+ * RelayCandidate is a device that could be a peer relay.
+ */
+export interface RelayCandidate {
+  deviceId: string;
+  /**
+   * PublicAddress is whether Bield reaches it at a public IP address, which
+   * devices behind other networks' NATs can reach too.
+   */
+  publicAddress: boolean;
 }
 /**
  * Hub is the Bield server itself.
@@ -1018,6 +1066,11 @@ export interface Path {
    */
   pingedAt?: string /* RFC 3339 */;
   /**
+   * DirectAt is when the device last answered a ping directly, not through
+   * a relay, if it has in the last 30 days.
+   */
+  directAt?: string /* RFC 3339 */;
+  /**
    * Unanswered reports whether the device is online but didn't answer the
    * last two pings, and the latest of them is recent.
    */
@@ -1157,6 +1210,13 @@ export interface DeviceSettings {
    */
   alertOffline: boolean;
   /**
+   * AlertRelayed says whether to raise an alert when Bield's pings to the
+   * device, after it was direct, go through a relay for a while. It's on
+   * by default for servers only, since other devices move between
+   * networks.
+   */
+  alertRelayed: boolean;
+  /**
    * Thresholds are the thresholds an admin set for this device in place of
    * the settings'.
    */
@@ -1195,6 +1255,11 @@ export interface SetDeviceSettings {
    * AlertOffline is on if it's left out, except for phones and tablets.
    */
   alertOffline?: boolean;
+  /**
+   * AlertRelayed is on if it's left out for a server, and off for anything
+   * else.
+   */
+  alertRelayed?: boolean;
   /**
    * Thresholds are the device's own, and none if it's left out.
    */

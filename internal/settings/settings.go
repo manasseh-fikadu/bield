@@ -108,6 +108,9 @@ type Rules struct {
 	// Offline alerts when a device has been off the tailnet for the offline
 	// threshold.
 	Offline bool `json:"offline"`
+	// Relayed alerts when Bield's pings to a device that was direct go
+	// through a relay for a while.
+	Relayed bool `json:"relayed"`
 	// KeyExpiry alerts when a device's Tailscale key is about to expire.
 	KeyExpiry bool `json:"keyExpiry"`
 	// AgentStopped alerts when a device's agent stops reporting.
@@ -251,7 +254,7 @@ func Defaults() Settings {
 			CheckFailures:    2,
 		},
 		Rules: Rules{
-			Offline: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, CPU: true,
+			Offline: true, Relayed: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, CPU: true,
 			Checks: true, Containers: true, Units: true, Collectors: true,
 		},
 		// ssh.service is sshd.service on some systems. Bield leaves out the

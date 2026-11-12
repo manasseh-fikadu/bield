@@ -77,6 +77,14 @@ export function levelText(
 	return value >= crit ? 'text-red-fg' : value >= warn ? 'text-amber' : fine;
 }
 
+/**
+ * Whether a kind of device alerts when it's relayed, if no admin said. A
+ * server stays put, while laptops and phones move between networks.
+ */
+export function relayedByDefault(kind: DeviceKind): boolean {
+	return kind === 'server';
+}
+
 /** A Tailscale tag without its "tag:" start, such as server for tag:server. */
 export function tagName(tag: string): string {
 	return tag.replace(/^tag:/, '');

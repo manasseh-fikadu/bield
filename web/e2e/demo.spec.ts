@@ -87,6 +87,25 @@ test('the devices page picks machines by tag and by route', async ({ page }) => 
 	expect(problems).toEqual([]);
 });
 
+test('the peer relay page suggests a machine for the devices on DERP', async ({ page }) => {
+	const problems = await visit(page, '/devices');
+	const main = page.getByRole('main');
+
+	// New York VPS goes through DERP, and Frankfurt VPS is a server Bield
+	// reaches directly at a public address.
+	await main.getByRole('link', { name: 'peer relay', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Peer relay' })).toBeVisible();
+	await expect(main.getByRole('link', { name: 'New York VPS' })).toBeVisible();
+	await expect(main.getByRole('combobox', { name: /^Relay/ })).toHaveValue(/.+/);
+	await expect(main.getByText('Frankfurt VPS (suggested)')).toBeAttached();
+	await expect(shown(page, 'sudo tailscale set --relay-server-port=40000')).toBeVisible();
+	await expect(shown(page, '"tailscale.com/cap/relay"')).toBeVisible();
+
+	await main.getByLabel('UDP port', { exact: true }).fill('41000');
+	await expect(shown(page, 'sudo tailscale set --relay-server-port=41000')).toBeVisible();
+	expect(problems).toEqual([]);
+});
+
 test('the alerts page has what is wrong in the demo', async ({ page }) => {
 	await visit(page, '/alerts');
 

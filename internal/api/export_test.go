@@ -69,3 +69,13 @@ const (
 
 // RunRemote is the script that runs the install or uninstall script over SSH.
 const RunRemote = runRemote
+
+// RelayedCondition is relayedCondition, and RelayedAfter how many relayed
+// replies in a row open its alert.
+var RelayedCondition = relayedCondition
+
+const RelayedAfter = relayedAfter
+
+// NewRelay suggests a peer relay from a snapshot's devices and the control
+// server's URL, "" for Tailscale's.
+var NewRelay = newRelay
