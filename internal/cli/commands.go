@@ -6,6 +6,7 @@ func init() {
 	commands = slices.Concat(
 		basicCommands(),
 		deviceCommands(),
+		relayCommands(),
 		alertCommands(),
 		eventCommands(),
 		checkCommands(),

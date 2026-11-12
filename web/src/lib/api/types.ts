@@ -661,6 +661,48 @@ export interface Snapshot {
    * can tell when GET /api/events has more.
    */
   lastEventId: number /* int64 */;
+  /**
+   * Relay is Bield's suggestion of a peer relay for the devices it reaches
+   * through DERP.
+   */
+  relay: Relay;
+}
+/**
+ * Relay suggests a peer relay: a machine of yours that carries traffic
+ * between devices that can't connect directly, in place of Tailscale's
+ * shared DERP servers. Bield only sees its own connections, so it can't tell
+ * how the devices reach each other, or whether a relay will help them.
+ */
+export interface Relay {
+  /**
+   * Supported is whether the tailnet can have peer relays. Tailscale's
+   * coordination server can; Bield doesn't suggest one on another, such as
+   * Headscale, which has no released support for them yet.
+   */
+  supported: boolean;
+  /**
+   * DERP lists the IDs of the online devices that Bield reaches through a
+   * DERP server now, which a peer relay might make faster.
+   */
+  derp: string[];
+  /**
+   * Candidates are the devices that could be the relay, best first, and at
+   * most three: online computers that Bield reaches directly, preferring
+   * ones at a public address, servers, ones that haven't just restarted, and
+   * a short round trip from Bield.
+   */
+  candidates: RelayCandidate[];
+}
+/**
+ * RelayCandidate is a device that could be a peer relay.
+ */
+export interface RelayCandidate {
+  deviceId: string;
+  /**
+   * PublicAddress is whether Bield reaches it at a public IP address, which
+   * devices behind other networks' NATs can reach too.
+   */
+  publicAddress: boolean;
 }
 /**
  * Hub is the Bield server itself.
