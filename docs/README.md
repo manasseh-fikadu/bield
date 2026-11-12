@@ -18,7 +18,7 @@ Start with the [README](../README.md) for what Bield is and a two-minute quickst
 | --- | --- |
 | [A tour of Bield](pages.md) | What each page does |
 | [The agent](agent.md) | Per-machine metrics: what it sends, how to install, update, revoke and remove it |
-| [AI usage](coding.md) | Tokens, estimated cost and limits of Claude Code, Codex, OpenCode and Pi, per machine |
+| [AI usage](coding.md) | Tokens, estimated cost and limits of Claude Code, Codex, OpenCode, Pi and other AI tools, per machine |
 | [SSH access, terminals and files](ssh.md) | Setting up Bield's key or Tailscale SSH, the terminal, the file manager |
 | [VS Code in the browser](vscode.md) | code-server on a machine, opened from Bield: installing, opening, ports, extensions, who can use it |
 | [The command line](cli.md) | `bield devices`, `bield alerts ack` and the rest, for people, scripts and AI agents |
