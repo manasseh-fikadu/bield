@@ -6,7 +6,7 @@ It's off until an admin turns it on for a machine, and it needs agent 1.4.0 or n
 
 ## Turning it on
 
-Open the machine's page, find the **AI usage** card, and switch on **Watch**. Only admins can. The card is far down the page, so a link under the machine's name, **AI usage**, jumps to it, and says what it holds: the cost, and how many sessions are live. The machine's next heartbeat tells its agent to start, and the first numbers arrive within a couple of minutes. Update the agent first if the machine runs an older one (**Update** on the [Agents page](agent.md#the-agents-page)).
+Open the machine's page, find the **AI usage** card, and switch on **Watch**. Only admins can. The card is far down the page, so a link under the machine's name, **AI usage**, jumps to it, and says what it holds: the cost, and how many sessions are live. The card shows the last 24 hours, 7, 30 or 90 days, or a year, and your browser remembers the one you pick for every machine's card. The machine's next heartbeat tells its agent to start, and the first numbers arrive within a couple of minutes. Update the agent first if the machine runs an older one (**Update** on the [Agents page](agent.md#the-agents-page)).
 
 The first time, the agent reads the files that are still on the machine, up to 90 days of them, so history shows at once instead of starting from zero. Turning it off stops the reading and keeps what Bield counted.
 

@@ -32,6 +32,22 @@ export function codingRangeName(range: CodingRange): string {
 	];
 }
 
+/** The range a machine's AI usage card starts with, until a range is picked there. */
+export const defaultCardRange: CodingRange = '24h';
+
+/** Where the browser keeps the range picked on a machine's AI usage card, one for every machine. */
+export const cardRangeKey = 'bield.coding.cardRange';
+
+/** A range that was kept, or the default if it isn't one, as when a later version dropped it. */
+export function keptRange(v: unknown): CodingRange {
+	return codingRanges.some((r) => r.value === v) ? (v as CodingRange) : defaultCardRange;
+}
+
+/** A range's label, such as "7 days". */
+export function codingRangeLabel(range: CodingRange): string {
+	return codingRanges.find((r) => r.value === range)?.label ?? range;
+}
+
 /** What a device's page says about its AI usage card, at the top, where it is out of sight. */
 export interface Glance {
 	/** Whether an admin turned watching on. */

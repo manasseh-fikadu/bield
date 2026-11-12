@@ -10,6 +10,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 - AI usage reads OpenCode's JSON files from before it kept a database, and counts the calls a Claude Code session makes to an advisor model, under that model.
 - Codex's ultrafast tier is priced at its own rates. It was priced as fast.
 
+### Changed
+
+- A machine's **AI usage** card has every range the AI usage page has, from 24 hours to a year, in a list next to **Watch**, and your browser remembers the one you pick.
+
 ### Fixed
 
 - A Claude Code reply that a resumed session or a forked sub-agent copied into another file counts once. It counted once in each file, about 0.7% too much on the machine it was tried on. Agent 1.5.0 reads each machine's files again once, to know which file counted what, and what an older agent sent stays as it was.

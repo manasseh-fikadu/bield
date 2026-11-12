@@ -1,6 +1,7 @@
 <!--
 	The AI tools on one device (Claude Code, Codex, OpenCode, Pi): what they
-	used, over a day or a week, and where their limits stand. An admin turns
+	used, over one of the AI usage page's ranges, and where their limits stand.
+	The browser remembers the range, one for every machine's card. An admin turns
 	watching them on here. Until then the device's agent doesn't read their
 	files at all. It loads again every minute. The device page links to it from
 	its top, with what `glance` says.
@@ -15,17 +16,23 @@
 	import Badge from '#lib/ui/Badge.svelte';
 	import Card from '#lib/ui/Card.svelte';
 	import Meter from '#lib/ui/Meter.svelte';
-	import Segmented from '#lib/ui/Segmented.svelte';
+	import { Persisted } from '#lib/files/persisted.svelte.js';
+	import Select from '#lib/ui/Select.svelte';
 	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import Switch from '#lib/ui/Switch.svelte';
 	import { getDeviceCoding, setDeviceCoding } from './api.js';
 	import {
 		apiEstimate,
+		cardRangeKey,
+		codingRangeLabel,
+		codingRanges,
 		compactTokens,
+		defaultCardRange,
 		dollars,
 		limitGroups,
 		minAgentVersion,
 		sourceHint,
+		keptRange,
 		versionBefore,
 		type CodingRange,
 		type Glance
@@ -45,11 +52,8 @@
 
 	let { device, now, glance = $bindable(null) }: Props = $props();
 
-	const ranges: { value: CodingRange; label: string }[] = [
-		{ value: '24h', label: '24h' },
-		{ value: '7d', label: '7 days' }
-	];
-	let range: CodingRange = $state('24h');
+	const kept = new Persisted<string>(cardRangeKey, defaultCardRange);
+	const range: CodingRange = $derived(keptRange(kept.value));
 
 	// Every snapshot passes in a new `device`, so only its ID and name are
 	// read, and the poll starts again only for another device or range.
@@ -63,7 +67,7 @@
 	$effect(() => poll.start());
 
 	const summary = $derived(poll.data);
-	const rangeLabel = $derived(ranges.find((r) => r.value === range)?.label ?? range);
+	const rangeLabel = $derived(codingRangeLabel(range));
 
 	// What an admin just chose, until the hub's answer to the next load says
 	// so too, so the switch doesn't jump back while it's on its way.
@@ -119,7 +123,15 @@
 <Card id="ai-usage" title="AI usage" class="scroll-mt-16 lg:col-span-2">
 	{#snippet actions()}
 		{#if enabled}
-			<Segmented bind:value={range} options={ranges} label="Time range" />
+			<Select
+				size="sm"
+				aria-label="AI usage range"
+				bind:value={() => range, (v: string) => (kept.value = keptRange(v))}
+			>
+				{#each codingRanges as r (r.value)}
+					<option value={r.value}>{r.label}</option>
+				{/each}
+			</Select>
 		{/if}
 		<AdminOnly>
 			<label class="ml-2 flex items-center gap-2 text-[13px] text-fg-muted">

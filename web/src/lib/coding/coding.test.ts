@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import type { CodingLimit, CodingSource, CodingSummary } from '#lib/api/types.js';
 import {
 	apiEstimateHelp,
+	codingRangeLabel,
+	keptRange,
 	axisText,
 	bucketText,
 	buckets,
@@ -365,5 +367,21 @@ describe('limitGroups', () => {
 	test('a tool with no limits to say and an unreadable one add nothing', () => {
 		const groups = limitGroups(summary, now, names);
 		expect(groups.some((g) => g.name === 'desktop')).toBe(false);
+	});
+});
+
+describe('keptRange', () => {
+	test.each([
+		['a range', '30d', '30d'],
+		['a year', '1y', '1y'],
+		['nothing kept', undefined, '24h'],
+		['a range no version has', '2w', '24h'],
+		['something else', 7, '24h']
+	])('%s', (_, kept, want) => {
+		expect<string>(keptRange(kept)).toBe(want);
+	});
+	test('labels', () => {
+		expect(codingRangeLabel('90d')).toBe('90 days');
+		expect(codingRangeLabel('24h')).toBe('24h');
 	});
 });

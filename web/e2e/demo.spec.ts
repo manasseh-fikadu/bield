@@ -148,6 +148,9 @@ test('the AI usage page adds up what the AI tools used, and a device has a card'
 	await expect(jump).toBeVisible();
 	await jump.click();
 	await expect(page.getByRole('heading', { name: 'AI usage' })).toBeInViewport();
+	// The card has every range of the AI usage page.
+	await page.getByLabel('AI usage range').selectOption('30d');
+	await expect(jump).toContainText('30 days');
 	expect(problems).toEqual([]);
 });
 
