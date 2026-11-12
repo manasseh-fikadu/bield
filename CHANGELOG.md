@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.7.0 - 2026-11-12
+
+This release is about how traffic reaches your machines: Tailscale tags, a filter by route, an alert when a machine that was direct falls back to a relay, and a suggestion for a peer relay. It also measures routes better. The agent doesn't change, and Bield adds a table and a column to its database when it starts, which needs no action from you.
+
 ### Added
 
 - Devices show their Tailscale tags, all of them: on the Devices page, on a device's page, and in `bield devices` and `bield devices show`. Pick one tag in the Devices page's **Tag** list or with `bield devices --tag server`. The command palette finds a device by its tags too. Bield only shows tags. You set them in Tailscale.
