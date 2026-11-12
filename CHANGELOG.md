@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.7.1 - 2026-11-12
+
+This release reads more AI tools, counts the ones it read before more exactly, and adds budgets for them. It comes with agent 1.5.0, which the Agents page offers to update to; the new tools and the fixes need it. The agent reads each machine's files again once after the update. There is no database change.
+
 ### Added
 
 - AI usage reads Gemini CLI, Grok, Muse and Antigravity too, with agent 1.5.0. Antigravity needs Python 3 on the machine, since its conversations are in a binary format; the machine's card says so when it's missing. See [What the agent reads](docs/coding.md#what-the-agent-reads).

@@ -87,30 +87,30 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release is about how traffic reaches your machines.
+    This release is about AI usage: more tools read, the ones that were read before counted more exactly, and budgets.
 
-    - **Tags.** Devices show all their Tailscale tags, on the Devices page, on a device's page and in `bield devices`. **Tag** on the Devices page and `bield devices --tag server` pick the machines with one. Bield only shows tags; you set them in Tailscale.
-    - **Routes.** **Route** on the Devices page and `bield devices --path derp` pick the machines Bield reaches one way: directly, through one of Tailscale's DERP relays, or through a peer relay.
-    - **An alert when a machine falls back to a relay.** A machine that Bield reached directly in the last week, and that answers five pings in a row through DERP or a peer relay, raises a warning. It resolves a minute after the machine is direct again. It's on for servers only: each machine's settings have an **Alert when relayed** switch, `bield devices set --alert-relayed` changes it, and **Relayed connection** in Settings turns it off for all.
-    - **A peer relay suggestion.** When Bield reaches machines through DERP, the new **Peer relay** page suggests one of your machines to be a [peer relay](https://tailscale.com/kb/1591/peer-relays) for them, which is often faster: a computer Bield reaches directly, best a server at a public address. It gives the command to run on it and the grant for your tailnet policy file, which Bield can't edit. `bield relay` prints the same. Bield only sees its own connections, so it can't tell whether the relay will help your machines reach each other. It doesn't suggest one on Headscale.
-    - **Better route readings.** A machine that's direct or on a peer relay no longer shows as relayed through DERP. After a quiet minute, the first ping often comes back through DERP while Tailscale finds the direct path again, so Bield now pings again for a few seconds, as `tailscale ping` does.
+    - **More tools.** Besides Claude Code, Codex, OpenCode and Pi, the agent now reads Gemini CLI, Grok, Muse and Antigravity. Antigravity needs Python 3 on the machine, since it keeps its counts in a binary format; the machine's card says so when it's missing. Cursor and Kiro don't write token counts on the machine, so they can't be read, which [the docs](https://github.com/manasseh-fikadu/bield/blob/main/docs/coding.md#tools-bield-doesnt-read) explain.
+    - **Counted more exactly.** A Claude Code reply that a resumed session or a forked sub-agent copied into another file counts once, not once in each (about 0.7% too much on the machine it was tried on). An interrupted Codex request counts when Codex's records account for it. OpenCode's JSON files from before its database are read, a Claude Code session's calls to an advisor model count under that model, and Codex's ultrafast tier is priced at its own rates.
+    - **Budgets.** **Settings**, **Alerts**, **AI usage budget** sets a budget in dollars or tokens, for all machines together or for each one, over 24 hours, 7 days or 30 days. Bield warns at 80% and raises a critical alert once it's spent, and your notification channels send them like other alerts. The **AI usage** page shows how much is used.
+    - **Watch all.** The **AI usage** page turns on watching for every machine with an agent at once, as `bield ai watch` does. `bield ai unwatch --yes` turns it off everywhere.
+    - **Every range on a machine's card.** A machine's **AI usage** card has every range the AI usage page has, from 24 hours to a year, and your browser remembers the one you pick.
 
-    The agent doesn't change (it's still 1.4.0). Bield adds a table and a column to its database when it starts, which needs no action from you.
+    The agent is now 1.5.0. Update it from the Agents page; the new tools and the fixes need it. After the update it reads each machine's files again once, and what an older agent sent stays as it was. There is no database change.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - On a real Tailscale tailnet, with one machine made a peer relay: a machine that was direct, then cut off from everything but the relay, showed as on a peer relay every minute. The alert opened at the fifth reading, followed the machine to DERP when the relay was blocked too, and resolved a minute after it was direct again. A machine that was never direct got no alert.
-    - On the same tailnet, before the route fix, machines on a peer relay and a server reached directly showed as on DERP, and the server got a false alert. After it, they showed their real routes.
-    - The Peer relay page and `bield relay` on that tailnet, with a machine cut off from all UDP: it showed as on DERP, and the suggested machine, command and grant were right.
-    - The new pages in the demo at phone and desktop widths, the alert and the suggestion in Go tests, and the new CLI flags and command against a fake tailnet and a stub.
+    - The agent's readers on this release's test machine's real files: Claude Code's copies came to 286 of 38,736 replies, the same as a count done another way; Codex's totals equal T3 Code's way of counting them for every session and model; OpenCode's database gives the same report through the real `sqlite3` command as through Python.
+    - A real install of Pi 0.73.1, talking to a stand-in model server, whose session files the agent read right, with the cost Pi worked out.
+    - The agent's tests with bash 3.2.57 and BWK awk, which macOS has, with busybox awk, and in a Linux container with FreeBSD's `stat`, `find`, `tail` and `date`.
+    - Budgets, alerts and their notifications, Watch all and the card's ranges in the demo, at phone and desktop widths, and in Go tests.
 
     ### What has not been run
 
+    - A Mac, and real installs of Gemini CLI, Grok, Muse and Antigravity. Their readers follow their file formats as T3 Code reads them, and were tried on made-up files.
     - This release on the live tailnet, before it was published.
-    - Following the suggestion all the way for a real machine behind a strict NAT, and peer relays on Headscale.
-    - What the [v0.6.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0) list under "What has not been run", apart from HTTPS and a Tailscale tailnet, which v0.6.1's run covered. Nothing in this release changes that.
+    - What the [v0.7.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.7.0) list under "What has not been run". Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |
