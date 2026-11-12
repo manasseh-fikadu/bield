@@ -156,9 +156,9 @@
 				{#if hasData}
 					Watching is off, so Bield isn't counting anything new. What it counted stays.
 				{:else}
-					Bield can count the tokens that Claude Code, Codex, OpenCode and Pi use on {name}, for
-					anything they're used for, and what they'd cost, from the session files they write.
-					Prompts and replies never leave the machine.
+					Bield can count the tokens that Claude Code, Codex, OpenCode, Gemini CLI and other AI
+					tools use on {name}, for anything they're used for, and what they'd cost, from the session
+					files they write. Prompts and replies never leave the machine.
 				{/if}
 			</p>
 			<AdminOnly>

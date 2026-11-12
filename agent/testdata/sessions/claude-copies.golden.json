@@ -1,0 +1,63 @@
+{
+  "limits": [],
+  "sessions": [
+    {
+      "first": "2026-11-06T17:30:00Z",
+      "id": "9b3e7d10-0000-4000-8000-00000000bbbb",
+      "last": "2026-11-06T18:20:00Z",
+      "project": "bield",
+      "tool": "claude"
+    }
+  ],
+  "tools": [
+    {
+      "status": "ok",
+      "tool": "claude"
+    }
+  ],
+  "usage": [
+    {
+      "cost": 0,
+      "cr": 400,
+      "cw": 4,
+      "hour": "2026-11-06T18",
+      "in": 40,
+      "model": "claude-opus-5-5",
+      "n": 1,
+      "out": 44,
+      "reason": 0,
+      "session": "9b3e7d10-0000-4000-8000-00000000bbbb",
+      "speed": "standard",
+      "tool": "claude"
+    },
+    {
+      "cost": 0,
+      "cr": 1100,
+      "cw": 60,
+      "hour": "2026-11-06T17",
+      "in": 8,
+      "model": "claude-sonnet-5-5",
+      "n": 2,
+      "out": 73,
+      "reason": 0,
+      "session": "9b3e7d10-0000-4000-8000-00000000bbbb",
+      "speed": "standard",
+      "tool": "claude"
+    },
+    {
+      "cost": 0,
+      "cr": 500,
+      "cw": 50,
+      "hour": "2026-11-06T18",
+      "in": 5,
+      "model": "claude-sonnet-5-5",
+      "n": 1,
+      "out": 55,
+      "reason": 0,
+      "session": "9b3e7d10-0000-4000-8000-00000000bbbb",
+      "speed": "standard",
+      "tool": "claude"
+    }
+  ],
+  "v": 1
+}

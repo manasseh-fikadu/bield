@@ -71,7 +71,21 @@ export function paletteActions(snapshot: Snapshot | null, admin: boolean): Palet
 		kind: 'coding',
 		label: 'Open AI usage',
 		hint: 'Tokens, cost and limits',
-		keywords: ['coding', 'claude', 'codex', 'opencode', 'pi', 'tokens', 'cost', 'limits', 'ai']
+		keywords: [
+			'coding',
+			'claude',
+			'codex',
+			'opencode',
+			'pi',
+			'gemini',
+			'grok',
+			'muse',
+			'antigravity',
+			'tokens',
+			'cost',
+			'limits',
+			'ai'
+		]
 	});
 	if (!admin) {
 		return out;

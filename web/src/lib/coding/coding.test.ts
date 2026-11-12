@@ -29,14 +29,18 @@ describe('toolName and toolColor', () => {
 		expect(toolName('codex')).toBe('Codex');
 		expect(toolName('opencode')).toBe('OpenCode');
 		expect(toolName('pi')).toBe('Pi');
+		expect(toolName('gemini')).toBe('Gemini CLI');
+		expect(toolName('antigravity')).toBe('Antigravity');
 		expect(toolColor('claude')).not.toBe(toolColor('codex'));
+		const known = ['claude', 'codex', 'opencode', 'pi', 'gemini', 'grok', 'muse', 'antigravity'];
+		expect(new Set(known.map(toolColor)).size).toBe(known.length);
 	});
 
 	test('a tool this version does not know is capitalised, and keeps its color', () => {
-		expect(toolName('gemini')).toBe('Gemini');
+		expect(toolName('aider')).toBe('Aider');
 		expect(toolName('')).toBe('Unknown tool');
-		expect(toolColor('gemini')).toBe(toolColor('gemini'));
-		expect(toolColor('gemini')).toMatch(/^#[0-9a-f]{6}$/);
+		expect(toolColor('aider')).toBe(toolColor('aider'));
+		expect(toolColor('aider')).toMatch(/^#[0-9a-f]{6}$/);
 	});
 });
 
@@ -232,6 +236,12 @@ describe('sourceHint', () => {
 	test('OpenCode without sqlite3 or Python', () => {
 		expect(sourceHint(src('needs-sqlite'), 'this machine')).toBe(
 			'Install sqlite3 or Python 3 on this machine to read OpenCode.'
+		);
+	});
+
+	test('Antigravity without Python', () => {
+		expect(sourceHint(src('needs-python', 'antigravity'), 'mac')).toBe(
+			'Install Python 3 on mac to read Antigravity.'
 		);
 	});
 

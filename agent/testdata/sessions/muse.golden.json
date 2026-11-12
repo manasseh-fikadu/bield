@@ -1,0 +1,70 @@
+{
+  "limits": [],
+  "sessions": [
+    {
+      "first": "2026-11-06T17:20:00Z",
+      "id": "sess-1",
+      "last": "2026-11-06T17:21:00Z",
+      "project": "",
+      "tool": "muse"
+    },
+    {
+      "first": "2026-11-06T19:00:00Z",
+      "id": "sub-1",
+      "last": "2026-11-06T19:00:00Z",
+      "project": "",
+      "tool": "muse"
+    }
+  ],
+  "tools": [
+    {
+      "status": "ok",
+      "tool": "muse"
+    }
+  ],
+  "usage": [
+    {
+      "cost": 0,
+      "cr": 60,
+      "cw": 10,
+      "hour": "2026-11-06T17",
+      "in": 30,
+      "model": "muse-wonder-full-1.0",
+      "n": 1,
+      "out": 20,
+      "reason": 8,
+      "session": "sess-1",
+      "speed": "standard",
+      "tool": "muse"
+    },
+    {
+      "cost": 0,
+      "cr": 20,
+      "cw": 0,
+      "hour": "2026-11-06T17",
+      "in": 30,
+      "model": "muse-wonder-mini-1.0",
+      "n": 1,
+      "out": 5,
+      "reason": 0,
+      "session": "sess-1",
+      "speed": "standard",
+      "tool": "muse"
+    },
+    {
+      "cost": 0,
+      "cr": 0,
+      "cw": 0,
+      "hour": "2026-11-06T19",
+      "in": 10,
+      "model": "muse-wonder-full-1.0",
+      "n": 1,
+      "out": 1,
+      "reason": 0,
+      "session": "sub-1",
+      "speed": "standard",
+      "tool": "muse"
+    }
+  ],
+  "v": 1
+}

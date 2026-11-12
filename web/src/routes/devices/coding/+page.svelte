@@ -207,8 +207,9 @@
 					class="text-fg underline decoration-line-heavy underline-offset-4">Devices</a
 				>
 				page and turn on <span class="text-fg">Watch AI tools</span>. Its agent then reads the
-				session files of Claude Code, Codex, OpenCode and Pi once a minute and reports counts of
-				tokens. Prompts and replies never leave the machine. It needs agent 1.4.0 or newer, which
+				session files of Claude Code, Codex, OpenCode, Gemini CLI and other AI tools once a minute
+				and reports counts of tokens. Prompts and replies never leave the machine. It needs agent
+				1.4.0 or newer, which
 				<a
 					href={resolve('/devices/agents')}
 					class="text-fg underline decoration-line-heavy underline-offset-4">Agents</a

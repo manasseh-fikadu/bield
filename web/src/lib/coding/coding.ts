@@ -1,4 +1,4 @@
-// How the UI shows what the AI tools (Claude Code, Codex, OpenCode, Pi) on the
+// How the UI shows what the AI tools (Claude Code, Codex, OpenCode and more) on the
 // tailnet's machines used: tokens, what they'd cost on the model makers'
 // APIs, and where the tools' limits stand. All of it is worked out by the hub;
 // this is words, numbers and colors.
@@ -56,7 +56,11 @@ const toolNames: Record<string, string> = {
 	claude: 'Claude Code',
 	codex: 'Codex',
 	opencode: 'OpenCode',
-	pi: 'Pi'
+	pi: 'Pi',
+	gemini: 'Gemini CLI',
+	grok: 'Grok',
+	muse: 'Muse',
+	antigravity: 'Antigravity'
 };
 
 /** A tool's name, such as "Claude Code". A tool this version doesn't know gets its id, capitalised. */
@@ -69,11 +73,15 @@ const toolColors: Record<string, string> = {
 	// Not the near-white of a lit lamp, which a tool's color would be taken for.
 	codex: '#199e70',
 	opencode: '#3987e5',
-	pi: '#9085e9'
+	pi: '#9085e9',
+	gemini: '#14a3b8',
+	grok: '#c98500',
+	muse: '#d55181',
+	antigravity: '#e66767'
 };
 
 /** Colors for the tools this version doesn't know, which stay the same for a tool. */
-const spare = ['#c98500', '#d55181', '#14a3b8', '#e66767'];
+const spare = ['#8f9a2c', '#b8743d', '#6f86d6', '#a85c9e'];
 
 /** A tool's color in charts, which stays the same for the tool whichever page it's on. */
 export function toolColor(tool: string): string {
@@ -363,6 +371,8 @@ export function sourceHint(s: CodingSource, where: string): string | undefined {
 			return undefined;
 		case 'needs-sqlite':
 			return `Install sqlite3 or Python 3 on ${where} to read ${toolName(s.tool)}.`;
+		case 'needs-python':
+			return `Install Python 3 on ${where} to read ${toolName(s.tool)}.`;
 		default:
 			return `The agent on ${where} couldn't read ${toolName(s.tool)}'s files.`;
 	}

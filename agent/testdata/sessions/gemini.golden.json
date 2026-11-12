@@ -1,0 +1,70 @@
+{
+  "limits": [],
+  "sessions": [
+    {
+      "first": "2026-11-06T17:00:09Z",
+      "id": "aaaa1111-0000-4000-8000-000000000001",
+      "last": "2026-11-06T18:30:00Z",
+      "project": "bield",
+      "tool": "gemini"
+    },
+    {
+      "first": "2026-11-06T17:10:02Z",
+      "id": "bbbb2222-0000-4000-8000-000000000002",
+      "last": "2026-11-06T17:10:02Z",
+      "project": "bield",
+      "tool": "gemini"
+    }
+  ],
+  "tools": [
+    {
+      "status": "ok",
+      "tool": "gemini"
+    }
+  ],
+  "usage": [
+    {
+      "cost": 0,
+      "cr": 0,
+      "cw": 0,
+      "hour": "2026-11-06T18",
+      "in": 200,
+      "model": "gemini-3-flash-preview",
+      "n": 1,
+      "out": 10,
+      "reason": 0,
+      "session": "aaaa1111-0000-4000-8000-000000000001",
+      "speed": "standard",
+      "tool": "gemini"
+    },
+    {
+      "cost": 0,
+      "cr": 600,
+      "cw": 0,
+      "hour": "2026-11-06T17",
+      "in": 405,
+      "model": "gemini-3-pro",
+      "n": 1,
+      "out": 70,
+      "reason": 20,
+      "session": "aaaa1111-0000-4000-8000-000000000001",
+      "speed": "standard",
+      "tool": "gemini"
+    },
+    {
+      "cost": 0,
+      "cr": 100,
+      "cw": 0,
+      "hour": "2026-11-06T17",
+      "in": 200,
+      "model": "gemini-3-flash-preview",
+      "n": 1,
+      "out": 30,
+      "reason": 0,
+      "session": "bbbb2222-0000-4000-8000-000000000002",
+      "speed": "standard",
+      "tool": "gemini"
+    }
+  ],
+  "v": 1
+}

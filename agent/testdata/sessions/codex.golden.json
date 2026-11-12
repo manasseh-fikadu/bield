@@ -35,6 +35,13 @@
       "last": "2026-11-06T19:00:09Z",
       "project": "other",
       "tool": "codex"
+    },
+    {
+      "first": "2026-11-06T20:00:11Z",
+      "id": "019aaaaa-0000-7000-8000-000000000003",
+      "last": "2026-11-06T20:02:01Z",
+      "project": "bield",
+      "tool": "codex"
     }
   ],
   "tools": [
@@ -84,6 +91,20 @@
       "reason": 0,
       "session": "019aaaaa-0000-7000-8000-000000000002",
       "speed": "standard",
+      "tool": "codex"
+    },
+    {
+      "cost": 0,
+      "cr": 190,
+      "cw": 0,
+      "hour": "2026-11-06T20",
+      "in": 410,
+      "model": "gpt-6.1-sol",
+      "n": 3,
+      "out": 60,
+      "reason": 7,
+      "session": "019aaaaa-0000-7000-8000-000000000003",
+      "speed": "ultrafast",
       "tool": "codex"
     }
   ],

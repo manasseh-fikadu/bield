@@ -1,0 +1,63 @@
+{
+  "limits": [],
+  "sessions": [
+    {
+      "first": "2026-11-06T17:05:00Z",
+      "id": "019fec1a-0000-7000-8000-000000000001",
+      "last": "2026-11-06T18:00:00Z",
+      "project": "bield",
+      "tool": "grok"
+    }
+  ],
+  "tools": [
+    {
+      "status": "ok",
+      "tool": "grok"
+    }
+  ],
+  "usage": [
+    {
+      "cost": 0,
+      "cr": 50,
+      "cw": 0,
+      "hour": "2026-11-06T18",
+      "in": 50,
+      "model": "grok",
+      "n": 1,
+      "out": 10,
+      "reason": 0,
+      "session": "019fec1a-0000-7000-8000-000000000001",
+      "speed": "standard",
+      "tool": "grok"
+    },
+    {
+      "cost": 0.01,
+      "cr": 2000,
+      "cw": 0,
+      "hour": "2026-11-06T17",
+      "in": 3000,
+      "model": "grok-4.1-fast",
+      "n": 1,
+      "out": 100,
+      "reason": 0,
+      "session": "019fec1a-0000-7000-8000-000000000001",
+      "speed": "standard",
+      "tool": "grok"
+    },
+    {
+      "cost": 0.02,
+      "cr": 10000,
+      "cw": 1000,
+      "hour": "2026-11-06T17",
+      "in": 4000,
+      "model": "grok-4.5-build",
+      "n": 1,
+      "out": 200,
+      "reason": 100,
+      "session": "019fec1a-0000-7000-8000-000000000001",
+      "speed": "standard",
+      "tool": "grok"
+    }
+  ],
+  "v": 1
+}
