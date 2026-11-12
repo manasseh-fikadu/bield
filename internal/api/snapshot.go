@@ -54,6 +54,11 @@ type sources struct {
 	// ssh says how Bield logs in to each machine, by access ID, or is nil
 	// if Bield doesn't.
 	ssh map[string]ssh.Access
+	// budget is what the AI tools spent over the AI usage budget's window,
+	// or nil if Bield hasn't worked it out, and budgetFresh says it's recent
+	// enough for an alert of a budget to resolve.
+	budget      *budgetSpend
+	budgetFresh bool
 }
 
 // A machine is a device that Bield measures, once for each machine. The

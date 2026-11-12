@@ -4,6 +4,7 @@
 // this is words, numbers and colors.
 
 import type {
+	CodingBudget,
 	CodingCost,
 	CodingLimit,
 	CodingSource,
@@ -46,6 +47,35 @@ export function keptRange(v: unknown): CodingRange {
 /** A range's label, such as "7 days". */
 export function codingRangeLabel(range: CodingRange): string {
 	return codingRanges.find((r) => r.value === range)?.label ?? range;
+}
+
+/** One budget of the AI usage page: how much of it is used over its window. */
+export interface BudgetUse {
+	metric: Metric;
+	/** Such as "$84.20 of $100". */
+	text: string;
+	/** The percent used, which can be over 100. */
+	percent: number;
+}
+
+/** How much of each budget in `b` is used, cost first. A budget of 0 is none, and isn't listed. */
+export function budgetUse(b: CodingBudget): BudgetUse[] {
+	const out: BudgetUse[] = [];
+	if (b.cost > 0) {
+		out.push({
+			metric: 'cost',
+			text: `${dollars(b.usedCost)} of ${dollars(b.cost).replace(/\.00$/, '')}`,
+			percent: (b.usedCost / b.cost) * 100
+		});
+	}
+	if (b.tokens > 0) {
+		out.push({
+			metric: 'tokens',
+			text: `${compactTokens(b.usedTokens)} of ${compactTokens(b.tokens)} tokens`,
+			percent: (b.usedTokens / b.tokens) * 100
+		});
+	}
+	return out;
 }
 
 /** What a device's page says about its AI usage card, at the top, where it is out of sight. */

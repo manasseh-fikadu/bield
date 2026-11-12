@@ -142,6 +142,20 @@ func TestCheck(t *testing.T) {
 		{"quiet hours without a minute", func(s *settings.Settings) { s.Notifications.Quiet.End = "7" }, true},
 		{"quiet hours with a space", func(s *settings.Settings) { s.Notifications.Quiet.End = " 07:00" }, true},
 		{"quiet hours that never end", func(s *settings.Settings) { s.Notifications.Quiet.Start, s.Notifications.Quiet.End = "07:00", "07:00" }, true},
+		{"an AI budget", func(s *settings.Settings) {
+			s.AIBudget = settings.AIBudget{Window: "7d", Timezone: "Europe/Berlin", Cost: 99.5, Tokens: 1e9, MachineCost: 20, MachineTokens: 5e8}
+		}, false},
+		{"an AI budget over 24 hours", func(s *settings.Settings) { s.AIBudget.Window = "24h" }, false},
+		{"an AI budget over a year", func(s *settings.Settings) { s.AIBudget.Window = "1y" }, true},
+		{"an AI budget without a window", func(s *settings.Settings) { s.AIBudget.Window = "" }, true},
+		{"a negative AI budget", func(s *settings.Settings) { s.AIBudget.Cost = -1 }, true},
+		{"an AI budget that isn't a number", func(s *settings.Settings) { s.AIBudget.MachineCost = math.NaN() }, true},
+		{"an endless AI budget", func(s *settings.Settings) { s.AIBudget.Cost = math.Inf(1) }, true},
+		{"the largest AI budget", func(s *settings.Settings) { s.AIBudget.Cost = settings.MaxBudgetCost }, false},
+		{"too large an AI budget", func(s *settings.Settings) { s.AIBudget.MachineCost = settings.MaxBudgetCost + 1 }, true},
+		{"a negative token budget", func(s *settings.Settings) { s.AIBudget.MachineTokens = -1 }, true},
+		{"too many tokens", func(s *settings.Settings) { s.AIBudget.Tokens = settings.MaxBudgetTokens + 1 }, true},
+		{"an AI budget in a time zone that doesn't exist", func(s *settings.Settings) { s.AIBudget.Timezone = "Mars/Olympus" }, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
@@ -302,6 +316,11 @@ func TestChanges(t *testing.T) {
 		{"quiet hours", func(s *settings.Settings) {
 			s.Notifications.Quiet = settings.QuietHours{Enabled: true, Start: "23:00", End: "06:30", Timezone: "Europe/Berlin", AllowCritical: true}
 		}, []string{"Set quiet hours to 23:00–06:30 Europe/Berlin, with critical alerts getting through"}},
+		{"an AI budget", func(s *settings.Settings) {
+			s.AIBudget = settings.AIBudget{Window: "7d", Timezone: "Europe/Berlin", Cost: 100, MachineTokens: 2_000_000}
+		}, []string{"Changed the AI usage budget: window 30 days → 7 days, time zone Bield's → Europe/Berlin, cost none → $100, tokens of each machine none → 2000000"}},
+		{"the AI budget rule", func(s *settings.Settings) { s.Rules.AIBudget = false },
+			[]string{"Turned off alerts for AI usage budgets"}},
 		{"several parts", func(s *settings.Settings) { s.General.Name, s.Rules.Disk = "Lab", false },
 			[]string{`Renamed Bield to "Lab"`, "Turned off alerts for disk"}},
 	} {

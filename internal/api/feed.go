@@ -17,6 +17,7 @@ import (
 	"github.com/manasseh-fikadu/bield/internal/checks"
 	"github.com/manasseh-fikadu/bield/internal/docker"
 	"github.com/manasseh-fikadu/bield/internal/hostmetrics"
+	"github.com/manasseh-fikadu/bield/internal/pricing"
 	"github.com/manasseh-fikadu/bield/internal/settings"
 	"github.com/manasseh-fikadu/bield/internal/ssh"
 	"github.com/manasseh-fikadu/bield/internal/store"
@@ -80,6 +81,9 @@ type FeedOptions struct {
 	Store *store.Store
 	// Settings holds the settings admins changed. Nil reads them from Store.
 	Settings *settings.Cache
+	// Prices says what the models that AI tools use cost, for the alerts of
+	// the AI usage budget. Nil is the list that's built in.
+	Prices *pricing.Table
 	// Logger receives errors. Nil discards them.
 	Logger *slog.Logger
 }
@@ -126,6 +130,9 @@ type Feed struct {
 	// can tell that what they changed isn't in the latest snapshot yet.
 	dirty atomic.Bool
 
+	// budget works out what the AI tools spent, for their budget.
+	budget *budgetWatch
+
 	mu  sync.Mutex
 	cur *published
 }
@@ -158,6 +165,10 @@ func NewFeed(opts FeedOptions) *Feed {
 	if f.opts.Settings == nil {
 		f.opts.Settings = settings.NewCache(opts.Store, f.log)
 	}
+	if f.opts.Prices == nil {
+		f.opts.Prices = pricing.Default()
+	}
+	f.budget = &budgetWatch{st: opts.Store, prices: f.opts.Prices, log: f.log, done: f.Poke}
 	return f
 }
 
@@ -339,6 +350,10 @@ func (f *Feed) publish(ctx context.Context) *published {
 
 	snap, machines := newSnapshot(src, now)
 	if e := f.opts.Alerts; e != nil {
+		if b := src.global.AIBudget; src.global.Rules.AIBudget {
+			src.budget = f.budget.latest(ctx, b, now)
+			src.budgetFresh = !b.Any() || (src.budget != nil && now.Sub(src.budget.at) < budgetStale)
+		}
 		src.open = make(map[string]bool)
 		for _, a := range e.Open() {
 			src.open[a.Key] = true

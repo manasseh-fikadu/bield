@@ -91,6 +91,16 @@ func (b ChangeSettings) apply(s *settings.Settings) error {
 		set(&ru.Containers, r.Containers)
 		set(&ru.Units, r.Units)
 		set(&ru.Collectors, r.Collectors)
+		set(&ru.AIBudget, r.AIBudget)
+	}
+	if c := b.AIBudget; c != nil {
+		bu := &s.AIBudget
+		set(&bu.Window, c.Window)
+		set(&bu.Timezone, c.Timezone)
+		set(&bu.Cost, c.Cost)
+		set(&bu.Tokens, c.Tokens)
+		set(&bu.MachineCost, c.MachineCost)
+		set(&bu.MachineTokens, c.MachineTokens)
 	}
 	if r := b.Retention; r != nil {
 		set(&s.Retention.ActivityDays, r.ActivityDays)
@@ -161,6 +171,7 @@ func newSettings(s settings.Settings) Settings {
 			RemindHours: s.Notifications.RemindHours,
 			Quiet:       QuietHours(s.Notifications.Quiet),
 		},
+		AIBudget: AIBudgetSettings(s.AIBudget),
 	}
 }
 

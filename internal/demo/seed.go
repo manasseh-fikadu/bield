@@ -67,6 +67,15 @@ func (d *Demo) seedSettings(ctx context.Context, st *store.Store, span time.Dura
 	days := int(math.Ceil(span.Hours() / 24))
 	s.Retention.HistoryDays = min(max(days, s.Retention.HistoryDays), settings.MaxHistoryDays)
 	s.Retention.ChecksDays = min(max(days, s.Retention.ChecksDays), settings.MaxChecksDays)
+	// A budget for the AI tools that a week of them uses about three quarters
+	// of, so the AI usage page shows one without raising an alert.
+	coders := 0
+	for _, m := range d.machines {
+		if _, ok := d.codingProfileOf(m); ok {
+			coders++
+		}
+	}
+	s.AIBudget.Window, s.AIBudget.Cost = "7d", float64(125*max(coders, 1))
 	return settings.Save(ctx, st, s)
 }
 

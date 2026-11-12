@@ -135,6 +135,8 @@ test('the AI usage page adds up what the AI tools used, and a device has a card'
 	await expect(shown(page, /API estimate/)).toBeVisible();
 	await expect(shown(page, 'Claude Code')).toBeVisible();
 	await expect(shown(page, 'Codex')).toBeVisible();
+	// The demo has a budget for every machine together.
+	await expect(shown(page, /Budget for the last 7 days/)).toBeVisible();
 	await page.getByRole('tab', { name: 'Limits' }).click();
 	await expect(shown(page, /Codex · weekly limit/)).toBeVisible();
 	await expect(page.getByText(loadError)).toHaveCount(0);

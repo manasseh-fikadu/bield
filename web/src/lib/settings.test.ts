@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import type { InstalledService, RetentionSettings, Thresholds } from './api/types.js';
+import type {
+	AIBudgetSettings,
+	InstalledService,
+	RetentionSettings,
+	Thresholds
+} from './api/types.js';
 import {
+	budgetProblem,
 	changedFields,
 	follow,
 	loginProblem,
@@ -284,5 +290,33 @@ describe('loginProblem', () => {
 
 	test.each(['', '   ', 'alice smith@example.com', 'alice\tsmith'])('rejects %j', (login) => {
 		expect(loginProblem(login)).toContain('without spaces');
+	});
+});
+
+describe('budgetProblem', () => {
+	const ok: AIBudgetSettings = {
+		window: '30d',
+		timezone: '',
+		cost: 100,
+		tokens: 0,
+		machineCost: 12.5,
+		machineTokens: 5_000_000
+	};
+	test.each([
+		['a budget', {}, ''],
+		['no budgets', { cost: 0, machineCost: 0, machineTokens: 0 }, ''],
+		["a window the page has but a budget can't", { window: '1y' }, 'time'],
+		['a negative cost', { cost: -1 }, 'dollars'],
+		['an empty cost', { machineCost: NaN }, 'dollars'],
+		['too much', { cost: 10_000_001 }, 'dollars'],
+		['part of a token', { tokens: 1.5 }, 'tokens'],
+		['an empty token field', { machineTokens: NaN }, 'tokens']
+	])('%s', (_, change, want) => {
+		const got = budgetProblem({ ...ok, ...change });
+		if (want === '') {
+			expect(got).toBe('');
+		} else {
+			expect(got).toContain(want);
+		}
 	});
 });

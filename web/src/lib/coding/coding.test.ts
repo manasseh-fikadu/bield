@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import type { CodingLimit, CodingSource, CodingSummary } from '#lib/api/types.js';
+import type { CodingBudget, CodingLimit, CodingSource, CodingSummary } from '#lib/api/types.js';
 import {
 	apiEstimateHelp,
+	budgetUse,
 	codingRangeLabel,
 	keptRange,
 	axisText,
@@ -383,5 +384,38 @@ describe('keptRange', () => {
 	test('labels', () => {
 		expect(codingRangeLabel('90d')).toBe('90 days');
 		expect(codingRangeLabel('24h')).toBe('24h');
+	});
+});
+
+describe('budgetUse', () => {
+	const budget = (b: Partial<CodingBudget>): CodingBudget => ({
+		window: '30d',
+		from: '2026-10-14T00:00:00Z',
+		cost: 0,
+		tokens: 0,
+		usedCost: 0,
+		usedTokens: 0,
+		at: '2026-11-12T10:00:00Z',
+		...b
+	});
+	test.each([
+		['no budgets', budget({ usedCost: 5 }), []],
+		[
+			'a cost',
+			budget({ cost: 100, usedCost: 84.2 }),
+			[{ metric: 'cost', text: '$84.20 of $100', percent: 84.2 }]
+		],
+		[
+			'cents in a budget',
+			budget({ cost: 12.5, usedCost: 25 }),
+			[{ metric: 'cost', text: '$25.00 of $12.50', percent: 200 }]
+		],
+		[
+			'tokens',
+			budget({ tokens: 10_000_000, usedTokens: 2_500_000 }),
+			[{ metric: 'tokens', text: '2.5M of 10M tokens', percent: 25 }]
+		]
+	])('%s', (_, b, want) => {
+		expect(budgetUse(b)).toEqual(want as ReturnType<typeof budgetUse>);
 	});
 });

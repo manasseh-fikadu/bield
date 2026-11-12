@@ -9,6 +9,7 @@ What changed in each release of Bield, newest first. The [landing page](https://
 - AI usage reads Gemini CLI, Grok, Muse and Antigravity too, with agent 1.5.0. Antigravity needs Python 3 on the machine, since its conversations are in a binary format; the machine's card says so when it's missing. See [What the agent reads](docs/coding.md#what-the-agent-reads).
 - AI usage reads OpenCode's JSON files from before it kept a database, and counts the calls a Claude Code session makes to an advisor model, under that model.
 - Codex's ultrafast tier is priced at its own rates. It was priced as fast.
+- Budgets for the AI tools, in **Settings**, **Alerts**, **AI usage budget**: in dollars or tokens, for every machine together or for each machine, over 24 hours, 7 days or 30 days. Bield warns at 80% of a budget and raises a critical alert once it's spent, and notifications send them as they do other alerts. The **AI usage** page shows how much of the budget is used. Nothing alerts until you set a budget.
 - **Watch all** on the **AI usage** page turns on watching the AI tools for every machine that has an agent, and `bield ai watch` does the same. `bield ai unwatch --yes` turns it off on every machine.
 
 ### Changed

@@ -26,13 +26,18 @@ var codingRanges = map[string]int{"24h": 0, "7d": 7, "30d": 30, "90d": 90, "1y":
 // range. A range in days ends at the end of today, and includes it, so 7d is
 // today and the 6 days before.
 func newCodingSpan(name, tz string, now time.Time) (codingSpan, bool) {
-	days, ok := codingRanges[name]
-	if !ok {
-		return codingSpan{}, false
-	}
 	loc := time.UTC
 	if l, err := time.LoadLocation(tz); err == nil && tz != "" {
 		loc = l
+	}
+	return newCodingSpanIn(name, loc, now)
+}
+
+// newCodingSpanIn is newCodingSpan with days in loc.
+func newCodingSpanIn(name string, loc *time.Location, now time.Time) (codingSpan, bool) {
+	days, ok := codingRanges[name]
+	if !ok {
+		return codingSpan{}, false
 	}
 	if days == 0 {
 		to := now.UTC().Truncate(time.Hour).Add(time.Hour)

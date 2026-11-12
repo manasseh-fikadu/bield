@@ -65,6 +65,12 @@ The files are what the tools wrote, so the numbers are as good as they are:
 - Grok and Muse were read from their file formats as T3 Code reads them, and from made-up files. Neither was tried on a real install, and Muse's files say nothing about the project, so its sessions have none.
 - The tools delete their files. Claude Code's last 30 days. Bield keeps the numbers it already has, so a machine's history is as long as Bield has watched it, plus whatever files were still there.
 
+## Budgets
+
+An admin can set a budget for what the AI tools use, in **Settings**, **Alerts**, **AI usage budget**: in dollars, in tokens, or both, for every machine together and for each machine on its own, over the last 24 hours, 7 days or 30 days. Bield raises a warning when the tools have used 80% of a budget, and a critical alert once they've used all of it, and the [notifications](notifications.md) send them like any other alert. A budget's alert resolves when the window moves on past what was spent, or when the budget goes up, is removed, or the **AI usage budget** rule is turned off.
+
+The numbers are the ones the **AI usage** page shows for the same range: the API estimate of the cost, and the tokens processed. Bield adds them up once a minute, and only while there's a budget. A budget's 7 or 30 days start at midnight in the time zone the budget names, which is your browser's when you save it, so they match the page when you look from that zone. The AI usage page shows how much of the budget for every machine together is used, under its title.
+
 ## Limits
 
 The **Limits** tab shows where the tools say you stand, as of the last time a session of theirs wrote it down, so it's as old as that session.

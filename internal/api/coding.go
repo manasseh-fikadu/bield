@@ -165,6 +165,14 @@ func (h *handler) fleetCoding(w http.ResponseWriter, r *http.Request) {
 			out.Unwatched++
 		}
 	}
+	if b := h.opts.Settings.Get(r.Context()).AIBudget; b.Cost > 0 || b.Tokens > 0 {
+		if s := h.opts.Feed.budget.wait(r.Context(), b, in.now); s != nil {
+			out.Budget = &CodingBudget{
+				Window: b.Window, From: s.from.UTC(), Cost: b.Cost, Tokens: b.Tokens,
+				UsedCost: s.fleet.cost, UsedTokens: s.fleet.tokens, At: s.at.UTC(),
+			}
+		}
+	}
 	h.writeJSON(w, r, http.StatusOK, out)
 }
 
@@ -288,22 +296,7 @@ func (h *handler) codingInput(r *http.Request, historyID string, span codingSpan
 }
 
 // deviceIDs maps the keys that history is kept under to the IDs of the
-// devices on the tailnet, for the one machine that has two nodes the first
-// wins.
+// devices on the tailnet.
 func (h *handler) deviceIDs() map[string]string {
-	st := h.opts.Snapshot().Status
-	ids := map[string]string{}
-	if st == nil {
-		return ids
-	}
-	add := func(key, id string) {
-		if _, ok := ids[key]; !ok {
-			ids[key] = id
-		}
-	}
-	add(historyID(st.Self, true), st.Self.ID)
-	for _, d := range st.Peers {
-		add(historyID(d, false), d.ID)
-	}
-	return ids
+	return historyKeys(h.opts.Snapshot().Status)
 }

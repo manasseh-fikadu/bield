@@ -2,7 +2,13 @@
 // bound them, and when a form has changed. The hub checks everything again;
 // these only say so sooner.
 
-import type { AlertRules, InstalledService, RetentionSettings, Thresholds } from './api/types.js';
+import type {
+	AIBudgetSettings,
+	AlertRules,
+	InstalledService,
+	RetentionSettings,
+	Thresholds
+} from './api/types.js';
 
 /** One alert rule: its key in AlertRules, its name, and what it alerts about. */
 export interface RuleInfo {
@@ -47,8 +53,42 @@ export const rules: RuleInfo[] = [
 		key: 'collectors',
 		label: "Bield's own jobs",
 		description: 'Something Bield gathers keeps failing.'
+	},
+	{
+		key: 'aiBudget',
+		label: 'AI usage budget',
+		description: 'The AI tools have used 80% of a budget set below, or all of it.'
 	}
 ];
+
+/** The windows an AI usage budget can have, from the AI usage page's ranges. */
+export const budgetWindows: { value: string; label: string }[] = [
+	{ value: '24h', label: '24 hours' },
+	{ value: '7d', label: '7 days' },
+	{ value: '30d', label: '30 days' }
+];
+
+/** The most an AI usage budget can be, in dollars and in tokens, as the hub allows. */
+export const maxBudgetCost = 10_000_000;
+export const maxBudgetTokens = 1e15;
+
+/** What is wrong with an AI usage budget, in a sentence, or '' if nothing is. */
+export function budgetProblem(b: AIBudgetSettings): string {
+	if (!budgetWindows.some((w) => w.value === b.window)) {
+		return 'Pick the time the budget is for.';
+	}
+	for (const v of [b.cost, b.machineCost]) {
+		if (!(v >= 0 && v <= maxBudgetCost)) {
+			return `A budget in dollars must be from 0 to ${maxBudgetCost.toLocaleString('en-US')}.`;
+		}
+	}
+	for (const v of [b.tokens, b.machineTokens]) {
+		if (!(Number.isInteger(v) && v >= 0 && v <= maxBudgetTokens)) {
+			return 'A budget in tokens must be a whole number from 0 to a quadrillion.';
+		}
+	}
+	return '';
+}
 
 /** How many days each kind of history can be kept for, and what it covers. */
 export const retention: {

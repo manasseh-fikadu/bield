@@ -206,6 +206,8 @@ type Settings struct {
 	WatchedUnits  []string             `json:"watchedUnits"`
 	Retention     RetentionSettings    `json:"retention"`
 	Notifications NotificationSettings `json:"notifications"`
+	// AIBudget is what the AI tools can use before an alert.
+	AIBudget AIBudgetSettings `json:"aiBudget"`
 }
 
 // GeneralSettings are how Bield presents itself.
@@ -272,6 +274,28 @@ type AlertRules struct {
 	Units bool `json:"units"`
 	// Collectors is one of Bield's own jobs that keeps failing.
 	Collectors bool `json:"collectors"`
+	// AIBudget is the AI tools nearing or passing a budget of AIBudgetSettings.
+	AIBudget bool `json:"aiBudget"`
+}
+
+// AIBudgetSettings are what the AI tools on the tailnet's machines can use
+// over a window of time before an alert: a warning at 80% of a budget, and a
+// critical alert once it's spent. A budget of 0 is none. Cost is the API
+// estimate the AI usage page shows, and tokens are the tokens processed.
+type AIBudgetSettings struct {
+	// Window is the AI usage page's range the budgets are for: 24h, 7d or
+	// 30d. 7d and 30d are today and the days before it.
+	Window string `json:"window"`
+	// Timezone is the name of the time zone the window's days are in, such
+	// as "Europe/Berlin". It's empty for the one Bield's machine is in.
+	Timezone string `json:"timezone"`
+	// Cost and Tokens are the budgets of every machine together.
+	Cost   float64 `json:"cost"`
+	Tokens int64   `json:"tokens"`
+	// MachineCost and MachineTokens are the budgets of each machine on its
+	// own.
+	MachineCost   float64 `json:"machineCost"`
+	MachineTokens int64   `json:"machineTokens"`
 }
 
 // RetentionSettings are how many days Bield keeps each kind of history.
@@ -354,6 +378,7 @@ type ChangeSettings struct {
 	// Notifications changes when notifications are sent. The channels they
 	// go to are changed by their own requests.
 	Notifications *ChangeNotifications `json:"notifications,omitempty"`
+	AIBudget      *ChangeAIBudget      `json:"aiBudget,omitempty"`
 	// WatchedUnits replaces the whole list when it's there, even if it's
 	// empty.
 	WatchedUnits []string `json:"watchedUnits,omitempty"`
@@ -391,6 +416,17 @@ type ChangeRules struct {
 	Containers   *bool `json:"containers,omitempty"`
 	Units        *bool `json:"units,omitempty"`
 	Collectors   *bool `json:"collectors,omitempty"`
+	AIBudget     *bool `json:"aiBudget,omitempty"`
+}
+
+// ChangeAIBudget changes AIBudgetSettings.
+type ChangeAIBudget struct {
+	Window        *string  `json:"window,omitempty"`
+	Timezone      *string  `json:"timezone,omitempty"`
+	Cost          *float64 `json:"cost,omitempty"`
+	Tokens        *int64   `json:"tokens,omitempty"`
+	MachineCost   *float64 `json:"machineCost,omitempty"`
+	MachineTokens *int64   `json:"machineTokens,omitempty"`
 }
 
 // ChangeRetention changes RetentionSettings.
@@ -1319,6 +1355,9 @@ const (
 	AlertSourceUnit AlertSource = "unit"
 	// AlertSourceCollector is one of Bield's collectors that keeps failing.
 	AlertSourceCollector AlertSource = "collector"
+	// AlertSourceBudget is the AI tools nearing or passing a budget, of every
+	// machine together or of one.
+	AlertSourceBudget AlertSource = "budget"
 )
 
 // AlertSeverity says how much an alert matters.
@@ -2662,6 +2701,26 @@ type CodingSummary struct {
 	// Unwatched is how many machines have an agent but aren't watched, for
 	// every device together.
 	Unwatched int `json:"unwatched"`
+	// Budget is how much of the AI usage budget of every machine together is
+	// used, for every device together, if an admin set one and Bield has
+	// worked it out.
+	Budget *CodingBudget `json:"budget,omitempty"`
+}
+
+// CodingBudget is how much of the AI usage budget of every machine together
+// is used over its window, as its alerts see it.
+type CodingBudget struct {
+	// Window is the budget's window: 24h, 7d or 30d.
+	Window string    `json:"window"`
+	From   time.Time `json:"from"`
+	// Cost and Tokens are the budgets, or 0 for none.
+	Cost   float64 `json:"cost"`
+	Tokens int64   `json:"tokens"`
+	// UsedCost and UsedTokens are what the AI tools used in the window.
+	UsedCost   float64 `json:"usedCost"`
+	UsedTokens int64   `json:"usedTokens"`
+	// At is when Bield worked them out, about once a minute.
+	At time.Time `json:"at"`
 }
 
 // WatchAllCoding is the body of POST /api/coding/watch, which turns watching

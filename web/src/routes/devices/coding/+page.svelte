@@ -6,6 +6,7 @@
 	import { Poll } from '#lib/docker/poll.svelte.js';
 	import AdminOnly from '#lib/AdminOnly.svelte';
 	import { getCoding, watchAllCoding } from '#lib/coding/api.js';
+	import BudgetLine from '#lib/coding/BudgetLine.svelte';
 	import Breakdown from '#lib/coding/Breakdown.svelte';
 	import CodingChart from '#lib/coding/CodingChart.svelte';
 	import {
@@ -283,6 +284,9 @@
 	{/if}
 {:else}
 	<div class="space-y-6">
+		{#if summary.budget}
+			<BudgetLine budget={summary.budget} />
+		{/if}
 		{@render watchAllRow()}
 		<SourceNotes sources={summary.sources} where={nameOf} />
 		<Tabs bind:value={tab} {tabs}>

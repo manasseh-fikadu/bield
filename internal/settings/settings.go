@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +45,9 @@ type Settings struct {
 	WatchedUnits  []string      `json:"watchedUnits"`
 	Retention     Retention     `json:"retention"`
 	Notifications Notifications `json:"notifications"`
+	// AIBudget is what the AI tools on the tailnet's machines can use before
+	// an alert.
+	AIBudget AIBudget `json:"aiBudget"`
 }
 
 // General is how Bield presents itself.
@@ -129,6 +133,8 @@ type Rules struct {
 	Units bool `json:"units"`
 	// Collectors alerts when one of Bield's own jobs keeps failing.
 	Collectors bool `json:"collectors"`
+	// AIBudget alerts when the AI tools near or pass a budget of AIBudget.
+	AIBudget bool `json:"aiBudget"`
 }
 
 // Retention is how many days Bield keeps each kind of history. It lasts as
@@ -220,6 +226,80 @@ func clock(s string) (int, bool) {
 	return t.Hour()*60 + t.Minute(), true
 }
 
+// AIBudget is what the AI tools on the tailnet's machines (#73) can use over
+// a window of time before an alert: a warning at 80% of a budget, and a
+// critical alert once it's spent. The cost is the same API estimate the AI
+// usage page shows, and the tokens are the tokens processed, of every kind. A
+// budget of 0 is none, and with none, Bield works nothing out.
+type AIBudget struct {
+	// Window is the time a budget is for, one of the AI usage page's ranges:
+	// 24h is the last 24 hours, and 7d and 30d are today and the days before
+	// it, as the page counts them.
+	Window string `json:"window"`
+	// Timezone is the name of the time zone the days of the window are in,
+	// such as "Europe/Berlin". It's "" for the one Bield's machine is in.
+	Timezone string `json:"timezone"`
+	// Cost and Tokens are the budgets of every machine together, in dollars
+	// and in tokens.
+	Cost   float64 `json:"cost"`
+	Tokens int64   `json:"tokens"`
+	// MachineCost and MachineTokens are the budgets of each machine on its
+	// own.
+	MachineCost   float64 `json:"machineCost"`
+	MachineTokens int64   `json:"machineTokens"`
+}
+
+// The windows an AI budget can have.
+var budgetWindows = []string{"24h", "7d", "30d"}
+
+// Limits of an AI budget.
+const (
+	MaxBudgetCost   = 10_000_000
+	MaxBudgetTokens = 1_000_000_000_000_000
+)
+
+// Any reports whether b has a budget.
+func (b AIBudget) Any() bool {
+	return b.Cost > 0 || b.Tokens > 0 || b.MachineCost > 0 || b.MachineTokens > 0
+}
+
+// Location returns the time zone of the window's days, or time.Local if it
+// names none, or one this machine doesn't know.
+func (b AIBudget) Location() *time.Location {
+	if b.Timezone == "" {
+		return time.Local
+	}
+	loc, err := time.LoadLocation(b.Timezone)
+	if err != nil {
+		return time.Local
+	}
+	return loc
+}
+
+// Check returns an error that says what's wrong with b, if anything is.
+func (b AIBudget) Check() error {
+	if !slices.Contains(budgetWindows, b.Window) {
+		return errors.New("the AI usage budget's window must be 24h, 7d or 30d")
+	}
+	for _, c := range []float64{b.Cost, b.MachineCost} {
+		// NaN and infinity can't come from JSON, but can from code.
+		if !(c >= 0 && c <= MaxBudgetCost) {
+			return fmt.Errorf("an AI usage budget in dollars must be from 0 to %d", MaxBudgetCost)
+		}
+	}
+	for _, n := range []int64{b.Tokens, b.MachineTokens} {
+		if n < 0 || n > MaxBudgetTokens {
+			return errors.New("an AI usage budget in tokens must be from 0 to a quadrillion")
+		}
+	}
+	if b.Timezone != "" {
+		if _, err := time.LoadLocation(b.Timezone); err != nil {
+			return fmt.Errorf("%q isn't the name of a time zone, such as Europe/Berlin", b.Timezone)
+		}
+	}
+	return nil
+}
+
 // Limits of a retention, in days.
 const (
 	MaxActivityDays = 365
@@ -255,7 +335,7 @@ func Defaults() Settings {
 		},
 		Rules: Rules{
 			Offline: true, Relayed: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, CPU: true,
-			Checks: true, Containers: true, Units: true, Collectors: true,
+			Checks: true, Containers: true, Units: true, Collectors: true, AIBudget: true,
 		},
 		// ssh.service is sshd.service on some systems. Bield leaves out the
 		// ones a machine doesn't have.
@@ -264,6 +344,7 @@ func Defaults() Settings {
 		Notifications: Notifications{
 			Quiet: QuietHours{Start: "22:00", End: "07:00", AllowCritical: true},
 		},
+		AIBudget: AIBudget{Window: "30d"},
 	}
 }
 
@@ -318,7 +399,7 @@ func (e *InvalidError) Unwrap() error { return e.Err }
 // Check returns an *InvalidError that says what's wrong with s, if anything
 // is.
 func (s Settings) Check() error {
-	for _, err := range []error{s.General.Check(), s.Thresholds.Check(), checkUnits(s.WatchedUnits), s.Retention.Check(), s.Notifications.Check()} {
+	for _, err := range []error{s.General.Check(), s.Thresholds.Check(), checkUnits(s.WatchedUnits), s.Retention.Check(), s.Notifications.Check(), s.AIBudget.Check()} {
 		if err != nil {
 			return &InvalidError{err}
 		}
