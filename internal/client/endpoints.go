@@ -263,6 +263,13 @@ func (c *Client) Settings(ctx context.Context) (s api.SettingsView, err error) {
 	return s, c.do(ctx, http.MethodGet, "/api/settings", nil, nil, &s)
 }
 
+// WatchAllCoding turns watching the AI tools on for every machine that has an
+// agent, or off for every machine that's watched, and says how many machines
+// it changed.
+func (c *Client) WatchAllCoding(ctx context.Context, on bool) (w api.WatchedCoding, err error) {
+	return w, c.do(ctx, http.MethodPost, "/api/coding/watch", nil, api.WatchAllCoding{Enabled: on}, &w)
+}
+
 // ChangeSettings changes the settings it names, and returns all of them.
 func (c *Client) ChangeSettings(ctx context.Context, in api.ChangeSettings) (s api.SettingsView, err error) {
 	return s, c.do(ctx, http.MethodPatch, "/api/settings", nil, in, &s)

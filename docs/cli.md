@@ -50,6 +50,7 @@ For shell completion, `bield completion bash` prints a script for bash (`source 
 | `bield editor <device>` | Whether [VS Code](vscode.md) is installed and running on a device, and its address | admin |
 | `bield editor install`, `stop`, `remove <device>` | Install or update code-server on a device and wait for it, stop it, or delete it. `remove --keep-data` keeps its settings and extensions | admin |
 | `bield editor open <device> [folder]` | Start VS Code on a device and print its address, to open in a browser | admin, in person |
+| `bield ai watch`, `ai unwatch` | Turn on watching the [AI tools](coding.md) on every machine that has an agent, or turn it off on every machine. `unwatch` needs `--yes`, since which machines were watched is lost | admin |
 | `bield enroll` | Make an install command for the [agent](agent.md) | admin |
 | `bield settings`, `settings set <name=value>...` | Show or change [the settings](settings.md) | admin |
 | `bield access`, `access set`, `remove`, `who-can-view` | Who has a role in Bield | admin |

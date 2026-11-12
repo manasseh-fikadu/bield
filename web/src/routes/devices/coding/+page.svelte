@@ -4,7 +4,8 @@
 	import Info from '@lucide/svelte/icons/info';
 	import { resolve } from '$app/paths';
 	import { Poll } from '#lib/docker/poll.svelte.js';
-	import { getCoding } from '#lib/coding/api.js';
+	import AdminOnly from '#lib/AdminOnly.svelte';
+	import { getCoding, watchAllCoding } from '#lib/coding/api.js';
 	import Breakdown from '#lib/coding/Breakdown.svelte';
 	import CodingChart from '#lib/coding/CodingChart.svelte';
 	import {
@@ -15,6 +16,7 @@
 		compactTokens,
 		costParts,
 		dollars,
+		minAgentVersion,
 		speedParts,
 		tokenParts,
 		type CodingRange,
@@ -26,7 +28,9 @@
 	import ToolList from '#lib/coding/ToolList.svelte';
 	import TotalsGrid from '#lib/coding/TotalsGrid.svelte';
 	import { plural } from '#lib/format.js';
+	import { toast } from '#lib/toast.svelte.js';
 	import { live } from '#lib/live.svelte.js';
+	import Button from '#lib/ui/Button.svelte';
 	import Card from '#lib/ui/Card.svelte';
 	import EmptyState from '#lib/ui/EmptyState.svelte';
 	import ErrorState from '#lib/ui/ErrorState.svelte';
@@ -63,12 +67,57 @@
 			summary.totals.sessions === 0 &&
 			summary.limits.length === 0
 	);
+	const unwatched = $derived(summary?.unwatched ?? 0);
+	let watching = $state(false);
+
+	async function watchAll() {
+		watching = true;
+		try {
+			const { changed } = await watchAllCoding(true);
+			toast(
+				changed
+					? `Watching the AI tools on ${plural(changed, 'more machine', 'more machines')}`
+					: 'Every machine with an agent was watched already'
+			);
+			await poll.reload();
+		} catch {
+			// watchAllCoding showed why.
+		} finally {
+			watching = false;
+		}
+	}
+
 	const tabs = $derived([
 		{ value: 'cost', label: 'Cost' },
 		{ value: 'tokens', label: 'Tokens' },
 		{ value: 'limits', label: 'Limits' }
 	]);
 </script>
+
+{#snippet watchAllRow()}
+	{#if unwatched > 0}
+		<AdminOnly>
+			<div
+				class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-line px-4 py-2.5"
+			>
+				<p class="min-w-0 flex-1 basis-64 text-[13px] leading-5 text-fg-muted">
+					{plural(unwatched, 'machine has', 'machines have')} an agent, and Bield isn't watching
+					{unwatched === 1 ? 'its' : 'their'} AI tools. It needs agent {minAgentVersion} or newer to count
+					them.
+				</p>
+				<Button variant="primary" size="xs" loading={watching} onclick={watchAll}>
+					Watch all {plural(unwatched, 'machine', 'machines')}
+				</Button>
+			</div>
+			{#snippet fallback()}
+				<p class="text-[12px] leading-5 text-fg-faint">
+					Bield isn't watching the AI tools on {plural(unwatched, 'machine', 'machines')} with an agent.
+					An admin can turn it on.
+				</p>
+			{/snippet}
+		</AdminOnly>
+	{/if}
+{/snippet}
 
 {#snippet overview(metric: Metric)}
 	{#if summary}
@@ -224,6 +273,9 @@
 			</EmptyState>
 		{/if}
 	</Card>
+	{#if unwatched > 0}
+		<div class="mt-4">{@render watchAllRow()}</div>
+	{/if}
 	{#if summary.sources.length}
 		<div class="mt-4">
 			<SourceNotes sources={summary.sources} where={nameOf} />
@@ -231,6 +283,7 @@
 	{/if}
 {:else}
 	<div class="space-y-6">
+		{@render watchAllRow()}
 		<SourceNotes sources={summary.sources} where={nameOf} />
 		<Tabs bind:value={tab} {tabs}>
 			<!-- Only the tab on show is drawn, since each is a chart and a table. -->
@@ -244,11 +297,5 @@
 				{#if tab === 'limits'}<LimitsPanel {summary} {nameOf} {now} />{/if}
 			</TabPanel>
 		</Tabs>
-		{#if watched.length < devices.filter((d) => d.agent).length}
-			<p class="text-[12px] leading-5 text-fg-faint">
-				Only {plural(watched.length, 'machine')} with an agent {watched.length === 1 ? 'is' : 'are'} watched.
-				An admin turns it on for the others on their device pages.
-			</p>
-		{/if}
 	</div>
 {/if}

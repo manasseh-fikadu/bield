@@ -3751,6 +3751,28 @@ export interface CodingSummary {
    * PricesAsOf is the day of the price list that Cost comes from.
    */
   pricesAsOf: string;
+  /**
+   * Unwatched is how many machines have an agent but aren't watched, for
+   * every device together.
+   */
+  unwatched: number /* int */;
+}
+/**
+ * WatchAllCoding is the body of POST /api/coding/watch, which turns watching
+ * the AI tools on or off for every machine that has an agent.
+ */
+export interface WatchAllCoding {
+  enabled: boolean;
+}
+/**
+ * WatchedCoding is the response to POST /api/coding/watch.
+ */
+export interface WatchedCoding {
+  /**
+   * Changed is how many machines it turned watching on or off for. The
+   * ones that already were are left as they are.
+   */
+  changed: number /* int */;
 }
 /**
  * SetCoding is the body of PUT /api/devices/{id}/coding, which turns watching

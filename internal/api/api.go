@@ -155,6 +155,7 @@ func (h *handler) routes(rt *router) {
 	rt.read("GET /api/devices/{id}/coding", viewers, h.deviceCoding)
 	rt.write("PUT /api/devices/{id}/coding", h.setDeviceCoding)
 	rt.read("GET /api/coding", viewers, h.fleetCoding)
+	rt.write("POST /api/coding/watch", h.watchAllCoding)
 	rt.write("DELETE /api/devices/{id}/agent", h.revokeAgent)
 	rt.write("POST /api/devices/{id}/agent/install", h.installAgent)
 	rt.write("POST /api/devices/{id}/agent/uninstall", h.uninstallAgent)
