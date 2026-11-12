@@ -30,6 +30,9 @@ type Rates struct {
 	CacheWrite float64 `json:"cacheWrite"`
 	// Fast, if the model has a faster, dearer tier, is what that costs.
 	Fast *Rates `json:"fast,omitempty"`
+	// Ultrafast, if the model has a tier faster still, such as Codex's
+	// ultrafast, is what that costs.
+	Ultrafast *Rates `json:"ultrafast,omitempty"`
 }
 
 // A Table is a price list.
@@ -78,8 +81,9 @@ func Parse(data []byte) (*Table, error) {
 
 // Speed is the tier a request was billed at.
 const (
-	Standard = "standard"
-	Fast     = "fast"
+	Standard  = "standard"
+	Fast      = "fast"
+	Ultrafast = "ultrafast"
 )
 
 // unpriceable are the names that say nothing about the model. Claude Code
@@ -96,7 +100,9 @@ var dateSuffix = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})$`)
 // Lookup returns the rates of a model, by the name a tool wrote down. It
 // tries the name as it is, without a provider in front ("anthropic/claude-x"
 // and "claude-x@vertex" are claude-x) or a bracketed variant ("claude-x[1m]",
-// which is priced as the base model), and without a date at the end.
+// which is priced as the base model), without a date at the end, and as a
+// preview, which is how the list names some models that a tool, such as
+// Antigravity, names without it ("gemini-x" is "gemini-x-preview").
 func (t *Table) Lookup(model string) (Rates, bool) {
 	name := strings.ToLower(strings.TrimSpace(model))
 	if i := strings.IndexByte(name, '['); i >= 0 {
@@ -115,7 +121,7 @@ func (t *Table) Lookup(model string) (Rates, bool) {
 	if bare == "" || unpriceable[bare] {
 		return Rates{}, false
 	}
-	for _, key := range []string{name, bare, dateSuffix.ReplaceAllString(bare, "")} {
+	for _, key := range []string{name, bare, dateSuffix.ReplaceAllString(bare, ""), bare + "-preview"} {
 		if r, ok := t.Models[key]; ok {
 			return r, true
 		}
@@ -146,7 +152,7 @@ const (
 // Price is what some tokens cost, in dollars, in total and by kind of token.
 type Price struct {
 	Total, Input, CacheRead, CacheWrite, Output float64
-	// SpeedPremium is how much of Total the fast tier added.
+	// SpeedPremium is how much of Total the fast or ultrafast tier added.
 	SpeedPremium float64
 	// CacheSavings is what the cache saved: the cached tokens at the input
 	// rate, less what they cost at the cache rate. It's not part of Total.
@@ -186,10 +192,7 @@ func PriceAt(rates Rates, ok bool, speed string, tk Tokens, reported float64) Pr
 		}
 		return Price{Source: Unpriced}
 	}
-	at := rates
-	if speed != Standard && speed != "" && rates.Fast != nil {
-		at = *rates.Fast
-	}
+	at := rates.at(speed)
 	listed := byKind(tk, at)
 	base := byKind(tk, rates)
 	listedTotal := listed.Input + listed.CacheRead + listed.CacheWrite + listed.Output
@@ -216,6 +219,18 @@ func PriceAt(rates Rates, ok bool, speed string, tk Tokens, reported float64) Pr
 	p.SpeedPremium *= scale
 	p.Source = Reported
 	return p
+}
+
+// at returns the rates of a speed. A model with no ultrafast rates is priced
+// as fast, and one with no fast rates as standard.
+func (r Rates) at(speed string) Rates {
+	if speed == Ultrafast && r.Ultrafast != nil {
+		return *r.Ultrafast
+	}
+	if speed != Standard && speed != "" && r.Fast != nil {
+		return *r.Fast
+	}
+	return r
 }
 
 func byKind(tk Tokens, r Rates) Price {

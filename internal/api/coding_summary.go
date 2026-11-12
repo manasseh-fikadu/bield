@@ -108,7 +108,8 @@ func (t *tally) add(u store.CodingUsage, tk pricing.Tokens, p pricing.Price) {
 	} else {
 		t.priced = true
 	}
-	if u.Speed == pricing.Fast {
+	// Codex's ultrafast tier is priced at its own rates, and shown with fast.
+	if u.Speed == pricing.Fast || u.Speed == pricing.Ultrafast {
 		t.fastCost += p.Total
 	}
 	if t.sessions == nil {

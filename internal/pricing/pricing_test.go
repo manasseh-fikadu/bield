@@ -10,7 +10,10 @@ import (
 const testList = `{"asOf":"2026-11-06","models":{
  "Claude-Opus-5-5":{"in":4,"out":20,"cacheRead":0.2,"cacheWrite":5,"fast":{"in":8,"out":40,"cacheRead":0.4,"cacheWrite":10}},
  "claude-sonnet-4-5":{"in":3,"out":15,"cacheRead":0.3,"cacheWrite":3.75},
- "gpt-5.6-sol":{"in":4,"out":20,"cacheRead":0.4,"cacheWrite":5}
+ "gpt-5.6-sol":{"in":4,"out":20,"cacheRead":0.4,"cacheWrite":5},
+ "gemini-3.1-pro-preview":{"in":2,"out":12,"cacheRead":0.2,"cacheWrite":2},
+ "gpt-6.1-sol":{"in":2,"out":10,"cacheRead":0.1,"cacheWrite":2.5,"fast":{"in":4,"out":20,"cacheRead":0.2,"cacheWrite":5},
+  "ultrafast":{"in":12,"out":60,"cacheRead":0.6,"cacheWrite":15}}
 }}`
 
 func table(t *testing.T) *pricing.Table {
@@ -39,6 +42,9 @@ func TestDefault(t *testing.T) {
 		}
 		if r.Fast != nil && r.Fast.Input < r.Input {
 			t.Errorf("%s is cheaper in its fast tier: %+v", name, r)
+		}
+		if r.Ultrafast != nil && r.Ultrafast.Input < r.Input {
+			t.Errorf("%s is cheaper in its ultrafast tier: %+v", name, r)
 		}
 	}
 	if tb.AsOf == "" {
@@ -71,6 +77,8 @@ func TestLookup(t *testing.T) {
 		{"claude-sonnet-4-5-20250929", true, 3},
 		{"claude-sonnet-4-5-2025-09-29", true, 3},
 		{"openrouter/openai/gpt-5.6-sol", true, 4},
+		{"gemini-3.1-pro", true, 2},
+		{"gemini-3.1-pro-preview", true, 2},
 		{"<synthetic>", false, 0},
 		{"opus", false, 0},
 		{"anthropic/sonnet", false, 0},
@@ -119,6 +127,24 @@ func TestPrice(t *testing.T) {
 		p := tb.Price("gpt-5.6-sol", pricing.Fast, million, 0)
 		if !near(p.Total, 4+0.4+5+20) || p.SpeedPremium != 0 {
 			t.Errorf("Price = %+v", p)
+		}
+	})
+	t.Run("ultrafast has rates of its own", func(t *testing.T) {
+		t.Parallel()
+		p := tb.Price("gpt-6.1-sol", pricing.Ultrafast, million, 0)
+		if !near(p.Total, 12+0.6+15+60) || !near(p.SpeedPremium, (12+0.6+15+60)-(2+0.1+2.5+10)) {
+			t.Errorf("Price = %+v", p)
+		}
+	})
+	t.Run("a model without ultrafast rates is priced as fast", func(t *testing.T) {
+		t.Parallel()
+		p := tb.Price("claude-opus-5-5", pricing.Ultrafast, million, 0)
+		if !near(p.Total, 2*(4+0.2+5+20)) {
+			t.Errorf("Price = %+v", p)
+		}
+		p = tb.Price("gpt-5.6-sol", pricing.Ultrafast, million, 0)
+		if !near(p.Total, 4+0.4+5+20) {
+			t.Errorf("without either tier: Price = %+v", p)
 		}
 	})
 	t.Run("a reported cost wins, and the list splits it", func(t *testing.T) {

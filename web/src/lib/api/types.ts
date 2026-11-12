@@ -3576,8 +3576,9 @@ export interface CodingTotals {
    */
   cacheSavings: number /* float64 */;
   /**
-   * FastCost is the part of Cost that was billed at a model's fast tier,
-   * and SpeedPremium is how much more than the standard tier that was.
+   * FastCost is the part of Cost that was billed at a model's fast or
+   * ultrafast tier, and SpeedPremium is how much more than the standard
+   * tier that was.
    */
   fastCost: number /* float64 */;
   speedPremium: number /* float64 */;
@@ -3709,8 +3710,9 @@ export interface CodingSource {
   deviceId: string;
   tool: string;
   /**
-   * Status is ok, unreadable, or needs-sqlite, for OpenCode on a machine
-   * that has neither the sqlite3 command nor Python.
+   * Status is ok, unreadable, needs-sqlite, for OpenCode on a machine
+   * that has neither the sqlite3 command nor Python, or needs-python, for
+   * Antigravity on a machine without Python.
    */
   status: string;
   at: string /* RFC 3339 */;

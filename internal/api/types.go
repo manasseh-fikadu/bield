@@ -2530,8 +2530,9 @@ type CodingTotals struct {
 	// CacheSavings is what the cache saved, in dollars: the cached tokens at
 	// the input rate, less what they cost at the cache rate.
 	CacheSavings float64 `json:"cacheSavings"`
-	// FastCost is the part of Cost that was billed at a model's fast tier,
-	// and SpeedPremium is how much more than the standard tier that was.
+	// FastCost is the part of Cost that was billed at a model's fast or
+	// ultrafast tier, and SpeedPremium is how much more than the standard
+	// tier that was.
 	FastCost     float64 `json:"fastCost"`
 	SpeedPremium float64 `json:"speedPremium"`
 	// UnpricedTokens are the tokens of models that have no price, which
@@ -2627,8 +2628,9 @@ type CodingLimit struct {
 type CodingSource struct {
 	DeviceID string `json:"deviceId"`
 	Tool     string `json:"tool"`
-	// Status is ok, unreadable, or needs-sqlite, for OpenCode on a machine
-	// that has neither the sqlite3 command nor Python.
+	// Status is ok, unreadable, needs-sqlite, for OpenCode on a machine
+	// that has neither the sqlite3 command nor Python, or needs-python, for
+	// Antigravity on a machine without Python.
 	Status string    `json:"status"`
 	At     time.Time `json:"at"`
 }
