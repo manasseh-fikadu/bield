@@ -9,6 +9,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 - Devices show their Tailscale tags, all of them: on the Devices page, on a device's page, and in `bield devices` and `bield devices show`. Pick one tag in the Devices page's **Tag** list or with `bield devices --tag server`. The command palette finds a device by its tags too. Bield only shows tags. You set them in Tailscale.
 - Pick the devices Bield reaches one way, directly, through a DERP relay or through a peer relay, in the Devices page's **Route** list or with `bield devices --path derp`.
 
+### Fixed
+
+- A device that Bield reaches directly or through a peer relay no longer shows as relayed through DERP. Bield pings each device once a minute, and a connection that has been quiet since answers the first ping through DERP while Tailscale finds the direct or peer relay path again. Bield now pings again for a few seconds while the answers come through DERP, as `tailscale ping` does.
+
 ## 0.6.1 - 2026-11-11
 
 This release fixes how VS Code in the browser looks while it loads the first time. The agent doesn't change, and there is no database change.

@@ -50,6 +50,46 @@ func (a localAPI) controlURL(ctx context.Context) string {
 }
 
 func (a localAPI) Ping(ctx context.Context, ip netip.Addr) (*PingResult, error) {
+	return pingRoute(ctx, func(ctx context.Context) (*PingResult, error) {
+		return a.ping(ctx, ip)
+	})
+}
+
+// How pingRoute looks past DERP: up to derpRetries more pings, derpRetryPause
+// apart. On a real tailnet, a peer relay path that had been idle for a minute
+// answered three pings a second apart through DERP before the fourth came
+// through the relay.
+const (
+	derpRetries    = 4
+	derpRetryPause = time.Second
+)
+
+// pingRoute pings with ping until a pong comes some other way than through
+// DERP, as `tailscale ping` does, and returns that pong, or the last one
+// through DERP. A path that has been idle since the last ping answers through
+// DERP first while Tailscale finds the direct or peer relay path again, so
+// one pong through DERP says little about the path traffic takes. Once ctx
+// ends or a later ping gets no pong, it settles for the pong it has.
+func pingRoute(ctx context.Context, ping func(context.Context) (*PingResult, error)) (*PingResult, error) {
+	res, err := ping(ctx)
+	for i := 0; i < derpRetries && err == nil && res.DERPRegion != ""; i++ {
+		select {
+		case <-ctx.Done():
+			return res, nil
+		case <-time.After(derpRetryPause):
+		}
+		again, againErr := ping(ctx)
+		if againErr != nil {
+			// The pong through DERP still says how the peer was reached.
+			break
+		}
+		res = again
+	}
+	return res, err
+}
+
+// ping sends one disco ping to ip.
+func (a localAPI) ping(ctx context.Context, ip netip.Addr) (*PingResult, error) {
 	res, err := a.lc.Ping(ctx, ip, tailcfg.PingDisco)
 	if err != nil {
 		return nil, err
