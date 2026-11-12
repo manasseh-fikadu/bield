@@ -87,26 +87,30 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release fixes [VS Code in the browser](https://github.com/manasseh-fikadu/bield/blob/main/docs/vscode.md), which v0.6.0 added, while it loads the first time.
+    This release is about how traffic reaches your machines.
 
-    - VS Code no longer says "The editor failed to load" while it's still loading. Its first load is about 6 MB, and over a relayed connection that takes longer than the 10 seconds VS Code waits before it says so. Now its page says it's loading, and says it failed only after two minutes. Your browser keeps what it downloaded, so the next load is quick.
-    - The activity log names the machine Bield runs on one way for its editor, where installing it from one of its two device pages used the other name.
-    - The editor's port sends each of its security headers once, not twice.
+    - **Tags.** Devices show all their Tailscale tags, on the Devices page, on a device's page and in `bield devices`. **Tag** on the Devices page and `bield devices --tag server` pick the machines with one. Bield only shows tags; you set them in Tailscale.
+    - **Routes.** **Route** on the Devices page and `bield devices --path derp` pick the machines Bield reaches one way: directly, through one of Tailscale's DERP relays, or through a peer relay.
+    - **An alert when a machine falls back to a relay.** A machine that Bield reached directly in the last week, and that answers five pings in a row through DERP or a peer relay, raises a warning. It resolves a minute after the machine is direct again. It's on for servers only: each machine's settings have an **Alert when relayed** switch, `bield devices set --alert-relayed` changes it, and **Relayed connection** in Settings turns it off for all.
+    - **A peer relay suggestion.** When Bield reaches machines through DERP, the new **Peer relay** page suggests one of your machines to be a [peer relay](https://tailscale.com/kb/1591/peer-relays) for them, which is often faster: a computer Bield reaches directly, best a server at a public address. It gives the command to run on it and the grant for your tailnet policy file, which Bield can't edit. `bield relay` prints the same. Bield only sees its own connections, so it can't tell whether the relay will help your machines reach each other. It doesn't suggest one on Headscale.
+    - **Better route readings.** A machine that's direct or on a peer relay no longer shows as relayed through DERP. After a quiet minute, the first ping often comes back through DERP while Tailscale finds the direct path again, so Bield now pings again for a few seconds, as `tailscale ping` does.
 
-    The agent doesn't change (it's still 1.4.0), and there's no database change. If you skipped [v0.6.0](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0), read its notes: VS Code is served on ports 4710 to 4799 of Bield, which your tailnet policy has to allow.
+    The agent doesn't change (it's still 1.4.0). Bield adds a table and a column to its database when it starts, which needs no action from you.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - VS Code's real page, with Bield's change, in Chromium in dark and light: it says it's loading at once, and says it failed only after two minutes.
-    - The editor's port in Go tests: the page is asked for uncompressed and changed, other pages and compressed ones are left as they came, and each header is sent once.
-    - v0.6.0 itself on a real Tailscale tailnet over HTTPS: VS Code installed on the machine Bield runs on, and opened from a laptop through a relay. That run is where this was found.
+    - On a real Tailscale tailnet, with one machine made a peer relay: a machine that was direct, then cut off from everything but the relay, showed as on a peer relay every minute. The alert opened at the fifth reading, followed the machine to DERP when the relay was blocked too, and resolved a minute after it was direct again. A machine that was never direct got no alert.
+    - On the same tailnet, before the route fix, machines on a peer relay and a server reached directly showed as on DERP, and the server got a false alert. After it, they showed their real routes.
+    - The Peer relay page and `bield relay` on that tailnet, with a machine cut off from all UDP: it showed as on DERP, and the suggested machine, command and grant were right.
+    - The new pages in the demo at phone and desktop widths, the alert and the suggestion in Go tests, and the new CLI flags and command against a fake tailnet and a stub.
 
     ### What has not been run
 
     - This release on the live tailnet, before it was published.
-    - What the [v0.6.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0) list under "What has not been run", apart from HTTPS and a Tailscale tailnet, which the run above covered.
+    - Following the suggestion all the way for a real machine behind a strict NAT, and peer relays on Headscale.
+    - What the [v0.6.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.6.0) list under "What has not been run", apart from HTTPS and a Tailscale tailnet, which v0.6.1's run covered. Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |
