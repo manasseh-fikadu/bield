@@ -472,6 +472,36 @@ type Snapshot struct {
 	// LastEventID is the ID of the activity log's latest event, so the app
 	// can tell when GET /api/events has more.
 	LastEventID int64 `json:"lastEventId"`
+	// Relay is Bield's suggestion of a peer relay for the devices it reaches
+	// through DERP.
+	Relay Relay `json:"relay"`
+}
+
+// Relay suggests a peer relay: a machine of yours that carries traffic
+// between devices that can't connect directly, in place of Tailscale's
+// shared DERP servers. Bield only sees its own connections, so it can't tell
+// how the devices reach each other, or whether a relay will help them.
+type Relay struct {
+	// Supported is whether the tailnet can have peer relays. Tailscale's
+	// coordination server can; Bield doesn't suggest one on another, such as
+	// Headscale, which has no released support for them yet.
+	Supported bool `json:"supported"`
+	// DERP lists the IDs of the online devices that Bield reaches through a
+	// DERP server now, which a peer relay might make faster.
+	DERP []string `json:"derp"`
+	// Candidates are the devices that could be the relay, best first, and at
+	// most three: online computers that Bield reaches directly, preferring
+	// ones at a public address, servers, ones that haven't just restarted, and
+	// a short round trip from Bield.
+	Candidates []RelayCandidate `json:"candidates"`
+}
+
+// RelayCandidate is a device that could be a peer relay.
+type RelayCandidate struct {
+	DeviceID string `json:"deviceId"`
+	// PublicAddress is whether Bield reaches it at a public IP address, which
+	// devices behind other networks' NATs can reach too.
+	PublicAddress bool `json:"publicAddress"`
 }
 
 // Hub is the Bield server itself.

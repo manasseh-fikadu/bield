@@ -44,6 +44,8 @@
 	);
 	const shown = $derived(filter === 'all' ? devices : devices.filter((d) => d.status === filter));
 	const now = $derived(live.snapshot ? Date.parse(live.snapshot.generatedAt) : Date.now());
+	/** How many devices Bield reaches through DERP, where Bield can suggest a peer relay. */
+	const onDERP = $derived(live.snapshot?.relay.supported ? live.snapshot.relay.derp.length : 0);
 
 	function count(s: Status) {
 		return devices.filter((d) => d.status === s).length;
@@ -153,3 +155,15 @@
 		class="text-fg-muted underline decoration-line-heavy underline-offset-4 hover:text-fg">agent</a
 	> on the others to see their CPU, memory and disk.
 </p>
+{#if onDERP}
+	<p class="mt-2 text-[13px] text-fg-subtle">
+		{plural(onDERP, 'device')}
+		{onDERP === 1 ? 'reaches' : 'reach'} Bield through DERP. A
+		<a
+			href={resolve('/devices/relay')}
+			class="text-fg-muted underline decoration-line-heavy underline-offset-4 hover:text-fg"
+			>peer relay</a
+		>
+		might make {onDERP === 1 ? 'it' : 'them'} faster.
+	</p>
+{/if}

@@ -7,6 +7,7 @@ Commands that talk to a running Bield:
   devices history <device>              show a device's CPU, memory, network and latency over time
   devices usage <device>                show what uses a device's CPU and memory now
   devices set <device>                  change a device's name, kind, notes, alerts or thresholds (admins)
+  relay                                 suggest a peer relay for the devices Bield reaches through DERP, and how to set it up
   alerts                                list the alerts that are open
   alerts show <id>                      show an alert, with the notes on it
   alerts ack <id>                       acknowledge an open alert: you are on it (admins)

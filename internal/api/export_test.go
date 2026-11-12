@@ -75,3 +75,7 @@ const RunRemote = runRemote
 var RelayedCondition = relayedCondition
 
 const RelayedAfter = relayedAfter
+
+// NewRelay suggests a peer relay from a snapshot's devices and the control
+// server's URL, "" for Tailscale's.
+var NewRelay = newRelay

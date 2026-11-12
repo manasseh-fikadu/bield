@@ -81,6 +81,7 @@ func newSnapshot(src sources, now time.Time) (Snapshot, []machine) {
 		Collectors: []Collector{newCollector("Tailscale status", s.StatusAt, s.StatusErr)},
 		Uplink:     newUplink(s),
 		Devices:    []Device{},
+		Relay:      Relay{DERP: []string{}, Candidates: []RelayCandidate{}},
 	}
 	if h := src.host; h != nil {
 		var at time.Time
@@ -164,6 +165,7 @@ func newSnapshot(src sources, now time.Time) (Snapshot, []machine) {
 			cmp.Compare(a.DNSName, b.DNSName),
 		)
 	})
+	out.Relay = newRelay(out.Devices, st.ControlURL)
 	out.Checks = newChecks(src, out.Devices)
 	out.Health = newHealthScore(out.Checks)
 	hub := hubNames(st)
