@@ -138,12 +138,12 @@ func hours(n int) string {
 
 // ruleLabels name the rules in ruleFlags' order.
 var ruleLabels = []string{
-	"offline devices", "key expiry", "stopped agents", "disk", "memory", "CPU", "checks", "containers",
+	"offline devices", "relayed connections", "key expiry", "stopped agents", "disk", "memory", "CPU", "checks", "containers",
 	"systemd units", "Bield's own jobs",
 }
 
 func ruleFlags(r Rules) []bool {
-	return []bool{r.Offline, r.KeyExpiry, r.AgentStopped, r.Disk, r.Memory, r.CPU, r.Checks, r.Containers, r.Units, r.Collectors}
+	return []bool{r.Offline, r.Relayed, r.KeyExpiry, r.AgentStopped, r.Disk, r.Memory, r.CPU, r.Checks, r.Containers, r.Units, r.Collectors}
 }
 
 func percent(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) + "%" }

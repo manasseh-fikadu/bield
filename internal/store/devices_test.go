@@ -32,7 +32,8 @@ func TestStore_DeviceSettings(t *testing.T) {
 	if got := get(); len(got) != 0 {
 		t.Errorf("settings of a new database = %v, want none", got)
 	}
-	phone := store.DeviceSettings{DisplayName: "Pixel", Kind: "phone", AlertOffline: &no, Notes: "In the drawer"}
+	yes := true
+	phone := store.DeviceSettings{DisplayName: "Pixel", Kind: "phone", AlertOffline: &no, AlertRelayed: &yes, Notes: "In the drawer"}
 	set("phone", phone)
 	set("laptop", store.DeviceSettings{DisplayName: "Work laptop"})
 	set("laptop", store.DeviceSettings{Notes: "Replaced"})
@@ -137,4 +138,38 @@ func TestStore_prunesPingsOnceTheyAreSummedUp(t *testing.T) {
 			t.Errorf("ping buckets after an hour = %q, want only the one that's under a week old", got)
 		}
 	})
+}
+
+// A device's latest direct reply is kept, whichever order the pings are
+// stored in, and relayed replies and missed pings don't count. It's kept
+// for 30 days.
+func TestStore_DirectPaths(t *testing.T) {
+	t.Parallel()
+	s := openStore(t, filepath.Join(t.TempDir(), "bield.db"), nil)
+	now := time.Now().Truncate(time.Millisecond)
+	err := s.AddPings(t.Context(), []store.Ping{
+		{DeviceID: "nas", At: now.Add(-time.Hour), Replied: true, Direct: true},
+		{DeviceID: "nas", At: now.Add(-2 * time.Hour), Replied: true, Direct: true},
+		{DeviceID: "nas", At: now, Replied: true},
+		{DeviceID: "laptop", At: now.Add(-time.Minute), Replied: true, Direct: true},
+		{DeviceID: "laptop", At: now, Direct: true},
+		{DeviceID: "phone", At: now, Replied: true},
+		{DeviceID: "old", At: now.Add(-31 * 24 * time.Hour), Replied: true, Direct: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.DirectPaths(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]time.Time{"nas": now.Add(-time.Hour), "laptop": now.Add(-time.Minute), "old": now.Add(-31 * 24 * time.Hour)}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("DirectPaths() = %v, want %v", got, want)
+	}
+
+	s.Prune(t.Context(), now)
+	if got := firstColumn(t, s.DB(), "SELECT device_id FROM direct_paths ORDER BY device_id"); !reflect.DeepEqual(got, []string{"laptop", "nas"}) {
+		t.Errorf("direct paths after pruning = %q, want the laptop's and the NAS's", got)
+	}
 }

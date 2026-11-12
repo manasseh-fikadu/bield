@@ -17,6 +17,14 @@ const (
 	keyExpiryCritical = 48 * time.Hour
 	// collectorGrace is how long a collector can fail before an alert.
 	collectorGrace = 2 * time.Minute
+	// relayedAfter is how many replies in a row have to come through a relay
+	// before an alert, about a minute apart. A connection that has been idle
+	// can start out relayed and go direct a moment later.
+	relayedAfter = 5
+	// directWithin is how recently a device has to have been direct for a
+	// relay to raise an alert. One that never is, such as one behind a strict
+	// NAT, doesn't alert forever.
+	directWithin = 7 * 24 * time.Hour
 )
 
 // keyExpiryDetail says what to do about a node whose key expires, on a
@@ -64,6 +72,13 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 				if left <= keyExpiryCritical {
 					c.Severity = alerts.Critical
 				}
+				add(c)
+			}
+		}
+		if rules.Relayed && d.Settings.AlertRelayed && !d.Self {
+			key := "relayed:" + d.ID
+			if c, ok := relayedCondition(d, src.tailnet.Pings[d.ID].Relayed, src.open[key], now); ok {
+				c.Key = key
 				add(c)
 			}
 		}
@@ -201,8 +216,14 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 			return true
 		}
 		// A device that left the tailnet takes its alerts with it.
-		if _, ok := byID[deviceID]; deviceID != "" && !ok && tailnetFresh {
+		d, ok := byID[deviceID]
+		if deviceID != "" && !ok && tailnetFresh {
 			return true
+		}
+		// Only a ping that got a reply says which path a device is on, so
+		// a relayed device that goes offline stays relayed until it's back.
+		if strings.HasPrefix(key, "relayed:") {
+			return tailnetFresh && (!d.Settings.AlertRelayed || replied(d))
 		}
 		switch AlertSource(source) {
 		case AlertSourceDevice, AlertSourceAgent:
@@ -211,7 +232,6 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 			// A device nothing measures, such as one whose agent was revoked,
 			// has no metrics left to wait for. One with an agent that stopped,
 			// or hasn't reported since it enrolled, waits for its next report.
-			d := byID[deviceID]
 			return current[deviceID] || (d.MeasuredBy == "" && d.Agent == nil)
 		case AlertSourceContainer:
 			return dockerFresh
@@ -225,12 +245,49 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 	return out, isFresh
 }
 
+// relayedCondition returns the alert for d if Bield's pings to it go through
+// a relay after it was direct. relayed is how many replies in a row came
+// through one. An alert that's open stays open for as long as the replies
+// do, even after Bield restarts and starts counting again.
+func relayedCondition(d Device, relayed int, open bool, now time.Time) (alerts.Condition, bool) {
+	p := d.Path
+	if !replied(d) || (p.Kind != PathKindDERP && p.Kind != PathKindPeerRelay) {
+		return alerts.Condition{}, false
+	}
+	if !open && (relayed < relayedAfter || p.DirectAt == nil || now.Sub(*p.DirectAt) > directWithin) {
+		return alerts.Condition{}, false
+	}
+	c := alerts.Condition{
+		Source: string(AlertSourceDevice), DeviceID: d.ID, Severity: alerts.Warning,
+		Title:  d.Name + " is relayed through a peer relay",
+		Detail: "A relay is slower than a direct connection. It often means a firewall or the network changed on either side.",
+	}
+	if p.Kind == PathKindDERP {
+		c.Title = d.Name + " is relayed through DERP"
+		if p.DERP != "" {
+			c.Title += " (" + p.DERP + ")"
+		}
+	}
+	if p.DirectAt != nil {
+		c.Detail = "Bield last reached it directly " + ago(now.Sub(*p.DirectAt)) + ". " + c.Detail
+	}
+	return c, true
+}
+
+// replied reports whether d answered its latest ping, and that ping is
+// recent, so its path is what the ping took.
+func replied(d Device) bool {
+	return d.Online && d.Path.RTTMs != nil
+}
+
 // ruleOn reports whether the rule that opens the alert with a key is on.
 func ruleOn(r settings.Rules, key string) bool {
 	kind, _, _ := strings.Cut(key, ":")
 	switch kind {
 	case "offline":
 		return r.Offline
+	case "relayed":
+		return r.Relayed
 	case "key-expiry":
 		return r.KeyExpiry
 	case "agent":

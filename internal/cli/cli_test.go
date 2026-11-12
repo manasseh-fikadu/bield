@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -172,6 +173,38 @@ func TestRun_devices(t *testing.T) {
 	// "b" starts "bield" and "bob-phone".
 	run(t, s, apitest.PhoneIP, "devices", "show", "b").want(t, cli.ExitUsage, "", "matches several devices")
 	run(t, s, apitest.PhoneIP, "devices", "--status", "offline").want(t, 0, "No devices match.", "")
+	// A tag is given with or without "tag:", in any case. Only web-1 has any.
+	for _, tag := range []string{"server", "tag:server", "TAG:Web", "web"} {
+		r := run(t, s, apitest.PhoneIP, "devices", "--tag", tag)
+		r.want(t, 0, "web-1", "")
+		if strings.Contains(r.stdout, "alice-laptop") {
+			t.Errorf("devices --tag %s = %q, want only web-1", tag, r.stdout)
+		}
+	}
+	run(t, s, apitest.PhoneIP, "devices", "--tag", "nope").want(t, 0, "No devices match.", "")
+	// Every tag shows, in order, and a device with none shows a dash.
+	run(t, s, apitest.PhoneIP, "devices", "show", "web-1").want(t, 0, "tag:server, tag:web", "")
+	r = run(t, s, apitest.PhoneIP, "devices")
+	r.want(t, 0, "tag:server,tag:web", "")
+	// web-1 is direct, the laptop goes through a peer relay, and the phone and
+	// tablet through DERP. The hub is none of them.
+	for path, want := range map[string][]string{
+		"direct": {"web-1"}, "peer-relay": {"alice-laptop"}, "derp": {"bob-phone", "carol-tablet"},
+	} {
+		var got []api.Device
+		r := run(t, s, apitest.PhoneIP, "devices", "--path", path, "--json")
+		if err := json.Unmarshal([]byte(r.stdout), &got); err != nil {
+			t.Fatalf("devices --path %s --json = %q, %v", path, r.stdout, err)
+		}
+		names := make([]string, 0, len(got))
+		for _, d := range got {
+			names = append(names, d.Name)
+		}
+		if slices.Sort(names); !slices.Equal(names, want) {
+			t.Errorf("devices --path %s = %v, want %v", path, names, want)
+		}
+	}
+	run(t, s, apitest.PhoneIP, "devices", "--path", "relay").want(t, cli.ExitUsage, "", "--path is direct, derp or peer-relay")
 	r = run(t, s, apitest.PhoneIP, "devices")
 	r.want(t, 0, "NAME", "")
 	for _, name := range []string{"alice-laptop", "bob-phone", "web-1", "carol-tablet"} {
@@ -183,6 +216,37 @@ func TestRun_devices(t *testing.T) {
 		t.Errorf("devices printed color codes though stdout isn't a terminal: %q", r.stdout)
 	}
 	run(t, s, apitest.PhoneIP, "status").want(t, 0, "5: 5 online, 0 need attention, 0 offline", "")
+}
+
+// devices set changes only what it's given. The relay alert, which is on by
+// default for servers only, follows a new kind unless an admin set it.
+func TestRun_devicesSet(t *testing.T) {
+	t.Parallel()
+	s := apitest.New(t)
+	relayed := func(device string) bool {
+		t.Helper()
+		var d api.Device
+		r := run(t, s, apitest.LaptopIP, "devices", "show", device, "--json")
+		if err := json.Unmarshal([]byte(r.stdout), &d); err != nil {
+			t.Fatalf("devices show %s --json = %q, %v", device, r.stdout, err)
+		}
+		return d.Settings.AlertRelayed
+	}
+	if !relayed("web-1") || relayed("alice-laptop") {
+		t.Fatal("want the relay alert on for the server and off for the laptop")
+	}
+
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--alert-relayed", "false").want(t, 0, "Changed the settings of web-1", "")
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--notes", "In the rack").want(t, 0, "", "")
+	if relayed("web-1") {
+		t.Error("after --alert-relayed false and a new note, web-1's relay alert is on")
+	}
+	run(t, s, apitest.LaptopIP, "devices", "set", "alice-laptop", "--kind", "server").want(t, 0, "", "")
+	if !relayed("alice-laptop") {
+		t.Error("the laptop made a server has its relay alert off, want a server's default")
+	}
+	run(t, s, apitest.LaptopIP, "devices", "set", "web-1", "--alert-relayed", "maybe").
+		want(t, cli.ExitUsage, "", `--alert-relayed is true or false, not "maybe"`)
 }
 
 func TestRun_alertsAndEvents(t *testing.T) {

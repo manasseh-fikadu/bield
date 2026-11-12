@@ -8,17 +8,20 @@
   "ips": [
     "100.64.0.2"
   ],
+  "tags": [],
   "online": true,
   "status": "online",
-  "statusReason": "Relayed through DERP",
+  "statusReason": "Relayed through a peer relay",
   "path": {
-    "kind": "derp"
+    "kind": "peer-relay",
+    "peerRelay": "198.51.100.7:40000:9"
   },
   "rxBytes": 0,
   "txBytes": 0,
   "settings": {
     "displayName": "",
     "alertOffline": true,
+    "alertRelayed": false,
     "thresholds": {},
     "notes": ""
   },

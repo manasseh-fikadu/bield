@@ -1,11 +1,13 @@
 package tailnet
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
 	"reflect"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"tailscale.com/client/tailscale/apitype"
@@ -339,5 +341,58 @@ func TestCustomControlURL(t *testing.T) {
 		if got := customControlURL(&ipn.Prefs{ControlURL: tt.controlURL}); got != tt.want {
 			t.Errorf("customControlURL(%q) = %q, want %q", tt.controlURL, got, tt.want)
 		}
+	}
+}
+
+func TestPingRoute(t *testing.T) {
+	t.Parallel()
+	derp := &PingResult{Latency: 20 * time.Millisecond, DERPRegion: "fra"}
+	relay := &PingResult{Latency: 2 * time.Millisecond, PeerRelay: "198.51.100.7:40000:9"}
+	direct := &PingResult{Latency: time.Millisecond, Endpoint: "203.0.113.2:41641"}
+	lost := errors.New("no pong")
+	type pong struct {
+		res *PingResult
+		err error
+	}
+	for _, tc := range []struct {
+		name string
+		// pongs answer the pings in turn, and the last answers the rest.
+		pongs []pong
+		// within is how long the pings have, or 0 for as long as they take.
+		within    time.Duration
+		want      *PingResult
+		wantErr   error
+		wantPings int
+	}{
+		{"direct at once", []pong{{res: direct}}, 0, direct, nil, 1},
+		{"through a peer relay at once", []pong{{res: relay}}, 0, relay, nil, 1},
+		{"through DERP until direct", []pong{{res: derp}, {res: direct}}, 0, direct, nil, 2},
+		{"through DERP until the peer relay is back", []pong{{res: derp}, {res: derp}, {res: derp}, {res: relay}}, 0, relay, nil, 4},
+		{"through DERP each time", []pong{{res: derp}}, 0, derp, nil, 1 + derpRetries},
+		{"no pong", []pong{{err: lost}}, 0, nil, lost, 1},
+		{"a later ping gets no pong", []pong{{res: derp}, {err: lost}}, 0, derp, nil, 2},
+		{"the time runs out", []pong{{res: derp}}, 2*derpRetryPause + derpRetryPause/2, derp, nil, 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			synctest.Test(t, func(t *testing.T) {
+				ctx := t.Context()
+				if tc.within > 0 {
+					var cancel context.CancelFunc
+					ctx, cancel = context.WithTimeout(ctx, tc.within)
+					defer cancel()
+				}
+				pings := 0
+				got, err := pingRoute(ctx, func(context.Context) (*PingResult, error) {
+					p := tc.pongs[min(pings, len(tc.pongs)-1)]
+					pings++
+					return p.res, p.err
+				})
+				if got != tc.want || !errors.Is(err, tc.wantErr) || pings != tc.wantPings {
+					t.Errorf("pingRoute = %+v, %v after %d pings; want %+v, %v after %d",
+						got, err, pings, tc.want, tc.wantErr, tc.wantPings)
+				}
+			})
+		})
 	}
 }

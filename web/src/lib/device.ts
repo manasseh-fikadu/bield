@@ -76,3 +76,35 @@ export function levelText(
 	}
 	return value >= crit ? 'text-red-fg' : value >= warn ? 'text-amber' : fine;
 }
+
+/**
+ * Whether a kind of device alerts when it's relayed, if no admin said. A
+ * server stays put, while laptops and phones move between networks.
+ */
+export function relayedByDefault(kind: DeviceKind): boolean {
+	return kind === 'server';
+}
+
+/** A Tailscale tag without its "tag:" start, such as server for tag:server. */
+export function tagName(tag: string): string {
+	return tag.replace(/^tag:/, '');
+}
+
+/** One Tailscale tag and how many devices have it. */
+export interface TagCount {
+	tag: string;
+	count: number;
+}
+
+/** Every Tailscale tag the devices have, in alphabetical order, with how many have each. */
+export function tagCounts(devices: Device[]): TagCount[] {
+	const counts = new Map<string, number>();
+	for (const d of devices) {
+		for (const tag of new Set(d.tags)) {
+			counts.set(tag, (counts.get(tag) ?? 0) + 1);
+		}
+	}
+	return [...counts]
+		.map(([tag, count]) => ({ tag, count }))
+		.toSorted((a, b) => (a.tag < b.tag ? -1 : a.tag > b.tag ? 1 : 0));
+}

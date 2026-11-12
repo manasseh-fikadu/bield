@@ -19,6 +19,8 @@ func deviceCommands() []*Command {
 			Flags: []Flag{
 				{Name: "status", Arg: "status", Usage: "only devices that are online, attention, offline or unknown"},
 				{Name: "kind", Arg: "kind", Usage: "only servers, laptops, desktops, tablets, phones or others"},
+				{Name: "tag", Arg: "tag", Usage: "only devices with this Tailscale tag, such as server or tag:server"},
+				{Name: "path", Arg: "direct|derp|peer-relay", Usage: "only devices Bield reaches this way: directly, through a DERP relay or through a peer relay"},
 			},
 		},
 		{Name: "devices show", Args: "<device>", Min: 1, Max: 1, Run: runDeviceShow, Summary: "show everything Bield knows about a device"},
@@ -33,7 +35,7 @@ func deviceCommands() []*Command {
 		},
 		{
 			Name: "devices set", Args: "<device>", Min: 1, Max: 1, Admin: true, Run: runDeviceSet,
-			Summary: "change a device's name, kind, notes, offline alert or thresholds",
+			Summary: "change a device's name, kind, notes, alerts or thresholds",
 			What: "Only the flags you give change. A threshold takes a number in percent (minutes for offline-minutes), " +
 				"or \"default\" to go back to the setting for every device.",
 			Flags: []Flag{
@@ -41,6 +43,7 @@ func deviceCommands() []*Command {
 				{Name: "kind", Arg: "kind", Usage: "server, laptop, desktop, tablet, phone or other"},
 				{Name: "notes", Arg: "text", Usage: "notes about the device"},
 				{Name: "alert-offline", Arg: "true|false", Usage: "raise an alert when it goes offline"},
+				{Name: "alert-relayed", Arg: "true|false", Usage: "raise an alert when it was direct and Bield reaches it through a relay; on for servers by default"},
 				{Name: "disk-warn", Arg: "percent", Usage: "disk warning threshold"},
 				{Name: "disk-critical", Arg: "percent", Usage: "disk critical threshold"},
 				{Name: "memory-warn", Arg: "percent", Usage: "memory warning threshold"},
@@ -64,6 +67,23 @@ func statusPaint(v *View, s api.Status) string {
 	}
 }
 
+// tagLabel lists a device's Tailscale tags, all of them, or "-" for none.
+func tagLabel(tags []string) string {
+	if len(tags) == 0 {
+		return "-"
+	}
+	return strings.Join(tags, ",")
+}
+
+// hasTag reports whether tags has want, which is a tag with or without its
+// "tag:" start, in any case.
+func hasTag(tags []string, want string) bool {
+	want = strings.TrimPrefix(strings.ToLower(want), "tag:")
+	return slices.ContainsFunc(tags, func(t string) bool {
+		return strings.TrimPrefix(strings.ToLower(t), "tag:") == want
+	})
+}
+
 // pathLabel says how traffic reaches a device: "direct 12ms", "relay fra".
 func pathLabel(p api.Path) string {
 	rtt := ""
@@ -84,7 +104,14 @@ func pathLabel(p api.Path) string {
 	}
 }
 
+// pathKinds are the paths that bield devices --path picks between.
+var pathKinds = []api.PathKind{api.PathKindDirect, api.PathKindDERP, api.PathKindPeerRelay}
+
 func runDevices(c *Call) error {
+	path := api.PathKind(c.Str("path"))
+	if path != "" && !slices.Contains(pathKinds, path) {
+		return usagef(c.cmd, "--path is direct, derp or peer-relay")
+	}
 	snap, err := c.Snapshot()
 	if err != nil {
 		return err
@@ -97,13 +124,19 @@ func runDevices(c *Call) error {
 		if k := c.Str("kind"); k != "" && string(d.Kind) != k {
 			continue
 		}
+		if t := c.Str("tag"); t != "" && !hasTag(d.Tags, t) {
+			continue
+		}
+		if path != "" && d.Path.Kind != path {
+			continue
+		}
 		list = append(list, d)
 	}
 	if list == nil {
 		list = []api.Device{}
 	}
 	return c.Print(list, func(v *View) {
-		t := v.Table("NAME", "STATUS", "KIND", "OS", "CPU", "MEM", "DISK", "PATH", "NOTE")
+		t := v.Table("NAME", "STATUS", "KIND", "OS", "CPU", "MEM", "DISK", "PATH", "TAGS", "NOTE")
 		for _, d := range list {
 			cpu, mem, disk := "-", "-", "-"
 			if m := d.Metrics; m != nil {
@@ -123,7 +156,7 @@ func runDevices(c *Call) error {
 			if d.Status == api.StatusOffline && d.LastSeen != nil {
 				note = "seen " + v.since(*d.LastSeen)
 			}
-			t.Row(name, statusPaint(v, d.Status), string(d.Kind), d.OS, cpu, mem, disk, pathLabel(d.Path), oneLine(note, 50))
+			t.Row(name, statusPaint(v, d.Status), string(d.Kind), d.OS, cpu, mem, disk, pathLabel(d.Path), tagLabel(d.Tags), oneLine(note, 50))
 		}
 		t.Write()
 		if t.Len() == 0 {
@@ -144,6 +177,7 @@ func runDeviceShow(c *Call) error {
 		v.Field("Kind", string(d.Kind))
 		v.Field("DNS name", d.DNSName)
 		v.Field("Addresses", strings.Join(d.IPs, ", "))
+		v.Field("Tags", strings.Join(d.Tags, ", "))
 		if d.Info != nil {
 			os := d.Info.OSVersion
 			if os == "" {
@@ -338,6 +372,12 @@ func runDeviceSet(c *Call) error {
 		DisplayName: d.Settings.DisplayName, Kind: d.Settings.Kind, Notes: d.Settings.Notes,
 		AlertOffline: &d.Settings.AlertOffline, Thresholds: d.Settings.Thresholds,
 	}
+	// The relay alert is on by default for servers only. One that is the
+	// default for the device's kind now is left out, so that a new kind
+	// brings its own default.
+	if d.Settings.AlertRelayed != (d.Kind == api.DeviceKindServer) {
+		in.AlertRelayed = &d.Settings.AlertRelayed
+	}
 	changed := 0
 	if c.Given("name") {
 		in.DisplayName, changed = c.Str("name"), changed+1
@@ -348,12 +388,16 @@ func runDeviceSet(c *Call) error {
 	if c.Given("notes") {
 		in.Notes, changed = c.Str("notes"), changed+1
 	}
-	if c.Given("alert-offline") {
-		on := c.Str("alert-offline") == "true"
-		if s := c.Str("alert-offline"); s != "true" && s != "false" {
-			return usagef(c.cmd, "--alert-offline is true or false, not %q", s)
+	for name, dst := range map[string]**bool{"alert-offline": &in.AlertOffline, "alert-relayed": &in.AlertRelayed} {
+		if !c.Given(name) {
+			continue
 		}
-		in.AlertOffline, changed = &on, changed+1
+		s := c.Str(name)
+		if s != "true" && s != "false" {
+			return usagef(c.cmd, "--%s is true or false, not %q", name, s)
+		}
+		on := s == "true"
+		*dst, changed = &on, changed+1
 	}
 	for name, dst := range map[string]**float64{
 		"disk-warn": &in.Thresholds.DiskWarn, "disk-critical": &in.Thresholds.DiskCritical,

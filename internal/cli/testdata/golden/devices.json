@@ -9,6 +9,7 @@
     "ips": [
       "100.64.0.1"
     ],
+    "tags": [],
     "online": true,
     "self": true,
     "status": "online",
@@ -21,6 +22,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": true,
       "thresholds": {},
       "notes": ""
     },
@@ -36,17 +38,23 @@
     "ips": [
       "100.64.0.4"
     ],
+    "tags": [
+      "tag:server",
+      "tag:web"
+    ],
     "online": true,
     "status": "online",
-    "statusReason": "Relayed through DERP",
+    "statusReason": "Direct connection",
     "path": {
-      "kind": "derp"
+      "kind": "direct",
+      "endpoint": "203.0.113.10:41641"
     },
     "rxBytes": 0,
     "txBytes": 0,
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": true,
       "thresholds": {},
       "notes": ""
     },
@@ -62,17 +70,20 @@
     "ips": [
       "100.64.0.2"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
-    "statusReason": "Relayed through DERP",
+    "statusReason": "Relayed through a peer relay",
     "path": {
-      "kind": "derp"
+      "kind": "peer-relay",
+      "peerRelay": "198.51.100.7:40000:9"
     },
     "rxBytes": 0,
     "txBytes": 0,
     "settings": {
       "displayName": "",
       "alertOffline": true,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },
@@ -88,6 +99,7 @@
     "ips": [
       "100.64.0.5"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",
@@ -99,6 +111,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": false,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },
@@ -114,6 +127,7 @@
     "ips": [
       "100.64.0.3"
     ],
+    "tags": [],
     "online": true,
     "status": "online",
     "statusReason": "Relayed through DERP",
@@ -125,6 +139,7 @@
     "settings": {
       "displayName": "",
       "alertOffline": false,
+      "alertRelayed": false,
       "thresholds": {},
       "notes": ""
     },

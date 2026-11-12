@@ -1,7 +1,7 @@
 <!--
 	A table of devices: each one's lamp, its route from the hub and round trip,
 	what it uses, and how long it has been up, with a link to its page. Phones
-	get a list instead.
+	get a list instead. With `tags`, it lists each one's Tailscale tags too.
 -->
 <script lang="ts">
 	import { resolve } from '$app/paths';
@@ -15,6 +15,7 @@
 	import { stepValues } from '#lib/history.js';
 	import { routeLabel, routeName, slowLink, tailnetIP } from '#lib/tailnet.js';
 	import StatusDot from '#lib/ui/StatusDot.svelte';
+	import TagChips from './TagChips.svelte';
 
 	interface Props {
 		devices: Device[];
@@ -27,9 +28,19 @@
 		containers?: Map<string, ContainerCount>;
 		/** Adds each device's tailnet IP. */
 		detailed?: boolean;
+		/** Adds each device's Tailscale tags: a column on the widest screens, and under its name on others. */
+		tags?: boolean;
 	}
 
-	let { devices, now, thresholds, alerts, containers, detailed = false }: Props = $props();
+	let {
+		devices,
+		now,
+		thresholds,
+		alerts,
+		containers,
+		detailed = false,
+		tags = false
+	}: Props = $props();
 
 	const alerted = $derived(alertedDevices(alerts));
 	const unseen = $derived(alertedDevices(alerts.filter((a) => a.state === 'open')));
@@ -76,6 +87,9 @@
 					<span class="block truncate text-[12px] leading-4 text-fg-faint">
 						{osLabel(d.os)} · <span class="font-mono text-[11px]">{routeLabel(d)}</span>
 					</span>
+					{#if tags}
+						<TagChips tags={d.tags} class="mt-1" />
+					{/if}
 				</span>
 				<span class="shrink-0 text-[12px] leading-4 text-fg-muted">
 					{#if !d.online}
@@ -98,6 +112,9 @@
 				{#if detailed}
 					<th class={[th, 'w-32 max-xl:hidden']}>Tailnet IP</th>
 				{/if}
+				{#if tags}
+					<th class={[th, 'w-44 pr-3 max-2xl:hidden']}>Tags</th>
+				{/if}
 				<th class={[th, 'w-20 text-right max-xl:hidden']}>RTT</th>
 				<th class={[th, 'w-39 text-right']}>CPU</th>
 				<th class={[th, 'w-20 text-right xl:w-30']}>Memory</th>
@@ -117,7 +134,7 @@
 				{@const count = containers?.get(d.id)}
 				<!-- The link stretches over the whole row, so any of it opens the device. -->
 				<tr class="relative h-10.5 border-t border-line transition-colors hover:bg-hover/50">
-					<td class="py-0 pr-3 pl-6">
+					<td class={['pr-3 pl-6', tags && d.tags.length ? 'py-1.5 2xl:py-0' : 'py-0']}>
 						<span class="flex min-w-0 items-center">
 							<span class="w-5 shrink-0">{@render lamp(d)}</span>
 							<span class="flex min-w-0 items-baseline gap-2.5">
@@ -132,11 +149,23 @@
 								</span>
 							</span>
 						</span>
+						{#if tags}
+							<TagChips tags={d.tags} class="mt-1 pl-5 2xl:hidden" />
+						{/if}
 					</td>
 					<td class="text-[13px] leading-5 whitespace-nowrap text-fg-muted">{routeName(d)}</td>
 					{#if detailed}
 						<td class="font-mono text-[12px] leading-5 text-fg-muted max-xl:hidden">
 							{tailnetIP(d) ?? '—'}
+						</td>
+					{/if}
+					{#if tags}
+						<td class="py-1.5 pr-3 max-2xl:hidden">
+							{#if d.tags.length}
+								<TagChips tags={d.tags} />
+							{:else}
+								<span class="text-[12px] leading-5 text-fg-faint">—</span>
+							{/if}
 						</td>
 					{/if}
 					<td

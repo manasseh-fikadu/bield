@@ -90,6 +90,9 @@ var retention = []struct {
 	// The checks' results and the health score are kept alike.
 	{"check_results", checks, "DELETE FROM check_results WHERE ts < ?", nil},
 	{"health", checks, "DELETE FROM health WHERE ts < ?", nil},
+	// When a device was last direct matters for a week, but the device's page
+	// shows it for longer.
+	{"direct_paths", fixed(directPathsKeep), "DELETE FROM direct_paths WHERE at < ?", nil},
 	// A resolved alert, and its notes, are kept like the activity log.
 	{"alerts", activity, "DELETE FROM alerts WHERE resolved_at < ?", nil},
 	// What coding tools used (#73) lasts as long as an admin chose. The latest

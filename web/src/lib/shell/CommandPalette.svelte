@@ -164,7 +164,7 @@
 			hint: [shortName(d), d.ips[0]].filter(Boolean).join(' · '),
 			icon: deviceIcon(d),
 			href: resolve('/devices/[id]', { id: d.id }),
-			keywords: [d.name, d.dnsName, ...d.ips]
+			keywords: [d.name, d.dnsName, ...d.ips, ...d.tags]
 		}));
 		// There can be dozens of actions, so they wait until something is typed.
 		const actions = search.trim()

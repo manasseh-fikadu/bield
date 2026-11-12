@@ -22,6 +22,7 @@
 	import RunningNow from '#lib/devices/RunningNow.svelte';
 	import ServicesCard from '#lib/devices/ServicesCard.svelte';
 	import SSHCard from '#lib/devices/SSHCard.svelte';
+	import TagChips from '#lib/devices/TagChips.svelte';
 	import UsagePanel from '#lib/devices/UsagePanel.svelte';
 	import {
 		ago,
@@ -331,12 +332,31 @@
 					{#if ipv6(device) && ipv6(device) !== tailnetIP(device)}
 						<DataRow flat label="IPv6" copy={ipv6(device)}>{ipv6(device)}</DataRow>
 					{/if}
-					<DataRow flat label="Route">{routeName(device).toLowerCase()}</DataRow>
+					{#if device.tags.length}
+						<div class="flex items-start justify-between gap-3">
+							<dt class="shrink-0 text-[12px] leading-5 text-fg-faint">Tags</dt>
+							<dd class="min-w-0"><TagChips tags={device.tags} class="justify-end" /></dd>
+						</div>
+					{/if}
+					<DataRow flat label="Route">
+						{routeName(device).toLowerCase()}
+						{#if live.snapshot?.relay.supported && live.snapshot.relay.derp.includes(device.id)}
+							·
+							<a
+								href={resolve('/devices/relay')}
+								class="underline decoration-line-heavy underline-offset-4 hover:text-fg"
+								>try a peer relay</a
+							>
+						{/if}
+					</DataRow>
 					{#if device.path.endpoint}
 						<DataRow flat label="Endpoint">{device.path.endpoint}</DataRow>
 					{/if}
 					{#if device.path.peerRelay}
 						<DataRow flat label="Peer relay">{device.path.peerRelay}</DataRow>
+					{/if}
+					{#if device.path.directAt && device.path.kind !== 'direct' && !device.self}
+						<DataRow flat label="Last direct">{ago(device.path.directAt, now)}</DataRow>
 					{/if}
 					<DataRow flat label="Home relay">{device.path.homeDerp ?? '—'}</DataRow>
 					{#if !device.self}

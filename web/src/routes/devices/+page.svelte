@@ -3,7 +3,8 @@
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Monitor from '@lucide/svelte/icons/monitor';
 	import { resolve } from '$app/paths';
-	import type { Status } from '#lib/api/types.js';
+	import type { PathKind, Status } from '#lib/api/types.js';
+	import { tagCounts, tagName } from '#lib/device.js';
 	import DevicesTable from '#lib/devices/DevicesTable.svelte';
 	import { plural } from '#lib/format.js';
 	import { live } from '#lib/live.svelte.js';
@@ -12,20 +13,46 @@
 	import EmptyState from '#lib/ui/EmptyState.svelte';
 	import PageHeader from '#lib/ui/PageHeader.svelte';
 	import Segmented from '#lib/ui/Segmented.svelte';
+	import Select from '#lib/ui/Select.svelte';
 	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import StatusDot from '#lib/ui/StatusDot.svelte';
 	import { buttonClass } from '#lib/ui/button.js';
 
 	type Filter = 'all' | Status;
 
-	let filter: Filter = $state('all');
+	/** The routes the Route list picks between. The status list already picks the offline ones. */
+	const routes: { kind: PathKind; label: string }[] = [
+		{ kind: 'direct', label: 'Direct' },
+		{ kind: 'derp', label: 'DERP relay' },
+		{ kind: 'peer-relay', label: 'Peer relay' }
+	];
 
-	const devices = $derived(live.snapshot?.devices ?? []);
+	let filter: Filter = $state('all');
+	/** The Tailscale tag to show, or '' for every device. */
+	let tagChoice = $state('');
+	/** The route to show, or '' for every device. */
+	let routeChoice: PathKind | '' = $state('');
+
+	const all = $derived(live.snapshot?.devices ?? []);
+	const tags = $derived(tagCounts(all));
+	// A tag that no device has any more shows every device again.
+	const tag = $derived(tags.some((t) => t.tag === tagChoice) ? tagChoice : '');
+	const tagged = $derived(tag ? all.filter((d) => d.tags.includes(tag)) : all);
+	/** The devices with the chosen tag and route, which the status counts are of. */
+	const devices = $derived(
+		routeChoice ? tagged.filter((d) => d.path.kind === routeChoice) : tagged
+	);
 	const shown = $derived(filter === 'all' ? devices : devices.filter((d) => d.status === filter));
 	const now = $derived(live.snapshot ? Date.parse(live.snapshot.generatedAt) : Date.now());
+	/** How many devices Bield reaches through DERP, where Bield can suggest a peer relay. */
+	const onDERP = $derived(live.snapshot?.relay.supported ? live.snapshot.relay.derp.length : 0);
 
 	function count(s: Status) {
 		return devices.filter((d) => d.status === s).length;
+	}
+
+	function routeCount(kind: PathKind) {
+		return tagged.filter((d) => d.path.kind === kind).length;
 	}
 
 	const options = $derived([
@@ -40,7 +67,7 @@
 <PageHeader
 	title="Devices"
 	description={live.snapshot
-		? `${plural(devices.length, 'machine')} on the tailnet, and the path from the hub to each.`
+		? `${plural(all.length, 'machine')} on the tailnet, and the path from the hub to each.`
 		: 'Connecting to the hub…'}
 >
 	{#snippet actions()}
@@ -51,6 +78,28 @@
 			<Bot class="size-3.5" /> Agents
 		</a>
 		{#if live.snapshot}
+			{#if tags.length}
+				<Select
+					bind:value={() => tag, (v) => (tagChoice = v)}
+					class="h-7.5! w-auto min-w-28 text-[13px]!"
+					aria-label="Tag"
+				>
+					<option value="">Any tag</option>
+					{#each tags as t (t.tag)}
+						<option value={t.tag}>{tagName(t.tag)} ({t.count})</option>
+					{/each}
+				</Select>
+			{/if}
+			<Select
+				bind:value={routeChoice}
+				class="h-7.5! w-auto min-w-28 text-[13px]!"
+				aria-label="Route"
+			>
+				<option value="">Any route</option>
+				{#each routes as r (r.kind)}
+					<option value={r.kind}>{r.label} ({routeCount(r.kind)})</option>
+				{/each}
+			</Select>
 			<Segmented bind:value={filter} {options} label="Show devices">
 				{#snippet option(o)}
 					{#if o.value === 'all'}
@@ -85,10 +134,17 @@
 			thresholds={live.snapshot.hub.thresholds}
 			alerts={live.snapshot.alerts}
 			detailed
+			tags={tags.length > 0}
 		/>
 	{:else}
 		<EmptyState title="No devices here" icon={Monitor}>
-			{filter === 'all' ? 'Nothing is on the tailnet yet.' : 'No device has this status now.'}
+			{#if !all.length}
+				Nothing is on the tailnet yet.
+			{:else if filter === 'all'}
+				No device has this {tag && routeChoice ? 'tag and route' : tag ? 'tag' : 'route'} now.
+			{:else}
+				No device has this status now.
+			{/if}
 		</EmptyState>
 	{/if}
 </Card>
@@ -99,3 +155,15 @@
 		class="text-fg-muted underline decoration-line-heavy underline-offset-4 hover:text-fg">agent</a
 	> on the others to see their CPU, memory and disk.
 </p>
+{#if onDERP}
+	<p class="mt-2 text-[13px] text-fg-subtle">
+		{plural(onDERP, 'device')}
+		{onDERP === 1 ? 'reaches' : 'reach'} Bield through DERP. A
+		<a
+			href={resolve('/devices/relay')}
+			class="text-fg-muted underline decoration-line-heavy underline-offset-4 hover:text-fg"
+			>peer relay</a
+		>
+		might make {onDERP === 1 ? 'it' : 'them'} faster.
+	</p>
+{/if}

@@ -4,6 +4,17 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- Devices show their Tailscale tags, all of them: on the Devices page, on a device's page, and in `bield devices` and `bield devices show`. Pick one tag in the Devices page's **Tag** list or with `bield devices --tag server`. The command palette finds a device by its tags too. Bield only shows tags. You set them in Tailscale.
+- Pick the devices Bield reaches one way, directly, through a DERP relay or through a peer relay, in the Devices page's **Route** list or with `bield devices --path derp`.
+- An alert when a device that was direct is reached through a relay: after five pings in a row through a DERP server or a peer relay, for a device that was direct in the last week. It resolves once the device is direct again. It's on for servers and off for everything else, which the device's **Alert when relayed** switch and `bield devices set --alert-relayed` change, and **Relayed connection** in Settings turns it off for every device. A device's page says when Bield last reached it directly. Bield adds a table for that when it starts, which needs no action from you.
+- A **Peer relay** page for the devices Bield reaches through DERP. It suggests a machine of yours to be a [peer relay](https://tailscale.com/kb/1591/peer-relays) for them, which is often faster than Tailscale's shared DERP servers: a computer Bield reaches directly, best a server at a public address. It gives the command to run on that machine and the grant to add to your tailnet policy file, which you can't do from Bield, and says that Bield only sees its own connections, so it can't tell whether the relay will help the devices reach each other. The Devices page and a device's page link to it when devices are on DERP, and `bield relay` prints the same. It doesn't show on Headscale, which has no released support for peer relays yet.
+
+### Fixed
+
+- A device that Bield reaches directly or through a peer relay no longer shows as relayed through DERP. Bield pings each device once a minute, and a connection that has been quiet since answers the first ping through DERP while Tailscale finds the direct or peer relay path again. Bield now pings again for a few seconds while the answers come through DERP, as `tailscale ping` does.
+
 ## 0.6.1 - 2026-11-11
 
 This release fixes how VS Code in the browser looks while it loads the first time. The agent doesn't change, and there is no database change.

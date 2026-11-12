@@ -70,6 +70,42 @@ test('the devices page lists the twelve machines', async ({ page }) => {
 	}
 });
 
+test('the devices page picks machines by tag and by route', async ({ page }) => {
+	const problems = await visit(page, '/devices');
+	const main = page.getByRole('main');
+
+	// Only the NAS is tagged storage. New York VPS goes through a DERP relay.
+	await expect(shown(page, 'storage', true)).toBeVisible();
+	await main.getByLabel('Tag', { exact: true }).selectOption('tag:storage');
+	await expect(deviceLink(page, 'NAS')).toBeVisible();
+	await expect(deviceLink(page, 'Homelab')).toHaveCount(0);
+
+	await main.getByLabel('Tag', { exact: true }).selectOption('');
+	await main.getByLabel('Route', { exact: true }).selectOption('derp');
+	await expect(deviceLink(page, 'New York VPS')).toBeVisible();
+	await expect(deviceLink(page, 'NAS')).toHaveCount(0);
+	expect(problems).toEqual([]);
+});
+
+test('the peer relay page suggests a machine for the devices on DERP', async ({ page }) => {
+	const problems = await visit(page, '/devices');
+	const main = page.getByRole('main');
+
+	// New York VPS goes through DERP, and Frankfurt VPS is a server Bield
+	// reaches directly at a public address.
+	await main.getByRole('link', { name: 'peer relay', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Peer relay' })).toBeVisible();
+	await expect(main.getByRole('link', { name: 'New York VPS' })).toBeVisible();
+	await expect(main.getByRole('combobox', { name: /^Relay/ })).toHaveValue(/.+/);
+	await expect(main.getByText('Frankfurt VPS (suggested)')).toBeAttached();
+	await expect(shown(page, 'sudo tailscale set --relay-server-port=40000')).toBeVisible();
+	await expect(shown(page, '"tailscale.com/cap/relay"')).toBeVisible();
+
+	await main.getByLabel('UDP port', { exact: true }).fill('41000');
+	await expect(shown(page, 'sudo tailscale set --relay-server-port=41000')).toBeVisible();
+	expect(problems).toEqual([]);
+});
+
 test('the alerts page has what is wrong in the demo', async ({ page }) => {
 	await visit(page, '/alerts');
 

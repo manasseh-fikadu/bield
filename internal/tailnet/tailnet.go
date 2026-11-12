@@ -17,8 +17,11 @@ import (
 type Tailnet interface {
 	// Status returns this node, its peers and whether it's logged in.
 	Status(ctx context.Context) (*Status, error)
-	// Ping sends one disco ping to ip and reports the path it took. It fails
-	// if no pong comes back before ctx ends.
+	// Ping sends disco pings to ip and reports the path the pong took. Like
+	// `tailscale ping`, it pings again for a few seconds while pongs come
+	// through DERP, since an idle path answers through DERP before Tailscale
+	// finds the direct or peer relay path again. It fails if no pong comes
+	// back before ctx ends.
 	Ping(ctx context.Context, ip netip.Addr) (*PingResult, error)
 	// WhoIs returns the node and user at remoteAddr, an ip:port such as an
 	// http.Request's RemoteAddr. It returns ErrUnknownPeer if no node on the
@@ -140,6 +143,12 @@ type PingResult struct {
 	// PeerRelay is the ip:port:vni of the peer relay that carried the ping, if
 	// one did.
 	PeerRelay string
+}
+
+// Relayed reports whether the ping went through a DERP server or a peer relay
+// rather than straight to the peer.
+func (r *PingResult) Relayed() bool {
+	return r.DERPRegion != "" || r.PeerRelay != ""
 }
 
 // Identity is who is at the other end of a connection.

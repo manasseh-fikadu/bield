@@ -1,6 +1,6 @@
-NAME          STATUS  KIND     OS       CPU  MEM  DISK  PATH      NOTE
-bield (hub)   online  server   linux    -    -    -     this hub  This hub
-web-1         online  server   linux    -    -    -     relay     Relayed through DERP
-alice-laptop  online  desktop  macOS    -    -    -     relay     Relayed through DERP
-carol-tablet  online  tablet   iOS      -    -    -     relay     Relayed through DERP
-bob-phone     online  phone    android  -    -    -     relay     Relayed through DERP
+NAME          STATUS  KIND     OS       CPU  MEM  DISK  PATH        TAGS                NOTE
+bield (hub)   online  server   linux    -    -    -     this hub    -                   This hub
+web-1         online  server   linux    -    -    -     direct      tag:server,tag:web  Direct connection
+alice-laptop  online  desktop  macOS    -    -    -     peer relay  -                   Relayed through a peer relay
+carol-tablet  online  tablet   iOS      -    -    -     relay       -                   Relayed through DERP
+bob-phone     online  phone    android  -    -    -     relay       -                   Relayed through DERP

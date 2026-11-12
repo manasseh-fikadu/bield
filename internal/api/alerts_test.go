@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/netip"
 	"slices"
@@ -178,6 +179,7 @@ type fakeSources struct {
 	mu         sync.Mutex
 	status     *tailnet.Status
 	statusAt   time.Time
+	pings      map[string]tailnet.PingRecord
 	containers docker.Reading
 	changed    chan struct{}
 }
@@ -185,7 +187,7 @@ type fakeSources struct {
 func (f *fakeSources) tailnet() tailnet.Snapshot {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return tailnet.Snapshot{Status: f.status, StatusAt: f.statusAt}
+	return tailnet.Snapshot{Status: f.status, StatusAt: f.statusAt, Pings: maps.Clone(f.pings)}
 }
 
 func (f *fakeSources) docker() docker.Reading {

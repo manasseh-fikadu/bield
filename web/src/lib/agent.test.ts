@@ -19,6 +19,7 @@ function device(
 		os,
 		kind: 'laptop',
 		ips: ['100.64.0.2'],
+		tags: [],
 		online,
 		status: online ? 'online' : 'offline',
 		statusReason: '',
@@ -28,7 +29,13 @@ function device(
 		measuredBy: measuredBy ?? (agent?.lastSeen ? 'agent' : undefined),
 		agent,
 		docker: false,
-		settings: { displayName: '', alertOffline: true, thresholds: {}, notes: '' }
+		settings: {
+			displayName: '',
+			alertOffline: true,
+			alertRelayed: false,
+			thresholds: {},
+			notes: ''
+		}
 	};
 }
 
