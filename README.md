@@ -11,7 +11,7 @@ Bield is a self-hosted control plane for the machines on your tailnet. It's one 
 - **Devices.** Every machine on the tailnet, on a live map, with how traffic reaches it (direct, through a relay) and the round-trip time.
 - **Health.** CPU, memory, disk, network and what's using them, for each machine, with charts of CPU, memory and network for up to 90 days. The machine Bield runs on is measured by Bield itself, if it's Linux, and the others by a small bash [agent](docs/agent.md).
 - **Checks.** Website, port and DNS checks, and a ping of every device, rolled up into a health score.
-- **AI usage.** Tokens, estimated cost and limits for Claude Code, Codex, OpenCode and Pi on each machine, read from the files they already write, with nothing but counts leaving the machine ([AI usage](docs/coding.md)).
+- **AI usage.** Tokens, estimated cost and limits for Claude Code, Codex, OpenCode, Pi, Gemini CLI, Grok, Muse and Antigravity on each machine, read from the files they already write, with nothing but counts leaving the machine ([AI usage](docs/coding.md)).
 - **Alerts.** For offline machines, full disks, expiring Tailscale keys, failing checks, crashed containers and failed services. They reach your phone through ntfy, Telegram, email, Discord, Slack or any webhook ([Notifications](docs/notifications.md)).
 - **Docker.** Containers, logs, live stats, images, volumes and networks on any machine Bield can reach, and start, stop and restart.
 - **Terminal and files.** A shell in the browser, which keeps running in tmux after you close the tab, and a file manager that edits and previews ([SSH access](docs/ssh.md)).

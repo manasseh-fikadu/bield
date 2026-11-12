@@ -3,7 +3,7 @@
 // machine's tools on or off.
 
 import { mutate, request } from '#lib/api/client.js';
-import type { CodingSummary, SetCoding } from '#lib/api/types.js';
+import type { CodingSummary, SetCoding, WatchedCoding } from '#lib/api/types.js';
 import { browserTimeZone, type CodingRange } from './coding.js';
 
 /** What every machine's coding tools used over a range, with the days in the browser's time zone. */
@@ -26,4 +26,12 @@ export function setDeviceCoding(
 	success?: string
 ): Promise<SetCoding> {
 	return mutate('PUT', `devices/${encodeURIComponent(id)}/coding`, { enabled }, { success });
+}
+
+/**
+ * Turns watching the AI tools on for every machine that has an agent, or off
+ * for every machine. Admins only.
+ */
+export function watchAllCoding(enabled: boolean): Promise<WatchedCoding> {
+	return mutate('POST', 'coding/watch', { enabled });
 }

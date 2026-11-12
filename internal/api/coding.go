@@ -2,9 +2,12 @@ package api
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/manasseh-fikadu/bield/internal/coding"
@@ -156,7 +159,104 @@ func (h *handler) fleetCoding(w http.ResponseWriter, r *http.Request) {
 	in.fleet = true
 	ids := h.deviceIDs()
 	in.deviceOf = func(key string) string { return cmp.Or(ids[key], key) }
-	h.writeJSON(w, r, http.StatusOK, summarizeCoding(in))
+	out := summarizeCoding(in)
+	for key := range h.agentMachines(r.Context()) {
+		if !in.enabled[key] {
+			out.Unwatched++
+		}
+	}
+	if b := h.opts.Settings.Get(r.Context()).AIBudget; b.Cost > 0 || b.Tokens > 0 {
+		if s := h.opts.Feed.budget.wait(r.Context(), b, in.now); s != nil {
+			out.Budget = &CodingBudget{
+				Window: b.Window, From: s.from.UTC(), Cost: b.Cost, Tokens: b.Tokens,
+				UsedCost: s.fleet.cost, UsedTokens: s.fleet.tokens, At: s.at.UTC(),
+			}
+		}
+	}
+	h.writeJSON(w, r, http.StatusOK, out)
+}
+
+// watchAllCoding answers POST /api/coding/watch, which turns watching the AI
+// tools on for every machine that has an agent, or off for every machine
+// that's watched, and says how many it changed.
+func (h *handler) watchAllCoding(w http.ResponseWriter, r *http.Request) {
+	var body WatchAllCoding
+	if !h.readJSON(w, r, &body) {
+		return
+	}
+	ctx := r.Context()
+	enabled, err := h.opts.Store.CodingDevices(ctx)
+	if err != nil {
+		h.fail(w, r, "read which devices' coding tools are watched", err)
+		return
+	}
+	// Turning it off is for every machine, including one whose agent went
+	// away, so nothing is left counting.
+	var keys []string
+	if body.Enabled {
+		for key := range h.agentMachines(ctx) {
+			if !enabled[key] {
+				keys = append(keys, key)
+			}
+		}
+	} else {
+		for key, on := range enabled {
+			if on {
+				keys = append(keys, key)
+			}
+		}
+	}
+	slices.Sort(keys)
+	changed := 0
+	for _, key := range keys {
+		if err := h.opts.Store.SetCoding(ctx, key, body.Enabled); err != nil {
+			h.logWatchAll(r, body.Enabled, changed)
+			h.fail(w, r, "change whether coding tools are watched", err)
+			return
+		}
+		changed++
+	}
+	h.logWatchAll(r, body.Enabled, changed)
+	h.writeJSON(w, r, http.StatusOK, WatchedCoding{Changed: changed})
+}
+
+// logWatchAll writes one line in the activity log for turning watching on or
+// off for n machines, if n isn't 0.
+func (h *handler) logWatchAll(r *http.Request, on bool, n int) {
+	if n == 0 {
+		return
+	}
+	verb := "Turned off"
+	if on {
+		verb = "Turned on"
+	}
+	machines := "1 machine"
+	if n != 1 {
+		machines = strconv.Itoa(n) + " machines"
+	}
+	h.logAction(r, EventKindDevice, "", verb+" watching the AI tools on "+machines)
+}
+
+// agentMachines returns the machines that have an agent: the IDs of their
+// devices, by the key their history is kept under, so the machine Bield
+// runs on, which can be two nodes, is there once.
+func (h *handler) agentMachines(ctx context.Context) map[string]string {
+	out := map[string]string{}
+	p := h.opts.Feed.fresh(ctx)
+	if p == nil {
+		return out
+	}
+	for _, d := range p.snap.Devices {
+		if d.Agent == nil {
+			continue
+		}
+		if _, key, ok := h.deviceByID(d.ID); ok {
+			if _, seen := out[key]; !seen {
+				out[key] = d.ID
+			}
+		}
+	}
+	return out
 }
 
 // codingSpan reads the range and time zone of a request, or answers with an
@@ -196,22 +296,7 @@ func (h *handler) codingInput(r *http.Request, historyID string, span codingSpan
 }
 
 // deviceIDs maps the keys that history is kept under to the IDs of the
-// devices on the tailnet, for the one machine that has two nodes the first
-// wins.
+// devices on the tailnet.
 func (h *handler) deviceIDs() map[string]string {
-	st := h.opts.Snapshot().Status
-	ids := map[string]string{}
-	if st == nil {
-		return ids
-	}
-	add := func(key, id string) {
-		if _, ok := ids[key]; !ok {
-			ids[key] = id
-		}
-	}
-	add(historyID(st.Self, true), st.Self.ID)
-	for _, d := range st.Peers {
-		add(historyID(d, false), d.ID)
-	}
-	return ids
+	return historyKeys(h.opts.Snapshot().Status)
 }

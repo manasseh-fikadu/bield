@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import type { CodingLimit, CodingSource, CodingSummary } from '#lib/api/types.js';
+import type { CodingBudget, CodingLimit, CodingSource, CodingSummary } from '#lib/api/types.js';
 import {
 	apiEstimateHelp,
+	budgetUse,
+	codingRangeLabel,
+	keptRange,
 	axisText,
 	bucketText,
 	buckets,
@@ -29,14 +32,18 @@ describe('toolName and toolColor', () => {
 		expect(toolName('codex')).toBe('Codex');
 		expect(toolName('opencode')).toBe('OpenCode');
 		expect(toolName('pi')).toBe('Pi');
+		expect(toolName('gemini')).toBe('Gemini CLI');
+		expect(toolName('antigravity')).toBe('Antigravity');
 		expect(toolColor('claude')).not.toBe(toolColor('codex'));
+		const known = ['claude', 'codex', 'opencode', 'pi', 'gemini', 'grok', 'muse', 'antigravity'];
+		expect(new Set(known.map(toolColor)).size).toBe(known.length);
 	});
 
 	test('a tool this version does not know is capitalised, and keeps its color', () => {
-		expect(toolName('gemini')).toBe('Gemini');
+		expect(toolName('aider')).toBe('Aider');
 		expect(toolName('')).toBe('Unknown tool');
-		expect(toolColor('gemini')).toBe(toolColor('gemini'));
-		expect(toolColor('gemini')).toMatch(/^#[0-9a-f]{6}$/);
+		expect(toolColor('aider')).toBe(toolColor('aider'));
+		expect(toolColor('aider')).toMatch(/^#[0-9a-f]{6}$/);
 	});
 });
 
@@ -235,6 +242,12 @@ describe('sourceHint', () => {
 		);
 	});
 
+	test('Antigravity without Python', () => {
+		expect(sourceHint(src('needs-python', 'antigravity'), 'mac')).toBe(
+			'Install Python 3 on mac to read Antigravity.'
+		);
+	});
+
 	test('files that cannot be read', () => {
 		expect(sourceHint(src('unreadable', 'claude'), 'vps-fra')).toBe(
 			"The agent on vps-fra couldn't read Claude Code's files."
@@ -355,5 +368,54 @@ describe('limitGroups', () => {
 	test('a tool with no limits to say and an unreadable one add nothing', () => {
 		const groups = limitGroups(summary, now, names);
 		expect(groups.some((g) => g.name === 'desktop')).toBe(false);
+	});
+});
+
+describe('keptRange', () => {
+	test.each([
+		['a range', '30d', '30d'],
+		['a year', '1y', '1y'],
+		['nothing kept', undefined, '24h'],
+		['a range no version has', '2w', '24h'],
+		['something else', 7, '24h']
+	])('%s', (_, kept, want) => {
+		expect<string>(keptRange(kept)).toBe(want);
+	});
+	test('labels', () => {
+		expect(codingRangeLabel('90d')).toBe('90 days');
+		expect(codingRangeLabel('24h')).toBe('24h');
+	});
+});
+
+describe('budgetUse', () => {
+	const budget = (b: Partial<CodingBudget>): CodingBudget => ({
+		window: '30d',
+		from: '2026-10-14T00:00:00Z',
+		cost: 0,
+		tokens: 0,
+		usedCost: 0,
+		usedTokens: 0,
+		at: '2026-11-12T10:00:00Z',
+		...b
+	});
+	test.each([
+		['no budgets', budget({ usedCost: 5 }), []],
+		[
+			'a cost',
+			budget({ cost: 100, usedCost: 84.2 }),
+			[{ metric: 'cost', text: '$84.20 of $100', percent: 84.2 }]
+		],
+		[
+			'cents in a budget',
+			budget({ cost: 12.5, usedCost: 25 }),
+			[{ metric: 'cost', text: '$25.00 of $12.50', percent: 200 }]
+		],
+		[
+			'tokens',
+			budget({ tokens: 10_000_000, usedTokens: 2_500_000 }),
+			[{ metric: 'tokens', text: '2.5M of 10M tokens', percent: 25 }]
+		]
+	])('%s', (_, b, want) => {
+		expect(budgetUse(b)).toEqual(want as ReturnType<typeof budgetUse>);
 	});
 });

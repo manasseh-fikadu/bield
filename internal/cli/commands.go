@@ -13,6 +13,7 @@ func init() {
 		dockerCommands(),
 		fileCommands(),
 		editorCommands(),
+		aiCommands(),
 		adminCommands(),
 		tokenCommands(),
 		completionCommands(),

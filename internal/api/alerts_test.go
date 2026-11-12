@@ -131,7 +131,7 @@ func TestSnapshot_alertRules(t *testing.T) {
 			if a.CheckID != api1.ID || !strings.Contains(a.Detail, "2 failures in a row") {
 				t.Errorf("the check's alert = %+v, want its check and failures", a)
 			}
-		case api.AlertSourceDevice, api.AlertSourceAgent, api.AlertSourceCollector:
+		case api.AlertSourceDevice, api.AlertSourceAgent, api.AlertSourceCollector, api.AlertSourceBudget:
 		}
 		if a.State != api.AlertStateOpen || a.Notes == nil {
 			t.Errorf("%q has state %s and notes %v, want open with no notes", a.Title, a.State, a.Notes)

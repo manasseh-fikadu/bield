@@ -5,7 +5,7 @@
 # OpenCode sessions also takes sqlite3 or python3, and is skipped without either.
 set -u
 
-AGENT_VERSION="1.4.0"
+AGENT_VERSION="1.5.0"
 CONF="${BIELD_AGENT_CONF:-$HOME/.config/bield-agent/env}"
 # shellcheck disable=SC1090
 [ -f "$CONF" ] && . "$CONF"
@@ -414,6 +414,8 @@ SESSIONS_INTERVAL="${SESSIONS_INTERVAL:-60}"
 SESSIONS_DAYS="${SESSIONS_DAYS:-90}"
 STATE_DIR="${BIELD_AGENT_STATE:-$HOME/.local/state/bield-agent}"
 SDIR="$STATE_DIR/sessions"
+# What the files in $SDIR/f mean. An agent that reads them differently starts over, once.
+SESS_STATE=2
 TAB=$'\t'
 
 # Shared by the awk programs below, in the style of USAGE_AWK: POSIX awk only, and no apostrophes
@@ -450,6 +452,26 @@ function tsms(t,    y, m, d, era, yoe, doy, days) {
   days = era * 146097 + yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy - 719468
   return ((days * 24 + substr(t, 12, 2)) * 60 + substr(t, 15, 2)) * 60000 + substr(t, 18, 2) * 1000 + (substr(t, 20, 1) == "." ? substr(t, 21, 3) : 0)
 }
+# The time of ms milliseconds since the epoch, as 2026-11-01T07:59:33.587Z.
+function isots(ms,    t, z, sec, era, doe, yoe, y, doy, mp, d, m) {
+  t = int(ms / 1000); z = int(t / 86400); sec = t - z * 86400
+  z += 719468; era = int(z / 146097); doe = z - era * 146097
+  yoe = int((doe - int(doe / 1460) + int(doe / 36524) - int(doe / 146096)) / 365)
+  y = yoe + era * 400; doy = doe - (365 * yoe + int(yoe / 4) - int(yoe / 100))
+  mp = int((5 * doy + 2) / 153); d = doy - int((153 * mp + 2) / 5) + 1
+  m = mp < 10 ? mp + 3 : mp - 9
+  if (m <= 2) y++
+  return sprintf("%04d-%02d-%02dT%02d:%02d:%02d.%03dZ", y, m, d, int(sec / 3600), int((sec % 3600) / 60), sec % 60, ms - t * 1000)
+}
+# Where the object that s starts with ends: the index of its closing brace, or the length of s.
+function objend(s,    j, d, c) {
+  for (j = 1; j <= length(s); j++) {
+    c = substr(s, j, 1)
+    if (c == "{") d++
+    else if (c == "}" && --d == 0) return j
+  }
+  return length(s)
+}
 # Adds one request to its row, and the session it belongs to to the sessions.
 function add(sess, model, speed, ts, i, cr, cw, o, re, cost,    h, k) {
   h = substr(ts, 1, 13)
@@ -469,10 +491,28 @@ function limit(id, window, used, resets, status, plan, seen) {
   if (!(id in LS)) LK[++nl] = id
   LS[id] = seen; LW[id] = window; LU[id] = used; LR[id] = resets; LT[id] = status; LP[id] = plan
 }
+# Responses that another file counted already (owner TAB key lines in the file keys, owned by a
+# file other than own): Claude Code copies replies into a resumed session and a forked sub-agent.
+BEGIN {
+  if (keys != "") {
+    while ((getline line < keys) > 0) {
+      i = index(line, "\t")
+      if (i && substr(line, 1, i - 1) != own) OTHER[substr(line, i + 1)] = 1
+    }
+    close(keys)
+  }
+}
+# Counts a response once: false if this file or another one has it already.
+function first(key) {
+  if ((key in OTHER) || (key in MINE)) return 0
+  MINE[key] = 1; KS[++nks] = key
+  return 1
+}
 !data && $0 == "@@DATA" { data = 1; next }
 !data {
   split($0, f, "\t")
-  if (f[1] == "S") ST[f[2]] = f[3]
+  if (f[1] == "K") { MINE[f[2]] = 1; KS[++nks] = f[2] }
+  else if (f[1] == "S") ST[f[2]] = f[3]
   else if (f[1] == "R") {
     k = f[3] "\t" f[4] "\t" f[5] "\t" f[6]
     RK[++nk] = k; RI[k] = f[7] + 0; RC[k] = f[8] + 0; RW[k] = f[9] + 0; RO[k] = f[10] + 0; RR[k] = f[11] + 0; RN[k] = f[12] + 0; RM[k] = f[13] + 0
@@ -485,6 +525,7 @@ function limit(id, window, used, resets, status, plan, seen) {
 data { parse($0) }
 END {
   for (k in ST) printf "S\t%s\t%s\n", k, ST[k]
+  for (j = 1; j <= nks; j++) printf "K\t%s\n", KS[j]
   for (j = 1; j <= nk; j++) {
     k = RK[j]; split(k, f, "\t")
     printf "R\t%s\t%s\t%s\t%s\t%s\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\n", tool, f[1], f[2], f[3], f[4], RI[k], RC[k], RW[k], RO[k], RR[k], RN[k], RM[k]
@@ -498,7 +539,26 @@ END {
 # several lines in a row, all with the whole usage, so only the first of a run counts. The keys of
 # a line come in two orders, but message and usage are always laid out the same way.
 CLAUDE_AWK='
-function parse(l,    m, rest, p, u, us, mt, tail, head, ts, sess, model, id, req, key, cost, q, qt, qw) {
+# Advisor calls run on another model and are only in the usage of the response that asked them,
+# in iterations, each with its own counters.
+function advisors(sess, us, ts, speed,    s, j, c, d, st, el, m) {
+  j = index(us, "\"iterations\":[")
+  if (!j) return
+  s = substr(us, j + 14)
+  for (j = 1; j <= length(s); j++) {
+    c = substr(s, j, 1)
+    if (c == "{") { if (d++ == 0) st = j }
+    else if (c == "}") {
+      if (--d == 0) {
+        el = substr(s, st, j - st + 1)
+        m = strafter(el, "model")
+        if (strafter(el, "type") == "advisor_message" && m != "" && m != "<synthetic>")
+          add(sess, clean(m), speed, ts, numafter(el, "input_tokens"), numafter(el, "cache_read_input_tokens"), numafter(el, "cache_creation_input_tokens"), numafter(el, "output_tokens"), 0, 0)
+      }
+    } else if (c == "]" && d == 0) return
+  }
+}
+function parse(l,    m, rest, p, u, us, mt, tail, head, ts, sess, model, id, req, key, cost, q, qt, qw, speed) {
   if (index(l, "\"type\":\"assistant\"") == 0) return
   m = index(l, "\"message\":{")
   if (!m) return
@@ -530,21 +590,76 @@ function parse(l,    m, rest, p, u, us, mt, tail, head, ts, sess, model, id, req
   key = id ":" req
   if (key != ":" && key == ST["last"]) return
   ST["last"] = key
+  if (key != ":" && !first(key)) return
   us = substr(rest, u, 6000)
-  sess = strafter(tail, "sessionId")
+  sess = clean(strafter(tail, "sessionId"))
   cost = numafter(tail, "costUSD")
-  add(clean(sess), clean(model), index(us, "\"speed\":\"fast\"") ? "fast" : "standard", ts, numafter(us, "input_tokens"), numafter(us, "cache_read_input_tokens"), numafter(us, "cache_creation_input_tokens"), numafter(us, "output_tokens"), 0, int(cost * 1000000 + 0.5))
-  project(clean(sess), base(strafter(tail, "cwd")))
+  speed = index(us, "\"speed\":\"fast\"") ? "fast" : "standard"
+  add(sess, clean(model), speed, ts, numafter(us, "input_tokens"), numafter(us, "cache_read_input_tokens"), numafter(us, "cache_creation_input_tokens"), numafter(us, "output_tokens"), 0, int(cost * 1000000 + 0.5))
+  if (index(us, "\"advisor_message\"")) advisors(sess, us, ts, speed)
+  project(sess, base(strafter(tail, "cwd")))
 }
 '
 
 # Codex: ~/.codex/sessions/**/*.jsonl. The model comes from the latest turn_context and the speed
 # from the latest thread_settings_applied. A token_count carries the counters of the whole session
-# and of the last request; the whole-session ones are only used to spot a repeated event, since they
-# start over now and then. Input includes what was cached. A forked session begins with a burst of
-# copied history that the parent already counted, which ends at the first gap of a second.
+# and of the last request. The whole-session ones check the last request against the one before
+# (they start over now and then, and a repeated event changes nothing). When they grew by more,
+# because a request was interrupted before its own token_count, the token_usage_record events
+# since the last snapshot account for the rest, and only if they add up exactly are they counted.
+# Input includes what was cached. A forked session begins with a burst of copied history that the
+# parent already counted, which ends at the first gap of a second. As in T3 Code (MIT).
 CODEX_AWK='
-function parse(l,    h, pl, ts, lt, tt, sig, ls, i, c, w, o, re, rl, pi, ps, id, plan) {
+# Reads the counters of the object at the start of s into a[1..6]: input, cached, cache write,
+# output, reasoning, total. False if they are missing or do not add up.
+function rd(s, a,    j) {
+  j = index(s, "}"); if (j) s = substr(s, 1, j)
+  if (!index(s, "\"input_tokens\":") || !index(s, "\"output_tokens\":")) return 0
+  a[1] = numafter(s, "input_tokens"); a[2] = numafter(s, "cached_input_tokens"); a[3] = numafter(s, "cache_write_input_tokens")
+  a[4] = numafter(s, "output_tokens"); a[5] = numafter(s, "reasoning_output_tokens")
+  a[6] = index(s, "\"total_tokens\":") ? numafter(s, "total_tokens") : a[1] + a[4]
+  return ok6(a)
+}
+function ok6(a,    j) {
+  for (j = 1; j <= 6; j++) if (a[j] < 0 || a[j] != int(a[j])) return 0
+  return a[2] + a[3] <= a[1] && a[5] <= a[4] && a[6] >= a[1] + a[4]
+}
+function ser(a) { return a[1] " " a[2] " " a[3] " " a[4] " " a[5] " " a[6] }
+function bill(sess, model, speed, ts, a,    i) {
+  i = a[1] - a[2] - a[3]; if (i < 0) i = 0
+  add(sess, model, speed, ts, i, a[2], a[3], a[4], a[5], 0)
+}
+function rebase(c) {
+  ST["prev"] = ser(c); ST["pend"] = ""
+  if (c[1] + c[4] == 0) ST["seq"] = ""
+}
+# Whether this event is copied history of a forked session.
+function forkcopy(ms) {
+  if (ST["supp"] != 1) return 0
+  if (ms - ST["anchor"] < 1000) { ST["anchor"] = ms; return 1 }
+  ST["supp"] = 0; ST["sig"] = ""
+  return 0
+}
+# Bills the pending records (pend) when, with the last request, they make up the gap between the
+# previous snapshot (prev, split in p) and this one, c, exactly. The last record is the request that
+# the snapshot reports, less what last says of it. False if they do not.
+function bridge(prev, pend, p, c, last, sess,    n, r, f, j, k, sum, a, rem) {
+  if (prev == "" || pend == "") return 0
+  n = split(pend, r, ";")
+  for (k = 1; k <= 6; k++) sum[k] = 0
+  for (j = 1; j <= n; j++) { split(r[j], f, "|"); split(f[4], a, " "); for (k = 1; k <= 6; k++) sum[k] += a[k] }
+  for (k = 1; k <= 6; k++) if (c[k] - p[k] != sum[k]) return 0
+  split(r[n], f, "|"); split(f[4], a, " ")
+  for (k = 1; k <= 6; k++) rem[k] = a[k] - last[k]
+  if (!ok6(rem)) return 0
+  for (j = 1; j <= n; j++) {
+    split(r[j], f, "|"); split(f[4], a, " ")
+    if (j == n) for (k = 1; k <= 6; k++) a[k] = rem[k]
+    if (a[1] + a[4] > 0) bill(sess, f[2], f[3], f[1], a)
+  }
+  return 1
+}
+function parse(l,    h, pl, ts, ms, i, c, w, rl, pi, ps, id, plan, j, k, sess, u, last, cum, okl, hascum, okc, prev, pend, p, adv, restarted, seq, recon, sig, st) {
   h = substr(l, 1, 260)
   if (index(h, "\"type\":\"turn_context\"")) {
     pl = substr(l, index(l, "\"payload\":{"), 3000)
@@ -556,6 +671,7 @@ function parse(l,    h, pl, ts, lt, tt, sig, ls, i, c, w, o, re, rl, pi, ps, id,
       ST["meta"] = 1
       pl = substr(l, index(l, "\"payload\":{"), 3000)
       id = strafter(pl, "id")
+      if (id == "") id = strafter(pl, "session_id")
       if (id != "") ST["sess"] = clean(id)
       project(ST["sess"], base(strafter(pl, "cwd")))
       ts = strafter(h, "timestamp")
@@ -565,7 +681,17 @@ function parse(l,    h, pl, ts, lt, tt, sig, ls, i, c, w, o, re, rl, pi, ps, id,
   }
   if (index(h, "\"payload\":{\"type\":\"thread_settings_applied\"")) {
     i = strafter(l, "service_tier")
-    ST["speed"] = (i == "priority" || i == "fast" || i == "ultrafast") ? "fast" : "standard"
+    ST["speed"] = (i == "priority" || i == "fast") ? "fast" : (i == "ultrafast" ? "ultrafast" : "standard")
+    return
+  }
+  sess = ST["sess"] != "" ? ST["sess"] : clean(fsess)
+  if (index(h, "\"type\":\"token_usage_record\"")) {
+    # A request, which only counts when a snapshot shows it was not reported. Kept until then.
+    ts = strafter(h, "timestamp")
+    j = index(l, "\"usage\":{")
+    if (!okts(ts) || !j || ST["model"] == "" || !rd(substr(l, j + 8, 400), u)) return
+    if (forkcopy(tsms(ts))) return
+    ST["pend"] = ST["pend"] (ST["pend"] == "" ? "" : ";") ts "|" ST["model"] "|" (ST["speed"] == "" ? "standard" : ST["speed"]) "|" ser(u)
     return
   }
   if (index(h, "\"payload\":{\"type\":\"token_count\"") == 0) return
@@ -584,20 +710,58 @@ function parse(l,    h, pl, ts, lt, tt, sig, ls, i, c, w, o, re, rl, pi, ps, id,
       if (w > 0 && id != "") limit(clean(id) (c == 1 ? ":primary" : ":secondary"), w, sprintf("%.2f", numafter(ps, "used_percent")), numafter(ps, "resets_at"), "ok", clean(plan), substr(ts, 1, 19) "Z")
     }
   }
-  lt = index(l, "\"last_token_usage\":{"); tt = index(l, "\"total_token_usage\":{")
-  if (!lt || !tt || ST["model"] == "") return
-  sig = substr(l, tt, lt - tt)
-  if (ST["supp"] == 1) {
-    if (tsms(ts) - ST["anchor"] < 1000) { ST["anchor"] = tsms(ts); ST["sig"] = sig; return }
-    ST["supp"] = 0; ST["sig"] = ""
+  if (ST["model"] == "") return
+  j = index(l, "\"last_token_usage\":{"); k = index(l, "\"total_token_usage\":{")
+  if (!j && !k) return
+  ms = tsms(ts)
+  okl = j ? rd(substr(l, j + 19, 400), last) : 0
+  hascum = k > 0
+  okc = hascum ? rd(substr(l, k + 20, 400), cum) : 0
+  if (forkcopy(ms)) {
+    # Copied history, which the parent counted, but it is where the counters of this one start.
+    sig = okl ? ser(last) : ""
+    if (okc) rebase(cum)
+    else if (!hascum && okl && sig != ST["sig"]) {
+      if (ST["prev"] == "") { for (i = 1; i <= 6; i++) p[i] = 0 } else split(ST["prev"], p, " ")
+      for (i = 1; i <= 6; i++) adv[i] = p[i] + last[i]
+      ST["prev"] = ser(adv)
+    }
+    ST["sig"] = sig
+    return
   }
-  ls = substr(l, lt, 400)
-  i = numafter(ls, "input_tokens"); o = numafter(ls, "output_tokens")
-  if (i + o == 0 || sig == ST["sig"]) { ST["sig"] = sig; return }
+  prev = ST["prev"]; pend = ST["pend"]
+  if (prev != "") split(prev, p, " ")
+  if (okc) rebase(cum)
+  if (!okl || (hascum && !okc)) return
+  # Zero requests are the size of the context, not a request.
+  if (last[1] + last[4] == 0) { ST["sig"] = ""; return }
+  if (okc && prev != "" && ser(cum) == prev) return
+  if (last[6] != last[1] + last[4]) return
+  sig = ser(last)
+  st = ST["speed"] == "" ? "standard" : ST["speed"]
+  if (okc) {
+    # A session that a new Codex process resumed starts its counters again at this request.
+    restarted = ser(cum) == sig
+    seq = ts " " sig
+    if (restarted && seq == ST["seq"]) { ST["prev"] = prev; return }
+    if (prev == "") {
+      for (i = 1; i <= 6; i++) adv[i] = cum[i] - last[i]
+      recon = ok6(adv)
+    } else {
+      recon = 1
+      for (i = 1; i <= 6; i++) if (cum[i] - p[i] != last[i]) recon = 0
+    }
+    if (!restarted && !recon && !bridge(prev, pend, p, cum, last, sess)) return
+    if (restarted) ST["seq"] = seq
+  } else {
+    if (sig == ST["sig"]) return
+    if (prev == "") { for (i = 1; i <= 6; i++) p[i] = 0 }
+    for (i = 1; i <= 6; i++) adv[i] = p[i] + last[i]
+    if (!ok6(adv)) return
+    ST["prev"] = ser(adv)
+  }
   ST["sig"] = sig
-  c = numafter(ls, "cached_input_tokens"); w = numafter(ls, "cache_write_input_tokens"); re = numafter(ls, "reasoning_output_tokens")
-  i = i - c - w; if (i < 0) i = 0
-  add(ST["sess"] != "" ? ST["sess"] : clean(fsess), ST["model"], ST["speed"] == "fast" ? "fast" : "standard", ts, i, c, w, o, re, 0)
+  bill(sess, ST["model"], st, ts, last)
 }
 '
 
@@ -630,6 +794,124 @@ function parse(l,    t, ts, u, us, mt, prov, model, id, cost, role) {
   if (t) us = substr(us, 1, t - 1)
   add(ST["sess"], clean(model), "standard", ts, numafter(us, "input"), numafter(us, "cacheRead"), numafter(us, "cacheWrite"), numafter(us, "output"), numafter(us, "reasoning"), int(cost * 1000000 + 0.5))
   project(ST["sess"], ST["proj"])
+}
+'
+
+# Gemini CLI: ~/.gemini/tmp/<project>/chats/*.jsonl, sub-agents in a folder of their parent's. The
+# first line names the session, and a message is written again each time it changes, so the first
+# line of a message that has tokens counts. Input includes what was cached, and the thinking is not
+# part of the output, so it is added to it. The tool tokens are input that is not in the input.
+# Before 0.39, Gemini CLI kept a session as one JSON document, which is not read.
+GEMINI_AWK='
+function parse(l,    j, tk, id, ts, model, inp, c, o, th, tl, sess) {
+  j = index(l, "\"tokens\":{")
+  if (!j) {
+    if (ST["sess"] == "" && index(l, "\"projectHash\":")) ST["sess"] = clean(strafter(l, "sessionId"))
+    return
+  }
+  if (strafter(substr(l, 1, 400), "type") != "gemini") return
+  tk = substr(l, j + 9, 400); tk = substr(tk, 1, objend(tk))
+  inp = numafter(tk, "input"); c = numafter(tk, "cached"); o = numafter(tk, "output"); th = numafter(tk, "thoughts"); tl = numafter(tk, "tool")
+  if (inp + o + th + tl == 0) return
+  ts = strafter(substr(l, 1, 400), "timestamp")
+  id = strafter(substr(l, 1, 200), "id")
+  model = strafter(substr(l, j), "model")
+  if (model == "") model = strafter(l, "model")
+  if (!okts(ts) || model == "" || model == "unknown") return
+  sess = ST["sess"] != "" ? ST["sess"] : clean(fsess)
+  if (id != "" && !first("gemini|" sess "|" id)) return
+  inp -= c; if (inp < 0) inp = 0
+  add(sess, clean(model), "standard", ts, inp + tl, c, 0, o + th, th, 0)
+  project(sess, base(fproj))
+}
+'
+
+# Grok: ~/.grok/sessions/<folder>/<session>/updates.jsonl, where a finished turn says what it used,
+# in all and by model, with what it cost in ticks of 1e-10 dollars. Input includes what was cached,
+# and output the reasoning. A forked session repeats its parent's turns, so a turn counts once. As
+# in T3 Code (MIT); no Grok was at hand to try it on.
+GROK_AWK='
+function gnum(s, k) { return numafter(s, k) }
+function gcost(s) { return index(s, "\"costUsdTicks\":") ? numafter(s, "costUsdTicks") / 10000000000 : -1 }
+function gtok(s) { return gnum(s, "inputTokens") + gnum(s, "outputTokens") }
+function gadd(sess, pid, model, ts, s, cost,    i, cr, cw, o, re) {
+  if (pid != "" && !first("grok|" sess "|" pid "|" model)) return
+  cr = gnum(s, "cachedReadTokens"); cw = gnum(s, "cacheCreationTokens"); o = gnum(s, "outputTokens"); re = gnum(s, "reasoningTokens")
+  i = gnum(s, "inputTokens") - cr - cw; if (i < 0) i = 0
+  if (re > o) re = o
+  add(sess, clean(model), "standard", ts, i, cr, cw, o, re, cost > 0 ? int(cost * 1000000 + 0.5) : 0)
+}
+function parse(l,    j, us, mu, rest, me, top, mus, sess, pid, ms, ts, tc, n, name, body, nm, MN, MB, MC, used, untk, left, k) {
+  if (!index(l, "\"sessionUpdate\":\"turn_completed\"")) return
+  j = index(l, "\"usage\":{")
+  if (!j) return
+  us = substr(l, j + 8); us = substr(us, 1, objend(us))
+  sess = clean(strafter(l, "sessionId")); pid = clean(strafter(l, "prompt_id"))
+  if (sess == "") return
+  if (index(l, "\"agentTimestampMs\":")) ms = numafter(l, "agentTimestampMs")
+  else { ms = numafter(l, "timestamp"); if (ms < 1e12) ms *= 1000 }
+  if (ms <= 0) return
+  ts = isots(ms)
+  top = us; mus = ""
+  mu = index(us, "\"modelUsage\":{")
+  if (mu) {
+    rest = substr(us, mu + 13); me = objend(rest)
+    top = substr(us, 1, mu - 1) substr(rest, me + 1); mus = substr(rest, 2, me - 2)
+  }
+  project(sess, base(fproj))
+  tc = gcost(top)
+  while (match(mus, /"[^"]+":\{[^}]*\}/)) {
+    body = substr(mus, RSTART, RLENGTH); mus = substr(mus, RSTART + RLENGTH)
+    name = substr(body, 2, index(substr(body, 2), "\"") - 1)
+    body = substr(body, length(name) + 4)
+    if (name == "" || gtok(body) == 0) continue
+    MN[++n] = name; MB[n] = body; MC[n] = gcost(body)
+    if (MC[n] >= 0) used += MC[n]; else untk += gtok(body)
+  }
+  if (n == 0) {
+    if (gtok(top) > 0) gadd(sess, pid, "grok", ts, top, tc)
+    return
+  }
+  # A model without a cost of its own has a share of what the turn cost beyond the others.
+  left = tc < 0 ? -1 : tc - used; if (tc >= 0 && left < 0) left = 0
+  for (k = 1; k <= n; k++) {
+    if (MC[k] < 0 && left >= 0 && untk > 0) MC[k] = left * gtok(MB[k]) / untk
+    gadd(sess, pid, MN[k], ts, MB[k], MC[k])
+  }
+}
+'
+
+# Muse: ~/.local/share/muse/sessions/**/session.jsonl. A model_completed (or, for its reviews,
+# automated_review_completed) event says what one inference used. Its cache counts are part of the
+# input, and reasoning part of the output. A record copied into another session keeps the ID of
+# the inference it came from. As in T3 Code (MIT); no Muse was at hand to try it on.
+MUSE_AWK='
+function parse(l,    e, ev, kind, model, m, u, us, inp, cr, cw, o, re, sess, key) {
+  if (!index(l, "\"payload_type\":\"runtime.session\"")) return
+  e = index(l, "\"event\":{")
+  if (!e) return
+  ev = substr(l, e + 8); ev = substr(ev, 1, objend(ev))
+  kind = strafter(ev, "kind")
+  if (kind != "model_completed" && kind != "automated_review_completed") return
+  m = index(ev, "\"model\":{")
+  model = m ? strafter(substr(ev, m), "model_id") : strafter(ev, "model")
+  u = index(ev, "\"usage\":{")
+  if (!u || model == "") return
+  us = substr(ev, u + 8); us = substr(us, 1, objend(us))
+  inp = numafter(us, "input_tokens"); o = numafter(us, "output_tokens")
+  if (index(us, "\"cache_read_tokens\":")) cr = numafter(us, "cache_read_tokens")
+  else if (index(us, "\"cached_input_tokens\":")) cr = numafter(us, "cached_input_tokens")
+  else cr = numafter(us, "cached_tokens")
+  if (cr > inp) cr = inp
+  cw = numafter(us, "cache_write_tokens"); if (cw > inp - cr) cw = inp - cr
+  re = numafter(us, "reasoning_tokens"); if (re > o) re = o
+  if (inp + o == 0) return
+  if (!index(l, "\"stream\":{")) return
+  sess = clean(strafter(substr(l, index(l, "\"stream\":{")), "id"))
+  key = strafter(l, "source_run_record_id")
+  if (key == "") key = strafter(substr(l, 1, 300), "id")
+  if (sess == "" || (key != "" && !first("muse|" key))) return
+  add(sess, clean(model), "standard", isots(int(numafter(l, "recorded_at") / 1000)), inp - cr - cw, cr, cw, o, re, 0)
 }
 '
 
@@ -719,12 +1001,175 @@ $1 == "S" {
 END { chunk() }
 '
 
+# OpenCode before it moved to SQLite: storage/message/<session>/<message>.json, one message to a
+# file, written out with indents, and storage/session/<project>/<session>.json with the folder. A
+# line here is a path, a tab and the whole file. A message that OpenCode has since moved into its
+# database (whose IDs come in keys) is counted there.
+# shellcheck disable=SC2016
+OCJ_AWK='
+function parse(l,    t, p, id, sess, j, tk, ca, inp, o, re, cr, cw, mo, model, ms, cost) {
+  t = index(l, "\t"); p = substr(l, 1, t - 1); l = substr(l, t + 1)
+  gsub(/": +/, "\":", l)
+  if (index(p, "/storage/session/")) { if (strafter(l, "id") != "") project(clean(strafter(l, "id")), base(strafter(l, "directory"))); return }
+  if (!index(l, "\"role\":\"assistant\"")) return
+  id = p; sub(/.*\//, "", id); sub(/\.json$/, "", id)
+  sess = p; sub(/\/[^\/]*$/, "", sess); sub(/.*\//, "", sess)
+  if (("opencode|" id) in OTHER) return
+  j = index(l, "\"tokens\":{")
+  if (!j) return
+  tk = substr(l, j + 9); tk = substr(tk, 1, objend(tk))
+  inp = numafter(tk, "input"); o = numafter(tk, "output"); re = numafter(tk, "reasoning")
+  ca = index(tk, "\"cache\":{")
+  cr = ca ? numafter(substr(tk, ca), "read") : 0; cw = ca ? numafter(substr(tk, ca), "write") : 0
+  if (inp + o + re + cr + cw == 0) return
+  j = index(l, "\"model\":{")
+  if (j) {
+    mo = substr(l, j + 8); mo = substr(mo, 1, objend(mo))
+    model = strafter(mo, "id"); if (model == "") model = strafter(mo, "modelID")
+  }
+  if (model == "") model = strafter(l, "modelID")
+  j = index(l, "\"time\":{"); ms = j ? numafter(substr(l, j), "created") : 0
+  if (model == "" || ms <= 0) return
+  cost = numafter(l, "cost")
+  add(clean(sess), clean(model), "standard", isots(ms), inp, cr, cw, o + re, re, cost > 0 ? int(cost * 1000000 + 0.5) : 0)
+}
+'
+
 # Python reads OpenCode when there is no sqlite3 (Debian servers often have python3 and no sqlite3).
 OC_PY='import sqlite3, sys, urllib.parse
 c = sqlite3.connect("file:" + urllib.parse.quote(sys.argv[1]) + "?mode=ro", uri=True, timeout=2)
 for q in sys.argv[2:]:
     for r in c.execute(q):
         print("\t".join("" if v is None else str(v) for v in r))'
+
+# Antigravity keeps each conversation in SQLite, with what a request used in protobuf, which only
+# Python reads here. It prints the usage lines of the awk programs (R and M) for every database
+# under the directories it is given. A backup or a copy of a conversation holds the same responses,
+# so a response counts once, by its ID. Field numbers and models as in T3 Code (MIT).
+# shellcheck disable=SC2016
+AG_PY='import os, sqlite3, sys, time, urllib.parse
+cutoff = int(sys.argv[1])
+MODELS = {246: "gemini-2.5-pro", 312: "gemini-2.5-flash", 313: "gemini-2.5-flash-thinking", 329: "gemini-2.5-flash-thinking",
+  330: "gemini-2.5-flash-lite", 281: "claude-sonnet-4", 282: "claude-sonnet-4", 290: "claude-opus-4", 291: "claude-opus-4",
+  333: "claude-sonnet-4-5", 334: "claude-sonnet-4-5", 340: "claude-haiku-4-5", 341: "claude-haiku-4-5", 1026: "claude-opus-4-6",
+  1035: "claude-sonnet-4-6", 1016: "gemini-3.1-pro", 1036: "gemini-3.1-pro", 1037: "gemini-3.1-pro",
+  1018: "gemini-3-flash-preview", 1084: "gemini-3-flash-preview", 1047: "gemini-3-flash-preview"}
+def fields(b):
+    out, i = {}, 0
+    def varint():
+        nonlocal i
+        v = s = 0
+        while True:
+            c = b[i]; i += 1
+            v |= (c & 127) << s; s += 7
+            if c < 128: return v
+            if s > 63: raise ValueError("varint")
+    while i < len(b):
+        t = varint(); n, w = t >> 3, t & 7
+        if n == 0: raise ValueError("field")
+        if w == 0: v = varint()
+        elif w in (1, 2, 5):
+            ln = varint() if w == 2 else (8 if w == 1 else 4)
+            if ln > len(b) - i: raise ValueError("short")
+            v = bytes(b[i:i + ln]); i += ln
+            if w != 2: continue
+        else: raise ValueError("wire")
+        out.setdefault(n, []).append(v)
+    return out
+def num(f, k):
+    v = f.get(k, [0])[0]
+    return v if isinstance(v, int) else 0
+def raw(f, k):
+    v = f.get(k, [None])[0]
+    return v if isinstance(v, bytes) else None
+def sub(f, k):
+    v = raw(f, k)
+    return fields(v) if v is not None else {}
+def text(f, k):
+    v = raw(f, k)
+    return v.decode("utf-8").strip() if v is not None else ""
+def stamp(f):
+    s = num(f, 1)
+    return s * 1000 + num(f, 2) // 1000000 if s > 0 else None
+def name(n, i):
+    if n:
+        n = n.lower()
+        if n.endswith(")") and " (" in n: n = n[:n.rindex(" (")]
+        n = n.strip().replace(" ", "-")
+        if n.startswith("claude-"):
+            p = n.split("-")
+            if len(p) >= 3 and p[1][:1].isdigit() and p[2] in ("sonnet", "opus", "haiku"): n = "-".join(["claude", p[2], p[1]] + p[3:])
+            n = n.replace(".", "-")
+        return n
+    return MODELS.get(i, "antigravity-model-%d" % i if i > 0 else "")
+def meta(b, step):
+    root = fields(b)
+    data = root if step else sub(root, 1)
+    m = sub(data, 24) if step else data
+    u = raw(data, 9 if step else 4)
+    us = [fields(u)] if u is not None else []
+    for r in data.get(28 if step else 17, []):
+        if isinstance(r, bytes):
+            ru = raw(fields(r), 2)
+            if ru is not None: us.append(fields(ru))
+    model = name(text(m, 12 if step else 19) or text(m, 8 if step else 21), num(m, 1 if step else 3))
+    ts = (stamp(sub(data, 8)) or stamp(sub(data, 1))) if step else stamp(sub(sub(data, 9), 4))
+    return model, ts, us
+seen, rows, sess, bad = set(), {}, {}, 0
+def walk(d):
+    for root, dirs, files in os.walk(d):
+        dirs.sort()
+        for f in sorted(files):
+            if f.endswith(".db"): yield os.path.join(root, f)
+for d in sys.argv[2:]:
+    for path in walk(d):
+        sid = os.path.basename(path)[:-3]
+        try:
+            c = sqlite3.connect("file:" + urllib.parse.quote(path) + "?mode=ro", uri=True, timeout=2)
+            tables = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",))}
+            fallback = int(os.stat(path).st_mtime * 1000)
+            gens = []
+            if "gen_metadata" in tables:
+                gens = [(i, meta(v, False)) for i, v in c.execute("SELECT idx, data FROM gen_metadata ORDER BY idx") if v is not None]
+            traj = None
+            if "trajectory_metadata_blob" in tables:
+                for (v,) in c.execute("SELECT data FROM trajectory_metadata_blob"):
+                    if traj is None and v is not None: traj = stamp(sub(fields(v), 2))
+            steps = []
+            if "steps" in tables:
+                steps = [(i, meta(v, True)) for i, v in c.execute("SELECT idx, metadata FROM steps ORDER BY idx") if v is not None]
+            c.close()
+        except Exception:
+            bad += 1
+            continue
+        gm = {i: m for i, (m, _, _) in gens}
+        for src, entries in (("step", steps), ("gen", gens)):
+            for n, (idx, (model, ts, usages)) in enumerate(entries):
+                for k, u in enumerate(usages):
+                    out = max(num(u, 3), num(u, 9) + num(u, 10))
+                    t = (num(u, 2), num(u, 5), num(u, 4), out, min(out, num(u, 9)))
+                    if sum(t[:4]) == 0: continue
+                    ids = ["%d:%s" % (j, text(u, j)) for j in (11, 12, 7) if text(u, j)]
+                    if any(i in seen for i in ids): continue
+                    seen.update(ids)
+                    ms = ts or traj or fallback
+                    if ms < cutoff: continue
+                    m = MODELS.get(num(u, 1)) or model or (gm.get(idx, "") if src == "step" else "") or name("", num(u, 1)) or "antigravity-unknown"
+                    for x in ("-low", "-medium", "-high"):
+                        if m.endswith(x): m = m[: -len(x)]
+                    h = time.strftime("%Y-%m-%dT%H", time.gmtime(ms // 1000))
+                    key = (sid, m, h)
+                    r = rows.setdefault(key, [0] * 6)
+                    for j in range(5): r[j] += t[j]
+                    r[5] += 1
+                    at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ms // 1000))
+                    f, l = sess.get(sid, (at, at))
+                    sess[sid] = (min(f, at), max(l, at))
+for (sid, m, h), r in sorted(rows.items()):
+    print("R\tantigravity\t%s\t%s\tstandard\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t0" % (sid, m, h, *r))
+for sid, (f, l) in sorted(sess.items()):
+    print("M\tantigravity\t%s\t\t%s\t%s" % (sid, f, l))
+if bad: print("B\t%d" % bad)'
 
 if stat -c %s /dev/null >/dev/null 2>&1; then STAT_GNU=1; else STAT_GNU=0; fi
 sess_size() { if [ "$STAT_GNU" = 1 ]; then stat -c %s "$1" 2>/dev/null; else stat -f %z "$1" 2>/dev/null; fi; }
@@ -743,6 +1188,10 @@ sessions_init() {
   local now
   mkdir -p "$SDIR/f" || return 1
   chmod 700 "$STATE_DIR" "$SDIR" 2>/dev/null
+  if [ "$(cat "$SDIR/version" 2>/dev/null)" != "$SESS_STATE" ]; then
+    rm -f "$SDIR"/f/*.dat
+    printf '%s\n' "$SESS_STATE" > "$SDIR/version"
+  fi
   now=$(date +%s)
   SESS_CUTOFF=$(sess_hour $((now - SESSIONS_DAYS * 86400)))
   SESS_CUTOFF_MS=$(((now - SESSIONS_DAYS * 86400) * 1000))
@@ -752,7 +1201,7 @@ sessions_init() {
 # home directories to read, separated by spaces; it is $HOME if not set. The tools own variables
 # (CLAUDE_CONFIG_DIR and so on) only apply to the home of the user the agent runs as.
 sess_dirs() {
-  local home own c x p d
+  local home own c x p d g
   for home in ${BIELD_SESSION_HOMES:-$HOME}; do
     own=0
     [ "$home" = "$HOME" ] && own=1
@@ -770,17 +1219,57 @@ sess_dirs() {
     x="$home/.local/share"
     [ "$own" = 1 ] && [ -n "${XDG_DATA_HOME:-}" ] && x="$XDG_DATA_HOME"
     [ -d "$x/opencode" ] && printf 'opencode\t%s\n' "$x/opencode"
+    [ -d "$x/muse/sessions" ] && printf 'muse\t%s\n' "$x/muse/sessions"
+    g="$home"
+    [ "$own" = 1 ] && [ -n "${GEMINI_CLI_HOME:-}" ] && g="$GEMINI_CLI_HOME"
+    [ -d "$g/.gemini/tmp" ] && printf 'gemini\t%s\n' "$g/.gemini/tmp"
+    g="$home/.grok"
+    [ "$own" = 1 ] && [ -n "${GROK_HOME:-}" ] && g="$GROK_HOME"
+    [ -d "$g/sessions" ] && printf 'grok\t%s\n' "$g/sessions"
+    # Antigravity's IDE, app and command line each keep their own conversations.
+    for g in "$home/.gemini/antigravity" "$home/.gemini/antigravity-cli" "$home/.gemini/antigravity-ide" "$home/.config/antigravity"; do
+      if [ -d "$g/conversations" ]; then printf 'antigravity\t%s\n' "$g/conversations"; elif [ -d "$g" ]; then printf 'antigravity\t%s\n' "$g"; fi
+    done
   done
   return 0
 }
 
-# "size mtime path" of the JSONL files under a directory that changed within SESSIONS_DAYS.
+# "size mtime path" of the session files of a tool ($1) under a directory ($2) that changed
+# within SESSIONS_DAYS.
 sess_list() {
-  if [ "$STAT_GNU" = 1 ]; then
-    find "$1" -type f -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat -c '%s %Y %n' {} + 2>/dev/null
-  else
-    find "$1" -type f -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat -f '%z %m %N' {} + 2>/dev/null
-  fi
+  local fmt='%s %Y %n' opt=-c
+  [ "$STAT_GNU" = 1 ] || { fmt='%z %m %N'; opt=-f; }
+  case "$1" in
+    gemini) find "$2" -type f -path '*/chats/*' -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat "$opt" "$fmt" {} + 2>/dev/null ;;
+    grok) find "$2" -type f -name updates.jsonl -mtime "-$SESSIONS_DAYS" -exec stat "$opt" "$fmt" {} + 2>/dev/null ;;
+    muse) find "$2" -type f -name session.jsonl -mtime "-$SESSIONS_DAYS" -exec stat "$opt" "$fmt" {} + 2>/dev/null ;;
+    *) find "$2" -type f -name '*.jsonl' -mtime "-$SESSIONS_DAYS" -exec stat "$opt" "$fmt" {} + 2>/dev/null ;;
+  esac
+}
+
+# The folder of the project a session file is about, for the tools that do not write it in the
+# file: Gemini CLI keeps it next to the chats, and Grok names the session folder after it.
+sess_project() {
+  local d
+  case "$1" in
+    gemini)
+      d="${2%%/chats/*}"
+      [ -f "$d/.project_root" ] && head -n 1 "$d/.project_root" 2>/dev/null
+      ;;
+    grok)
+      d="${2%/*}"
+      d="${d%/*}"
+      if [ -f "$d/.cwd" ]; then
+        head -n 1 "$d/.cwd" 2>/dev/null
+      else
+        # A folder name is the path with %2F for each slash, so the part after the last one.
+        d="${d##*/}"
+        d="${d##*%2F}"
+        d="${d##*%2f}"
+        printf '%s' "$d" | sed 's/%20/ /g'
+      fi
+      ;;
+  esac
 }
 
 # The file in $SDIR/f that holds what is known about a source file. Its name comes from a checksum
@@ -804,7 +1293,10 @@ EOF
 sess_filter() {
   case "$1" in
     claude) grep -a -F -e '"usage":{' -e '"quotaLimits":{' ;;
-    codex) grep -a -F -e '"session_meta"' -e '"turn_context"' -e '"token_count"' -e '"thread_settings_applied"' ;;
+    codex) grep -a -F -e '"session_meta"' -e '"turn_context"' -e '"token_count"' -e '"token_usage_record"' -e '"thread_settings_applied"' ;;
+    gemini) grep -a -F -e '"tokens":{' -e '"projectHash":' ;;
+    grok) grep -a -F -e '"turn_completed"' ;;
+    muse) grep -a -F -e '"model_completed"' -e '"automated_review_completed"' ;;
     *) grep -a -F -e '"usage":{' -e '{"type":"session"' ;;
   esac
 }
@@ -812,6 +1304,9 @@ sess_prog() {
   case "$1" in
     claude) printf '%s' "$CLAUDE_AWK" ;;
     codex) printf '%s' "$CODEX_AWK" ;;
+    gemini) printf '%s' "$GEMINI_AWK" ;;
+    grok) printf '%s' "$GROK_AWK" ;;
+    muse) printf '%s' "$MUSE_AWK" ;;
     *) printf '%s' "$PI_AWK" ;;
   esac
 }
@@ -827,8 +1322,9 @@ sess_guard() {
 # so a line that is still being written is read next time. A file that shrank, or begins
 # differently, is read again from the start.
 sess_scan_file() {
-  local tool="$1" size="$2" path="$3" dat off hd nhead last plen size2 consumed have fsess rc
+  local tool="$1" size="$2" path="$3" dat off hd nhead last plen size2 consumed have fsess rc keys=""
   dat=$(sess_dat "$path")
+  case "$tool" in claude | gemini | grok | muse) keys="$SDIR/keys.tsv" ;; esac
   off=0
   hd=""
   have=0
@@ -861,7 +1357,7 @@ sess_scan_file() {
     [ "$have" = 1 ] && tail -n +2 "$dat"
     printf '@@DATA\n'
     [ "$consumed" -gt "$off" ] && tail -c +$((off + 1)) "$path" | head -c $((consumed - off)) | sess_filter "$tool"
-  } | LC_ALL=C awk -v tool="$tool" -v cutoff="$SESS_CUTOFF" -v fsess="$fsess" "$SESS_AWK$(sess_prog "$tool")" > "$dat.new"
+  } | LC_ALL=C awk -v tool="$tool" -v cutoff="$SESS_CUTOFF" -v fsess="$fsess" -v fproj="$(sess_project "$tool" "$path")" -v own="${dat##*/}" -v keys="$keys" "$SESS_AWK$(sess_prog "$tool")" > "$dat.new"
   rc=$?
   if [ "$rc" -ne 0 ]; then
     rm -f "$dat.new"
@@ -870,6 +1366,8 @@ sess_scan_file() {
   fi
   nhead=$(sess_guard "$path" "$consumed")
   { printf 'O\t%s\t%s\t%s\t%s\n' "$path" "$consumed" "$size" "$nhead"; cat "$dat.new"; } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
+  # The responses it counted, so that the files read after it in this round skip them.
+  [ -n "$keys" ] && awk -F '\t' -v own="${dat##*/}" '$1 == "K" { print own "\t" $2 }' "$dat.new" >> "$keys"
   rm -f "$dat.new"
 }
 
@@ -973,11 +1471,93 @@ sess_opencode() {
         END { for (s in FI) if (s in HAS) printf "M\topencode\t%s\t%s\t%s\t%s\n", clean(s), base(DIR[s]), FI[s], LA[s] }'
     } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
   done
+  if [ -d "$1/storage/message" ]; then
+    sess_oc_legacy "$1"
+    grep -q '^opencode' "$SDIR/status.new" || printf 'opencode\tok\n' >> "$SDIR/status.new"
+  fi
+}
+
+# Reads OpenCode's JSON files, from before its database, again when they or the database changed.
+sess_oc_legacy() {
+  local st="$1/storage" dat sig osig db t
+  [ -d "$st/message" ] || return 0
+  dat=$(sess_dat "$st")
+  sig=$({ sess_list_json "$st/message"; sess_list_db "$1"; } | LC_ALL=C sort | cksum | tr ' ' -)
+  if [ -f "$dat" ]; then
+    IFS=$'\t' read -r _ _ osig < "$dat"
+    [ "$osig" = "$sig" ] && return 0
+  fi
+  : > "$SDIR/ocids.tsv"
+  for db in "$1"/opencode.db "$1"/opencode-*.db; do
+    [ -f "$db" ] || continue
+    for t in $(sess_sql "$db" "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_message', 'message')" 2>/dev/null); do
+      sess_sql "$db" "SELECT id FROM $t" 2>/dev/null | awk '{ print "db\topencode|" $0 }' >> "$SDIR/ocids.tsv"
+    done
+  done
+  {
+    printf 'O\t%s\t%s\n' "$st" "$sig"
+    {
+      printf '@@DATA\n'
+      for t in message session; do
+        [ -d "$st/$t" ] || continue
+        find "$st/$t" -type f -name '*.json' -exec awk 'FNR == 1 { if (b != "") print b; b = FILENAME "\t" } { b = b $0 } END { if (b != "") print b }' {} + 2>/dev/null
+      done
+    } | LC_ALL=C awk -v tool=opencode -v cutoff="$SESS_CUTOFF" -v own=json -v keys="$SDIR/ocids.tsv" "$SESS_AWK$OCJ_AWK" | grep -v '^[KS]'
+  } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
+}
+
+# "size mtime path" of the JSON files under a directory that changed within SESSIONS_DAYS.
+sess_list_json() {
+  if [ "$STAT_GNU" = 1 ]; then
+    find "$1" -type f -name '*.json' -mtime "-$SESSIONS_DAYS" -exec stat -c '%s %Y %n' {} + 2>/dev/null
+  else
+    find "$1" -type f -name '*.json' -mtime "-$SESSIONS_DAYS" -exec stat -f '%z %m %N' {} + 2>/dev/null
+  fi
+}
+
+# Reads Antigravity's conversations again when one of them changed, or changed lately. All of
+# them at once, since one response can be in two. Needs python3.
+sess_antigravity() {
+  local dat="$SDIR/f/antigravity.dat" sig osig newest now out d st
+  [ $# -gt 0 ] || return 0
+  sig=$(for d in "$@"; do sess_list_db "$d"; done | LC_ALL=C sort | cksum | tr ' ' -)
+  now=$(date +%s)
+  newest=$(for d in "$@"; do sess_list_db "$d"; done | awk '$2 > m { m = $2 } END { print m + 0 }')
+  if [ -f "$dat" ]; then
+    IFS=$'\t' read -r _ _ osig st < "$dat"
+    if [ "$osig" = "$sig" ] && [ $((now - newest)) -gt 120 ]; then
+      printf 'antigravity\t%s\n' "${st:-ok}" >> "$SDIR/status.new"
+      return 0
+    fi
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'antigravity\tneeds-python\n' >> "$SDIR/status.new"
+    return 0
+  fi
+  if ! out=$(python3 -I -c "$AG_PY" "$SESS_CUTOFF_MS" "$@" 2>/dev/null); then
+    printf 'antigravity\tunreadable\n' >> "$SDIR/status.new"
+    return 0
+  fi
+  # A conversation that could not be read leaves the rest counted, and says so.
+  st=ok
+  printf '%s\n' "$out" | grep -q '^B' && st=unreadable
+  printf 'antigravity\t%s\n' "$st" >> "$SDIR/status.new"
+  { printf 'O\tantigravity\t%s\t%s\n' "$sig" "$st"; printf '%s\n' "$out" | grep -v '^B'; } > "$dat.tmp" && mv -f "$dat.tmp" "$dat"
+}
+
+# "size mtime path" of the SQLite files under a directory, with their write-ahead logs.
+sess_list_db() {
+  if [ "$STAT_GNU" = 1 ]; then
+    find "$1" -type f \( -name '*.db' -o -name '*.db-wal' \) -exec stat -c '%s %Y %n' {} + 2>/dev/null
+  else
+    find "$1" -type f \( -name '*.db' -o -name '*.db-wal' \) -exec stat -f '%z %m %N' {} + 2>/dev/null
+  fi
 }
 
 # Reads whatever changed since the last run, in every place there are sessions.
 sess_collect() {
   local tool dir size path
+  set --
   sessions_init || return 1
   : > "$SDIR/status.new"
   : > "$SDIR/cand.tsv"
@@ -987,16 +1567,26 @@ sess_collect() {
       sess_opencode "$dir"
       continue
     fi
+    if [ "$tool" = antigravity ]; then
+      set -- "$@" "$dir"
+      continue
+    fi
     printf '%s\tok\n' "$tool" >> "$SDIR/status.new"
-    sess_list "$dir" | while read -r size _ path; do
-      printf '%s\t%s\t%s\n' "$tool" "$size" "$path"
+    sess_list "$tool" "$dir" | while read -r size mtime path; do
+      printf '%s\t%s\t%s\t%s\n' "$tool" "$size" "$path" "$mtime"
     done >> "$SDIR/cand.tsv"
   done <<EOF
 $(sess_dirs)
 EOF
-  # The files whose size is not what it was when they were last read.
+  sess_antigravity "$@"
+  # Each response Claude Code counted, and which file counted it, as the files read before said.
+  awk -F '\t' '$1 == "K" { f = FILENAME; sub(/.*\//, "", f); print f "\t" $2 }' "$SDIR"/f/*.dat > "$SDIR/keys.tsv" 2>/dev/null
+  # The files whose size is not what it was when they were last read. Sub-agents last, and the
+  # oldest first, so a reply that a session copied from another is the first file's.
   { grep -h '^O' "$SDIR"/f/*.dat 2>/dev/null; printf '@@\n'; cat "$SDIR/cand.tsv"; } |
-    awk -F '\t' '$0 == "@@" { c = 1; next } !c { SZ[$2] = $4; next } !($3 in SZ) || SZ[$3] != $2' > "$SDIR/todo.tsv"
+    awk -F '\t' '$0 == "@@" { c = 1; next } !c { SZ[$2] = $4; next }
+      !($3 in SZ) || SZ[$3] != $2 { print (index($3, "/subagents/") ? 1 : 0) "\t" $4 "\t" $1 "\t" $2 "\t" $3 }' |
+    LC_ALL=C sort -t "$TAB" -k1,1n -k2,2n | cut -f 3- > "$SDIR/todo.tsv"
   while IFS=$'\t' read -r tool size path; do
     sess_scan_file "$tool" "$size" "$path"
   done < "$SDIR/todo.tsv"

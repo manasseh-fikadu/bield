@@ -71,6 +71,7 @@
 
 	let name = $state('');
 	let kind = $state('');
+	let span = $state('24h');
 	let notes = $state('');
 	let alerts = $state(true);
 	let range = $state('24h');
@@ -166,6 +167,13 @@
 					<option value="">Detect automatically</option>
 					<option value="laptop">Laptop</option>
 					<option value="server">Server</option>
+				</Select>
+			</Field>
+			<Field label="Small, for a card's header">
+				<Select size="sm" bind:value={span}>
+					<option value="24h">24h</option>
+					<option value="7d">7 days</option>
+					<option value="30d">30 days</option>
 				</Select>
 			</Field>
 			<Field label="Notes">

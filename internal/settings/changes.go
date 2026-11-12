@@ -100,7 +100,71 @@ func Changes(before, after Settings) []string {
 	if len(keep) > 0 {
 		out = append(out, "Changed how long Bield keeps history: "+strings.Join(keep, ", "))
 	}
-	return append(out, notificationChanges(before.Notifications, after.Notifications)...)
+	out = append(out, notificationChanges(before.Notifications, after.Notifications)...)
+	if msg := budgetChanges(before.AIBudget, after.AIBudget); msg != "" {
+		out = append(out, msg)
+	}
+	return out
+}
+
+// budgetChanges says how the AI usage budget changed, or "" if it didn't.
+func budgetChanges(b, a AIBudget) string {
+	var parts []string
+	for _, f := range []struct {
+		label       string
+		before, now string
+	}{
+		{"window", windowName(b.Window), windowName(a.Window)},
+		{"time zone", zoneName(b.Timezone), zoneName(a.Timezone)},
+		{"cost", money(b.Cost), money(a.Cost)},
+		{"tokens", count(b.Tokens), count(a.Tokens)},
+		{"cost of each machine", money(b.MachineCost), money(a.MachineCost)},
+		{"tokens of each machine", count(b.MachineTokens), count(a.MachineTokens)},
+	} {
+		if f.before != f.now {
+			parts = append(parts, fmt.Sprintf("%s %s → %s", f.label, f.before, f.now))
+		}
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return "Changed the AI usage budget: " + strings.Join(parts, ", ")
+}
+
+// windowName names a budget's window, such as "30 days".
+func windowName(w string) string {
+	switch w {
+	case "24h":
+		return "24 hours"
+	case "7d":
+		return "7 days"
+	case "30d":
+		return "30 days"
+	}
+	return w
+}
+
+func zoneName(tz string) string {
+	if tz == "" {
+		return "Bield's"
+	}
+	return tz
+}
+
+// money writes a budget in dollars, or "none" for 0.
+func money(v float64) string {
+	if v == 0 {
+		return "none"
+	}
+	return "$" + strconv.FormatFloat(v, 'f', -1, 64)
+}
+
+// count writes a budget in tokens, or "none" for 0.
+func count(n int64) string {
+	if n == 0 {
+		return "none"
+	}
+	return strconv.FormatInt(n, 10)
 }
 
 func notificationChanges(b, a Notifications) []string {
@@ -139,11 +203,11 @@ func hours(n int) string {
 // ruleLabels name the rules in ruleFlags' order.
 var ruleLabels = []string{
 	"offline devices", "relayed connections", "key expiry", "stopped agents", "disk", "memory", "CPU", "checks", "containers",
-	"systemd units", "Bield's own jobs",
+	"systemd units", "Bield's own jobs", "AI usage budgets",
 }
 
 func ruleFlags(r Rules) []bool {
-	return []bool{r.Offline, r.Relayed, r.KeyExpiry, r.AgentStopped, r.Disk, r.Memory, r.CPU, r.Checks, r.Containers, r.Units, r.Collectors}
+	return []bool{r.Offline, r.Relayed, r.KeyExpiry, r.AgentStopped, r.Disk, r.Memory, r.CPU, r.Checks, r.Containers, r.Units, r.Collectors, r.AIBudget}
 }
 
 func percent(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) + "%" }

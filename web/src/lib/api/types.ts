@@ -286,6 +286,10 @@ export interface Settings {
   watchedUnits: string[];
   retention: RetentionSettings;
   notifications: NotificationSettings;
+  /**
+   * AIBudget is what the AI tools can use before an alert.
+   */
+  aiBudget: AIBudgetSettings;
 }
 /**
  * GeneralSettings are how Bield presents itself.
@@ -391,6 +395,39 @@ export interface AlertRules {
    * Collectors is one of Bield's own jobs that keeps failing.
    */
   collectors: boolean;
+  /**
+   * AIBudget is the AI tools nearing or passing a budget of AIBudgetSettings.
+   */
+  aiBudget: boolean;
+}
+/**
+ * AIBudgetSettings are what the AI tools on the tailnet's machines can use
+ * over a window of time before an alert: a warning at 80% of a budget, and a
+ * critical alert once it's spent. A budget of 0 is none. Cost is the API
+ * estimate the AI usage page shows, and tokens are the tokens processed.
+ */
+export interface AIBudgetSettings {
+  /**
+   * Window is the AI usage page's range the budgets are for: 24h, 7d or
+   * 30d. 7d and 30d are today and the days before it.
+   */
+  window: string;
+  /**
+   * Timezone is the name of the time zone the window's days are in, such
+   * as "Europe/Berlin". It's empty for the one Bield's machine is in.
+   */
+  timezone: string;
+  /**
+   * Cost and Tokens are the budgets of every machine together.
+   */
+  cost: number /* float64 */;
+  tokens: number /* int64 */;
+  /**
+   * MachineCost and MachineTokens are the budgets of each machine on its
+   * own.
+   */
+  machineCost: number /* float64 */;
+  machineTokens: number /* int64 */;
 }
 /**
  * RetentionSettings are how many days Bield keeps each kind of history.
@@ -506,6 +543,7 @@ export interface ChangeSettings {
    * go to are changed by their own requests.
    */
   notifications?: ChangeNotifications;
+  aiBudget?: ChangeAIBudget;
   /**
    * WatchedUnits replaces the whole list when it's there, even if it's
    * empty.
@@ -548,6 +586,18 @@ export interface ChangeRules {
   containers?: boolean;
   units?: boolean;
   collectors?: boolean;
+  aiBudget?: boolean;
+}
+/**
+ * ChangeAIBudget changes AIBudgetSettings.
+ */
+export interface ChangeAIBudget {
+  window?: string;
+  timezone?: string;
+  cost?: number /* float64 */;
+  tokens?: number /* int64 */;
+  machineCost?: number /* float64 */;
+  machineTokens?: number /* int64 */;
 }
 /**
  * ChangeRetention changes RetentionSettings.
@@ -1931,9 +1981,14 @@ export const AlertSourceUnit = "unit";
  */
 export const AlertSourceCollector = "collector";
 /**
+ * AlertSourceBudget is the AI tools nearing or passing a budget, of every
+ * machine together or of one.
+ */
+export const AlertSourceBudget = "budget";
+/**
  * The sources of an Alert.
  */
-export type AlertSource = typeof AlertSourceDevice | typeof AlertSourceAgent | typeof AlertSourceMetrics | typeof AlertSourceCheck | typeof AlertSourceContainer | typeof AlertSourceUnit | typeof AlertSourceCollector;
+export type AlertSource = typeof AlertSourceDevice | typeof AlertSourceAgent | typeof AlertSourceMetrics | typeof AlertSourceCheck | typeof AlertSourceContainer | typeof AlertSourceUnit | typeof AlertSourceCollector | typeof AlertSourceBudget;
 /**
  * AlertSeverity says how much an alert matters.
  */
@@ -3576,8 +3631,9 @@ export interface CodingTotals {
    */
   cacheSavings: number /* float64 */;
   /**
-   * FastCost is the part of Cost that was billed at a model's fast tier,
-   * and SpeedPremium is how much more than the standard tier that was.
+   * FastCost is the part of Cost that was billed at a model's fast or
+   * ultrafast tier, and SpeedPremium is how much more than the standard
+   * tier that was.
    */
   fastCost: number /* float64 */;
   speedPremium: number /* float64 */;
@@ -3709,8 +3765,9 @@ export interface CodingSource {
   deviceId: string;
   tool: string;
   /**
-   * Status is ok, unreadable, or needs-sqlite, for OpenCode on a machine
-   * that has neither the sqlite3 command nor Python.
+   * Status is ok, unreadable, needs-sqlite, for OpenCode on a machine
+   * that has neither the sqlite3 command nor Python, or needs-python, for
+   * Antigravity on a machine without Python.
    */
   status: string;
   at: string /* RFC 3339 */;
@@ -3749,6 +3806,59 @@ export interface CodingSummary {
    * PricesAsOf is the day of the price list that Cost comes from.
    */
   pricesAsOf: string;
+  /**
+   * Unwatched is how many machines have an agent but aren't watched, for
+   * every device together.
+   */
+  unwatched: number /* int */;
+  /**
+   * Budget is how much of the AI usage budget of every machine together is
+   * used, for every device together, if an admin set one and Bield has
+   * worked it out.
+   */
+  budget?: CodingBudget;
+}
+/**
+ * CodingBudget is how much of the AI usage budget of every machine together
+ * is used over its window, as its alerts see it.
+ */
+export interface CodingBudget {
+  /**
+   * Window is the budget's window: 24h, 7d or 30d.
+   */
+  window: string;
+  from: string /* RFC 3339 */;
+  /**
+   * Cost and Tokens are the budgets, or 0 for none.
+   */
+  cost: number /* float64 */;
+  tokens: number /* int64 */;
+  /**
+   * UsedCost and UsedTokens are what the AI tools used in the window.
+   */
+  usedCost: number /* float64 */;
+  usedTokens: number /* int64 */;
+  /**
+   * At is when Bield worked them out, about once a minute.
+   */
+  at: string /* RFC 3339 */;
+}
+/**
+ * WatchAllCoding is the body of POST /api/coding/watch, which turns watching
+ * the AI tools on or off for every machine that has an agent.
+ */
+export interface WatchAllCoding {
+  enabled: boolean;
+}
+/**
+ * WatchedCoding is the response to POST /api/coding/watch.
+ */
+export interface WatchedCoding {
+  /**
+   * Changed is how many machines it turned watching on or off for. The
+   * ones that already were are left as they are.
+   */
+  changed: number /* int */;
 }
 /**
  * SetCoding is the body of PUT /api/devices/{id}/coding, which turns watching

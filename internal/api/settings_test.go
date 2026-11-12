@@ -80,7 +80,7 @@ func TestSettings(t *testing.T) {
 		t.Errorf("thresholds = %+v, want what was sent", got)
 	}
 	v = patchSettings(t, h, `{"rules": {"cpu": false}}`)
-	if want := (api.AlertRules{Offline: true, Relayed: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, Checks: true, Containers: true, Units: true, Collectors: true}); v.Settings.Rules != want ||
+	if want := (api.AlertRules{Offline: true, Relayed: true, KeyExpiry: true, AgentStopped: true, Disk: true, Memory: true, Checks: true, Containers: true, Units: true, Collectors: true, AIBudget: true}); v.Settings.Rules != want ||
 		v.Settings.General.Name != "Home lab" || v.Settings.Thresholds.DiskWarn != 70 {
 		t.Errorf("settings after turning off one rule = %+v, want the other rules and the earlier changes kept", v.Settings)
 	}
@@ -109,6 +109,18 @@ func TestSettings(t *testing.T) {
 	if len(v.Settings.WatchedUnits) != 0 || v.Settings.Retention.ActivityDays != 90 {
 		t.Errorf("settings after clearing the units = %+v, want none watched and the retention kept", v.Settings)
 	}
+
+	// The AI usage budget changes by field too, and is checked.
+	v = patchSettings(t, h, `{"aiBudget": {"cost": 120.5, "machineTokens": 5000000}}`)
+	if want := (api.AIBudgetSettings{Window: "30d", Cost: 120.5, MachineTokens: 5e6}); v.Settings.AIBudget != want {
+		t.Errorf("AI budget = %+v, want %+v", v.Settings.AIBudget, want)
+	}
+	for _, body := range []string{`{"aiBudget": {"window": "1y"}}`, `{"aiBudget": {"cost": -5}}`, `{"aiBudget": {"timezone": "Mars/Olympus"}}`} {
+		if rec := send(t, h, http.MethodPatch, "/api/settings", laptopIP, body); rec.Code != http.StatusBadRequest {
+			t.Errorf("PATCH %s = %d %s, want 400", body, rec.Code, rec.Body)
+		}
+	}
+	patchSettings(t, h, `{"aiBudget": {"cost": 0, "machineTokens": 0}}`)
 
 	// What it saved is what everything else reads.
 	saved, err := settings.Load(t.Context(), st)
@@ -151,6 +163,8 @@ func TestSettings(t *testing.T) {
 		"Changed how long Bield keeps history: activity log 30 days → 90 days, device history 7 days → 14 days, " +
 			"check results 7 days → 30 days by " + alice,
 		"Changed the watched systemd units: stopped watching nginx.service, user:app.service by " + alice,
+		"Changed the AI usage budget: cost none → $120.5, tokens of each machine none → 5000000 by " + alice,
+		"Changed the AI usage budget: cost $120.5 → none, tokens of each machine 5000000 → none by " + alice,
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("settings events =\n%q\nwant\n%q", got, want)

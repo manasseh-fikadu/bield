@@ -135,6 +135,8 @@ test('the AI usage page adds up what the AI tools used, and a device has a card'
 	await expect(shown(page, /API estimate/)).toBeVisible();
 	await expect(shown(page, 'Claude Code')).toBeVisible();
 	await expect(shown(page, 'Codex')).toBeVisible();
+	// The demo has a budget for every machine together.
+	await expect(shown(page, /Budget for the last 7 days/)).toBeVisible();
 	await page.getByRole('tab', { name: 'Limits' }).click();
 	await expect(shown(page, /Codex · weekly limit/)).toBeVisible();
 	await expect(page.getByText(loadError)).toHaveCount(0);
@@ -148,6 +150,9 @@ test('the AI usage page adds up what the AI tools used, and a device has a card'
 	await expect(jump).toBeVisible();
 	await jump.click();
 	await expect(page.getByRole('heading', { name: 'AI usage' })).toBeInViewport();
+	// The card has every range of the AI usage page.
+	await page.getByLabel('AI usage range').selectOption('30d');
+	await expect(jump).toContainText('30 days');
 	expect(problems).toEqual([]);
 });
 

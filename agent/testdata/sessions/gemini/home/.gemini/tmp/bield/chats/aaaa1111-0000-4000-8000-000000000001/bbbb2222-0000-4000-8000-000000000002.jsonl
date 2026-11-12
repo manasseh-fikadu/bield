@@ -1,0 +1,2 @@
+{"sessionId":"bbbb2222-0000-4000-8000-000000000002","projectHash":"5d41402abc4b2a76b9719d911017c592","startTime":"2026-11-06T17:10:00.000Z","lastUpdated":"2026-11-06T17:10:00.000Z","kind":"subagent"}
+{"id":"s1","timestamp":"2026-11-06T17:10:02.000Z","type":"gemini","content":"y","tokens":{"input":300,"output":30,"cached":100,"thoughts":0,"tool":0,"total":330},"model":"gemini-3-flash-preview"}

@@ -30,8 +30,9 @@ Bield raises an alert when a rule's condition is true, and resolves it after the
 | Containers | A Docker container on Bield's machine stopped unexpectedly. | | | Critical or warning, see below |
 | Systemd units | A unit on Bield's machine failed, or a watched one isn't running. | | | Warning |
 | Bield's own jobs | Something Bield gathers, such as the Tailscale status or Docker, keeps failing. | | | Warning |
+| AI usage budget | The [AI tools](coding.md) used 80% of a budget, or all of it. | The [AI usage budget](#ai-usage-budget) card | no budget | Warning at 80%, critical at 100% |
 
-All eleven rules are on by default. A few details:
+All twelve rules are on by default, and the AI usage budget raises nothing until you set a budget. A few details:
 
 - A device only alerts when it's offline if it has been seen before and its **Alert when offline** switch is on. That switch is on for everything except phones and tablets.
 - A device alerts when it's relayed if Bield's last five pings to it, a minute apart, came back through a DERP server or a peer relay, it was direct at some point in the last week, and its **Alert when relayed** switch is on. That switch is on for servers only, since laptops and phones move between networks and some networks only let relays through. A device that has never been direct, such as one behind a strict NAT, doesn't alert. The alert stays open while the device is offline, and resolves a minute after a ping comes back direct. Bield only sees its own connection to each device, so two other machines can be relayed to each other while both are direct to Bield.
@@ -39,6 +40,19 @@ All eleven rules are on by default. A few details:
 - Container alerts are about the containers on the machine Bield runs on. A container that is unhealthy or restarting alerts as a warning. One that is dead, was killed for using too much memory, or exited with an error alerts as critical. One that exited cleanly (exit code 0, 130, 137 or 143) alerts as a warning only if its restart policy is `always` or `unless-stopped`, so a one-shot job that finishes doesn't alert.
 - A unit alerts as failed whether Bield watches it or not. A [watched unit](#watched-units) that is inactive also alerts.
 - **Restore defaults**, on the Alerts and Retention tabs, puts that tab's values back. It doesn't save until you press **Save changes**.
+
+### AI usage budget
+
+The **AI usage budget** card, under the rules, sets what the [AI tools](coding.md#budgets) on your machines can use before an alert. Every budget is 0 by default, which is no budget.
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| Over | 30 days | The time a budget is for: 24 hours, 7 days or 30 days, as the AI usage page counts them. 7 and 30 days are today and the days before it. |
+| Time zone | your browser's | The zone the days start in, such as `Europe/Berlin`, for 7 and 30 days. If you empty the field, it's the zone Bield's machine is in. |
+| Every machine together | 0 dollars, 0 million tokens | A budget for the AI tools on all the machines added up. Dollars are the API estimate the AI usage page shows, and tokens are the tokens processed. |
+| Each machine | 0 dollars, 0 million tokens | The same, for each machine on its own. |
+
+From the command line, `bield settings set aiBudget.cost=100 aiBudget.window=7d` sets them, with tokens as a whole number (`aiBudget.machineTokens=5000000`).
 
 ### Per-device thresholds
 

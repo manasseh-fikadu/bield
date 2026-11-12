@@ -10,6 +10,7 @@
 	import type { SettingsView } from '#lib/api/types.js';
 	import AccessSettings from '#lib/settings/AccessSettings.svelte';
 	import AlertSettings from '#lib/settings/AlertSettings.svelte';
+	import BudgetSettings from '#lib/settings/BudgetSettings.svelte';
 	import GeneralSettings from '#lib/settings/GeneralSettings.svelte';
 	import NotificationSettings from '#lib/settings/NotificationSettings.svelte';
 	import RetentionSettings from '#lib/settings/RetentionSettings.svelte';
@@ -79,7 +80,12 @@
 				<SetupCard />
 			</div>
 		</TabPanel>
-		<TabPanel value="alerts"><AlertSettings {view} onsaved={saved} /></TabPanel>
+		<TabPanel value="alerts">
+			<div class="space-y-4">
+				<AlertSettings {view} onsaved={saved} />
+				<BudgetSettings {view} onsaved={saved} />
+			</div>
+		</TabPanel>
 		<TabPanel value="notifications">
 			<NotificationSettings {view} onsaved={saved} active={tab === 'notifications'} />
 		</TabPanel>

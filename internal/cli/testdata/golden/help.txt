@@ -42,6 +42,8 @@ Commands that talk to a running Bield:
   editor open <device> [folder]         start VS Code on a device, and print where to open it (admins)
   editor stop <device>                  stop VS Code on a device (admins)
   editor remove <device>                remove VS Code from a device (admins)
+  ai watch                              turn on watching the AI tools on every machine that has an agent (admins)
+  ai unwatch                            turn off watching the AI tools on every machine (admins)
   enroll                                make an install command that adds a machine's agent (admins)
   settings                              show Bield's settings and what they are by default (admins)
   settings set <name=value>...          change settings; only the ones you name change (admins)

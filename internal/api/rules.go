@@ -202,6 +202,18 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 		})
 	}
 
+	if rules.AIBudget && src.budget != nil {
+		keys := map[string]Device{}
+		for key, id := range historyKeys(src.tailnet.Status) {
+			if d, ok := byID[id]; ok {
+				keys[key] = d
+			}
+		}
+		for _, c := range budgetConditions(src.global.AIBudget, src.budget, keys) {
+			add(c)
+		}
+	}
+
 	tailnetFresh := fresh(src.tailnet.StatusAt, src.tailnet.StatusErr, now)
 	var dockerFresh, unitsFresh bool
 	if r := src.docker; r != nil {
@@ -239,6 +251,9 @@ func alertConditions(snap Snapshot, machines []machine, src sources, started, no
 			return unitsFresh
 		case AlertSourceCheck, AlertSourceCollector:
 			return true
+		case AlertSourceBudget:
+			// A budget that was removed has nothing to wait for either.
+			return src.budgetFresh
 		}
 		return false
 	}
@@ -306,6 +321,8 @@ func ruleOn(r settings.Rules, key string) bool {
 		return r.Units
 	case "collector":
 		return r.Collectors
+	case "budget":
+		return r.AIBudget
 	}
 	return true
 }

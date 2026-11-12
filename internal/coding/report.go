@@ -12,6 +12,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/manasseh-fikadu/bield/internal/pricing"
 	"github.com/manasseh-fikadu/bield/internal/store"
 )
 
@@ -127,7 +128,7 @@ func (r Report) Clean(now, oldest time.Time) (store.CodingReport, error) {
 			return out, fmt.Errorf("tool %d has a name that isn't a tool's", i)
 		}
 		status := t.Status
-		if status != "ok" && status != "needs-sqlite" {
+		if status != "ok" && status != "needs-sqlite" && status != "needs-python" {
 			status = "unreadable"
 		}
 		out.Tools = append(out.Tools, store.CodingToolStatus{Tool: t.Tool, Status: status, At: now})
@@ -174,9 +175,9 @@ func (r Report) Clean(now, oldest time.Time) (store.CodingReport, error) {
 		if hour.Before(oldest.Truncate(time.Hour)) || hour.After(ahead) {
 			continue
 		}
-		speed := "standard"
-		if u.Speed == "fast" {
-			speed = "fast"
+		speed := pricing.Standard
+		if u.Speed == pricing.Fast || u.Speed == pricing.Ultrafast {
+			speed = u.Speed
 		}
 		out.Usage = append(out.Usage, store.CodingUsage{
 			Tool: u.Tool, Session: u.Session, Model: u.Model, Speed: speed, Hour: hour.UTC(),

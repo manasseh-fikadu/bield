@@ -4,6 +4,23 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Added
+
+- AI usage reads Gemini CLI, Grok, Muse and Antigravity too, with agent 1.5.0. Antigravity needs Python 3 on the machine, since its conversations are in a binary format; the machine's card says so when it's missing. See [What the agent reads](docs/coding.md#what-the-agent-reads).
+- AI usage reads OpenCode's JSON files from before it kept a database, and counts the calls a Claude Code session makes to an advisor model, under that model.
+- Codex's ultrafast tier is priced at its own rates. It was priced as fast.
+- Budgets for the AI tools, in **Settings**, **Alerts**, **AI usage budget**: in dollars or tokens, for every machine together or for each machine, over 24 hours, 7 days or 30 days. Bield warns at 80% of a budget and raises a critical alert once it's spent, and notifications send them as they do other alerts. The **AI usage** page shows how much of the budget is used. Nothing alerts until you set a budget.
+- **Watch all** on the **AI usage** page turns on watching the AI tools for every machine that has an agent, and `bield ai watch` does the same. `bield ai unwatch --yes` turns it off on every machine.
+
+### Changed
+
+- A machine's **AI usage** card has every range the AI usage page has, from 24 hours to a year, in a list next to **Watch**, and your browser remembers the one you pick.
+
+### Fixed
+
+- A Claude Code reply that a resumed session or a forked sub-agent copied into another file counts once. It counted once in each file, about 0.7% too much on the machine it was tried on. Agent 1.5.0 reads each machine's files again once, to know which file counted what, and what an older agent sent stays as it was.
+- A Codex request that was interrupted before Codex wrote its tokens down counts, when Codex's record of each request accounts for it.
+
 ## 0.7.0 - 2026-11-12
 
 This release is about how traffic reaches your machines: Tailscale tags, a filter by route, an alert when a machine that was direct falls back to a relay, and a suggestion for a peer relay. It also measures routes better. The agent doesn't change, and Bield adds a table and a column to its database when it starts, which needs no action from you.

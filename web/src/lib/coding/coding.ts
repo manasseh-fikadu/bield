@@ -1,9 +1,10 @@
-// How the UI shows what the AI tools (Claude Code, Codex, OpenCode, Pi) on the
+// How the UI shows what the AI tools (Claude Code, Codex, OpenCode and more) on the
 // tailnet's machines used: tokens, what they'd cost on the model makers'
 // APIs, and where the tools' limits stand. All of it is worked out by the hub;
 // this is words, numbers and colors.
 
 import type {
+	CodingBudget,
 	CodingCost,
 	CodingLimit,
 	CodingSource,
@@ -32,6 +33,51 @@ export function codingRangeName(range: CodingRange): string {
 	];
 }
 
+/** The range a machine's AI usage card starts with, until a range is picked there. */
+export const defaultCardRange: CodingRange = '24h';
+
+/** Where the browser keeps the range picked on a machine's AI usage card, one for every machine. */
+export const cardRangeKey = 'bield.coding.cardRange';
+
+/** A range that was kept, or the default if it isn't one, as when a later version dropped it. */
+export function keptRange(v: unknown): CodingRange {
+	return codingRanges.some((r) => r.value === v) ? (v as CodingRange) : defaultCardRange;
+}
+
+/** A range's label, such as "7 days". */
+export function codingRangeLabel(range: CodingRange): string {
+	return codingRanges.find((r) => r.value === range)?.label ?? range;
+}
+
+/** One budget of the AI usage page: how much of it is used over its window. */
+export interface BudgetUse {
+	metric: Metric;
+	/** Such as "$84.20 of $100". */
+	text: string;
+	/** The percent used, which can be over 100. */
+	percent: number;
+}
+
+/** How much of each budget in `b` is used, cost first. A budget of 0 is none, and isn't listed. */
+export function budgetUse(b: CodingBudget): BudgetUse[] {
+	const out: BudgetUse[] = [];
+	if (b.cost > 0) {
+		out.push({
+			metric: 'cost',
+			text: `${dollars(b.usedCost)} of ${dollars(b.cost).replace(/\.00$/, '')}`,
+			percent: (b.usedCost / b.cost) * 100
+		});
+	}
+	if (b.tokens > 0) {
+		out.push({
+			metric: 'tokens',
+			text: `${compactTokens(b.usedTokens)} of ${compactTokens(b.tokens)} tokens`,
+			percent: (b.usedTokens / b.tokens) * 100
+		});
+	}
+	return out;
+}
+
 /** What a device's page says about its AI usage card, at the top, where it is out of sight. */
 export interface Glance {
 	/** Whether an admin turned watching on. */
@@ -56,7 +102,11 @@ const toolNames: Record<string, string> = {
 	claude: 'Claude Code',
 	codex: 'Codex',
 	opencode: 'OpenCode',
-	pi: 'Pi'
+	pi: 'Pi',
+	gemini: 'Gemini CLI',
+	grok: 'Grok',
+	muse: 'Muse',
+	antigravity: 'Antigravity'
 };
 
 /** A tool's name, such as "Claude Code". A tool this version doesn't know gets its id, capitalised. */
@@ -69,11 +119,15 @@ const toolColors: Record<string, string> = {
 	// Not the near-white of a lit lamp, which a tool's color would be taken for.
 	codex: '#199e70',
 	opencode: '#3987e5',
-	pi: '#9085e9'
+	pi: '#9085e9',
+	gemini: '#14a3b8',
+	grok: '#c98500',
+	muse: '#d55181',
+	antigravity: '#e66767'
 };
 
 /** Colors for the tools this version doesn't know, which stay the same for a tool. */
-const spare = ['#c98500', '#d55181', '#14a3b8', '#e66767'];
+const spare = ['#8f9a2c', '#b8743d', '#6f86d6', '#a85c9e'];
 
 /** A tool's color in charts, which stays the same for the tool whichever page it's on. */
 export function toolColor(tool: string): string {
@@ -363,6 +417,8 @@ export function sourceHint(s: CodingSource, where: string): string | undefined {
 			return undefined;
 		case 'needs-sqlite':
 			return `Install sqlite3 or Python 3 on ${where} to read ${toolName(s.tool)}.`;
+		case 'needs-python':
+			return `Install Python 3 on ${where} to read ${toolName(s.tool)}.`;
 		default:
 			return `The agent on ${where} couldn't read ${toolName(s.tool)}'s files.`;
 	}

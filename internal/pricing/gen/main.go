@@ -169,6 +169,9 @@ func ratesOf(entry map[string]any) (pricing.Rates, bool) {
 	} else if p, ok := tier(entry, "_priority", &std); ok {
 		std.Fast = &p
 	}
+	if u, ok := tier(entry, "_ultrafast", &std); ok {
+		std.Ultrafast = &u
+	}
 	return std, true
 }
 
@@ -212,23 +215,34 @@ func sameRates(a, b pricing.Rates) bool {
 	if a.Input != b.Input || a.Output != b.Output || a.CacheRead != b.CacheRead || a.CacheWrite != b.CacheWrite {
 		return false
 	}
-	if (a.Fast == nil) != (b.Fast == nil) {
+	return sameTier(a.Fast, b.Fast) && sameTier(a.Ultrafast, b.Ultrafast)
+}
+
+func sameTier(a, b *pricing.Rates) bool {
+	if (a == nil) != (b == nil) {
 		return false
 	}
-	return a.Fast == nil || *a.Fast == *b.Fast
+	return a == nil || *a == *b
 }
 
 // merge combines two entries for one model that differ only in a missing
-// fast tier.
+// fast or ultrafast tier.
 func merge(a, b pricing.Rates) (pricing.Rates, bool) {
-	base := func(r pricing.Rates) pricing.Rates { r.Fast = nil; return r }
+	base := func(r pricing.Rates) pricing.Rates { r.Fast, r.Ultrafast = nil, nil; return r }
 	if base(a) != base(b) {
 		return a, false
 	}
+	var ok1, ok2 bool
+	a.Fast, ok1 = mergeTier(a.Fast, b.Fast)
+	a.Ultrafast, ok2 = mergeTier(a.Ultrafast, b.Ultrafast)
+	return a, ok1 && ok2
+}
+
+func mergeTier(a, b *pricing.Rates) (*pricing.Rates, bool) {
 	switch {
-	case a.Fast == nil:
-		a.Fast = b.Fast
-	case b.Fast != nil && *a.Fast != *b.Fast:
+	case a == nil:
+		return b, true
+	case b != nil && *a != *b:
 		return a, false
 	}
 	return a, true

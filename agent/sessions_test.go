@@ -232,7 +232,15 @@ func TestSessions_golden(t *testing.T) {
 	// dropping from 3000 to 500 is not subtracted; priority is fast; the forked rollout leaves out the
 	// history it copied (the first 2 events, in a burst) and keeps the request after the gap.
 	// pi: two requests in the same hour and model make one row, and a summary has its own model.
-	for _, name := range []string{"claude", "codex", "pi"} {
+	// claude-copies: a reply that a forked sub-agent copied counts once, and an advisor call counts
+	// under its own model, but not one with a <synthetic> model. codex also: an interrupted request (B) counts when the records since the
+	// last snapshot explain the gap, and nothing does when they don't; ultrafast is its own speed.
+	// gemini: a message written three times counts once, input less the cached part plus the tool
+	// tokens, thoughts added to the output; the sub-agent has its own session; the project is from
+	// .project_root. grok: a turn written twice counts once; a model without a cost has the rest of
+	// the turn's; a turn without models is "grok". muse: a record copied into the sub-agent counts
+	// once, the cache counts come out of the input, and a turn's roll-up counts for nothing.
+	for _, name := range []string{"claude", "claude-copies", "codex", "pi", "gemini", "grok", "muse"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			home := fixture(t, name)
@@ -740,6 +748,7 @@ func TestSessions_opencode(t *testing.T) {
 		check(t, agentEnv(home, t.TempDir(), "PATH="+bin+":"+os.Getenv("PATH")))
 	})
 	t.Run("neither", func(t *testing.T) {
+		skipIfAgentFinds(t, "python3", "sqlite3")
 		// A PATH with what the agent needs, and no python3 or sqlite3.
 		bin := t.TempDir()
 		for _, name := range []string{"awk", "cat", "cksum", "curl", "cut", "date", "find", "grep", "head", "mkdir", "mv", "od", "rm", "sed", "sort", "stat", "tail", "tr", "uname", "wc", "chmod", "nice", "getconf", "ls", "kill"} {

@@ -163,3 +163,32 @@ func TestClean_projectIsCleaned(t *testing.T) {
 		t.Errorf("Project = %q", p)
 	}
 }
+
+// A speed the hub doesn't know is standard, and so is a status it doesn't know unreadable.
+func TestClean_speedsAndStatuses(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct{ speed, want string }{
+		{"standard", "standard"}, {"fast", "fast"}, {"ultrafast", "ultrafast"}, {"warp", "standard"}, {"", "standard"},
+	} {
+		raw := strings.Replace(good, `"speed":"fast"`, `"speed":"`+tc.speed+`"`, 1)
+		got, err := parse(t, raw).Clean(now, oldest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Usage[0].Speed != tc.want {
+			t.Errorf("speed %q became %q, want %q", tc.speed, got.Usage[0].Speed, tc.want)
+		}
+	}
+	for _, tc := range []struct{ status, want string }{
+		{"ok", "ok"}, {"needs-sqlite", "needs-sqlite"}, {"needs-python", "needs-python"}, {"broken", "unreadable"},
+	} {
+		raw := strings.Replace(good, `"status":"weird"`, `"status":"`+tc.status+`"`, 1)
+		got, err := parse(t, raw).Clean(now, oldest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Tools[2].Status != tc.want {
+			t.Errorf("status %q became %q, want %q", tc.status, got.Tools[2].Status, tc.want)
+		}
+	}
+}

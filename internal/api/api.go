@@ -65,7 +65,7 @@ type Options struct {
 	// Settings holds what admins changed in the settings. Required.
 	Settings *settings.Cache
 	// Prices says what the models that coding tools use cost, which the coding
-	// pages work dollars out from. Nil is the list that's built in.
+	// pages work dollars out from. Nil is the Feed's.
 	Prices *pricing.Table
 	// Notify sends the notifications. Required.
 	Notify *notify.Dispatcher
@@ -122,7 +122,8 @@ func newHandler(opts Options) *handler {
 		panic("api.New: Options.WhoIs, Snapshot, Feed, Store, Agents, Usage, Checks, Alerts, SSH, Docker, Settings and Notify are required")
 	}
 	if opts.Prices == nil {
-		opts.Prices = pricing.Default()
+		// The same list as the budgets' alerts, so the pages show their numbers.
+		opts.Prices = opts.Feed.opts.Prices
 	}
 	h := &handler{opts: opts, log: opts.Logger, limits: newLimits()}
 	h.editorSessions.log = h.logEditorSession
@@ -155,6 +156,7 @@ func (h *handler) routes(rt *router) {
 	rt.read("GET /api/devices/{id}/coding", viewers, h.deviceCoding)
 	rt.write("PUT /api/devices/{id}/coding", h.setDeviceCoding)
 	rt.read("GET /api/coding", viewers, h.fleetCoding)
+	rt.write("POST /api/coding/watch", h.watchAllCoding)
 	rt.write("DELETE /api/devices/{id}/agent", h.revokeAgent)
 	rt.write("POST /api/devices/{id}/agent/install", h.installAgent)
 	rt.write("POST /api/devices/{id}/agent/uninstall", h.uninstallAgent)
