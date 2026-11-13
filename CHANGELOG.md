@@ -4,7 +4,7 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
-## 0.7.1 - 2026-11-12
+## 0.7.1 - 2026-11-13
 
 This release reads more AI tools, counts the ones it read before more exactly, and adds budgets for them. It comes with agent 1.5.0, which the Agents page offers to update to; the new tools and the fixes need it. The agent reads each machine's files again once after the update. There is no database change.
 
