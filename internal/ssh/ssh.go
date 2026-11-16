@@ -495,7 +495,7 @@ func (m *Manager) AuthorizeHere(ctx context.Context, deviceID, by string) (Acces
 		return Access{}, false, fmt.Errorf("find out which user Bield runs as: %w", err)
 	}
 	if shell := m.hubShell(u.Username); noLoginShell(shell) {
-		return Access{}, false, fmt.Errorf("bield runs as %s, whose login shell is %s: %w. Set up access as your own user instead, or give %s a shell",
+		return Access{}, false, fmt.Errorf("can't authorize %s, the user Bield runs as, whose login shell is %s: %w. Set up access as your own user instead, or give %s a shell",
 			u.Username, shell, ErrNoLoginShell, u.Username)
 	}
 	key, err := m.Key()
