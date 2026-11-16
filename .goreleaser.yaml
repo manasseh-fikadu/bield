@@ -87,30 +87,24 @@ release:
   header: |
     Bield is a self-hosted control plane for the machines on your tailnet. It's one binary, or one container, that joins your Tailscale or Headscale tailnet and shows every machine in one place: its health and history, its alerts and its containers. Admins can open a terminal, browse files and restart containers from the same page. There are no passwords, because your tailnet is the login. The [README](https://github.com/manasseh-fikadu/bield#readme) says what it does.
 
-    This release is about AI usage: more tools read, the ones that were read before counted more exactly, and budgets.
+    This release fixes SSH access to the machine Bield runs on, after an install with the install script ([#105](https://github.com/manasseh-fikadu/bield/issues/105)).
 
-    - **More tools.** Besides Claude Code, Codex, OpenCode and Pi, the agent now reads Gemini CLI, Grok, Muse and Antigravity. Antigravity needs Python 3 on the machine, since it keeps its counts in a binary format; the machine's card says so when it's missing. Cursor and Kiro don't write token counts on the machine, so they can't be read, which [the docs](https://github.com/manasseh-fikadu/bield/blob/main/docs/coding.md#tools-bield-doesnt-read) explain.
-    - **Counted more exactly.** A Claude Code reply that a resumed session or a forked sub-agent copied into another file counts once, not once in each (about 0.7% too much on the machine it was tried on). An interrupted Codex request counts when Codex's records account for it. OpenCode's JSON files from before its database are read, a Claude Code session's calls to an advisor model count under that model, and Codex's ultrafast tier is priced at its own rates.
-    - **Budgets.** **Settings**, **Alerts**, **AI usage budget** sets a budget in dollars or tokens, for all machines together or for each one, over 24 hours, 7 days or 30 days. Bield warns at 80% and raises a critical alert once it's spent, and your notification channels send them like other alerts. The **AI usage** page shows how much is used.
-    - **Watch all.** The **AI usage** page turns on watching for every machine with an agent at once, as `bield ai watch` does. `bield ai unwatch --yes` turns it off everywhere.
-    - **Every range on a machine's card.** A machine's **AI usage** card has every range the AI usage page has, from 24 hours to a year, and your browser remembers the one you pick.
+    - **No more half-working setup.** The install script runs Bield as `bield`, an account with no login shell. The SSH card offered to authorize that account anyway; sshd let Bield in, so the card said **Connected**, but the terminal only said `This account is currently not available.` and the file manager failed with `packet too long`. The card now explains that you set up access as your own user, and Bield refuses to authorize an account whose shell is `nologin` or `false`.
+    - **Failures that say why.** When the account Bield logs in as can't run commands, on any machine, the SSH card shows it as failing with what the shell said, and opening a terminal no longer turns it back to **Connected**. The file manager quotes the shell too, instead of an internal error.
 
-    The agent is now 1.5.0. Update it from the Agents page; the new tools and the fixes need it. After the update it reads each machine's files again once, and what an older agent sent stays as it was. There is no database change.
+    If you authorized `bield` before, the machine shows as failing after its next check, with the reason. Set up access as your own user, or give the account a shell. The agent is unchanged, and there is no database change.
 
     Bield can open a shell on every machine you give it SSH access to. Read the [security model](https://github.com/manasseh-fikadu/bield/blob/main/SECURITY.md) before you put it on a tailnet you care about.
 
     ### What has been run
 
-    - The agent's readers on this release's test machine's real files: Claude Code's copies came to 286 of 38,736 replies, the same as a count done another way; Codex's totals equal T3 Code's way of counting them for every session and model; OpenCode's database gives the same report through the real `sqlite3` command as through Python.
-    - A real install of Pi 0.73.1, talking to a stand-in model server, whose session files the agent read right, with the cost Pi worked out.
-    - The agent's tests with bash 3.2.57 and BWK awk, which macOS has, with busybox awk, and in a Linux container with FreeBSD's `stat`, `find`, `tail` and `date`.
-    - Budgets, alerts and their notifications, Watch all and the card's ranges in the demo, at phone and desktop widths, and in Go tests.
+    - Real OpenSSH 9.6p1 on Ubuntu 24.04, in a container, with `bield` made as the install script makes it. Bield's API and SSH code ran as `bield` against it. v0.7.1's code showed the reported problem: authorizing worked, a terminal turned the card to **Connected**, and the file manager answered with an internal error. This release's code refused to authorize the account and kept it failing with nologin's words in the card and the file manager, did the same for `/bin/false`, and worked normally once the account had `/bin/bash`.
+    - Go tests with a fake sshd that answers as nologin and false do, and the CI checks.
 
     ### What has not been run
 
-    - A Mac, and real installs of Gemini CLI, Grok, Muse and Antigravity. Their readers follow their file formats as T3 Code reads them, and were tried on made-up files.
-    - This release on the live tailnet, before it was published.
-    - What the [v0.7.0 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.7.0) list under "What has not been run". Nothing in this release changes that.
+    - A full install with the install script on a machine joined to a tailnet, with this release.
+    - What the [v0.7.1 notes](https://github.com/manasseh-fikadu/bield/releases/tag/v0.7.1) list under "What has not been run". Nothing in this release changes that.
 
     Windows and OIDC sign-in aren't in this version. If something doesn't work, [open an issue](https://github.com/manasseh-fikadu/bield/issues/new/choose).
   footer: |

@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+## 0.7.2 - 2026-11-16
+
+This release fixes SSH access to the machine Bield runs on, when Bield was installed with the install script. The agent and the database are unchanged.
+
 ### Fixed
 
 - On a machine installed with the install script, the SSH card offered to authorize `bield`, an account with no login shell, and then said **Connected** while the terminal and files failed with `packet too long`. The card now explains that you set up access as your own user, Bield refuses to authorize an account with no login shell, and a machine whose account can't run commands shows as failing, with what its shell said, in the card and in the file manager ([#105](https://github.com/manasseh-fikadu/bield/issues/105)).
