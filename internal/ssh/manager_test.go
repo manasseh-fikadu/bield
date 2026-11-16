@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
+	"os/user"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -60,6 +62,9 @@ type envOptions struct {
 	noRun bool
 	// unauthorized leaves Bield's key out of the laptop's authorized_keys.
 	unauthorized bool
+	// passwd is the passwd file that says what login shell the user Bield
+	// runs as has, or "" for the real one.
+	passwd string
 }
 
 // newEnv makes an env and runs its Manager until the test ends. Call it in
@@ -103,6 +108,7 @@ func newEnv(t *testing.T, opts envOptions) *env {
 		Dial:      sshtest.Route(map[string]*sshtest.Server{laptopIP.String(): e.laptop, bieldIP.String(): e.hub, vpsIP.String(): e.hub}),
 		DialLocal: sshtest.Route(map[string]*sshtest.Server{"127.0.0.1": e.hub}),
 		HostMode:  opts.hostMode,
+		Passwd:    opts.passwd,
 	})
 	if err := e.m.Load(t.Context()); err != nil {
 		t.Fatal(err)
@@ -979,4 +985,107 @@ func TestManager_sessions(t *testing.T) {
 			t.Errorf("KillSession with a dot = %v, want ErrBadSession", err)
 		}
 	})
+}
+
+// TestManager_noLoginShell is a machine where the account Bield logs in as
+// has no login shell: sshd lets Bield in, but runs nothing (#105).
+func TestManager_noLoginShell(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		say  string
+		// want is in the check's error, and wantSFTP in SFTP's.
+		want, wantSFTP string
+	}{
+		{
+			name:     "nologin",
+			say:      "This account is currently not available.\n",
+			want:     `status 1 and said "This account is currently not available."`,
+			wantSFTP: `printed "This account is currently not available." first (error receiving version packet from server: packet too long)`,
+		},
+		{name: "false", want: "status 1 and said nothing", wantSFTP: "SFTP ended before it started, without a word"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				e := newEnv(t, envOptions{noRun: true})
+				e.laptop.NoLogin(tt.say)
+				e.laptop.ServeSFTP(t.TempDir())
+				e.setUp(t, "laptop", "bield")
+
+				a, err := e.m.Check(t.Context(), "laptop")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if a.State != ssh.StateFailing || !strings.Contains(a.Error, tt.want) {
+					t.Errorf("check = %+v, want failing with %q", a, tt.want)
+				}
+				// Logging in again works, but says nothing of the shell.
+				e.laptop.Drop()
+				synctest.Wait()
+				if _, err := e.m.Exec(t.Context(), "laptop", "true"); err != nil {
+					t.Fatal(err)
+				}
+				if a := e.m.Access()["laptop"]; a.State != ssh.StateFailing {
+					t.Errorf("after logging in again, access = %+v, want it still failing", a)
+				}
+				// SFTP reads the shell's words as a packet, so its error says
+				// what the shell said instead.
+				_, _, err = e.m.SFTP(t.Context(), "laptop")
+				if !errors.Is(err, ssh.ErrShell) || !strings.Contains(err.Error(), tt.wantSFTP) {
+					t.Errorf("SFTP = %v, want ErrShell with %q", err, tt.wantSFTP)
+				}
+
+				// Once the account has a shell, the next check clears it.
+				ok(e.laptop)
+				if a, err := e.m.Check(t.Context(), "laptop"); err != nil || a.State != ssh.StateOK {
+					t.Errorf("check with a shell = %+v, %v, want OK", a, err)
+				}
+			})
+		})
+	}
+}
+
+// TestManager_authorizeNoLoginShell is the machine Bield runs on, where Bield
+// runs as an account with no login shell, as install.sh makes it (#105).
+func TestManager_authorizeNoLoginShell(t *testing.T) {
+	u, err := user.Current()
+	if err != nil {
+		t.Skip(err)
+	}
+	for _, tt := range []struct {
+		shell   string
+		noShell bool
+	}{
+		{"/usr/sbin/nologin", true},
+		{"/bin/false", true},
+		{"/bin/bash", false},
+	} {
+		t.Run(tt.shell, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				passwd := filepath.Join(t.TempDir(), "passwd")
+				line := u.Username + ":x:998:998::/var/lib/bield:" + tt.shell + "\n"
+				if err := os.WriteFile(passwd, []byte("root:x:0:0:root:/root:/bin/bash\n"+line), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				e := newEnv(t, envOptions{noRun: true, hostMode: true, passwd: passwd})
+				s, err := e.m.Setup("bield")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !s.Hub || s.HubUser != u.Username || s.HubNoShell != tt.noShell {
+					t.Errorf("Setup = %+v, want the hub's, as %s, with HubNoShell %v", s, u.Username, tt.noShell)
+				}
+				if !tt.noShell {
+					// Authorizing would write to the real authorized_keys.
+					return
+				}
+				_, _, err = e.m.AuthorizeHere(t.Context(), "bield", admin)
+				if !errors.Is(err, ssh.ErrNoLoginShell) || !strings.Contains(err.Error(), tt.shell) {
+					t.Errorf("AuthorizeHere = %v, want ErrNoLoginShell naming %s", err, tt.shell)
+				}
+				if _, ok := e.m.Access()[store.HubID]; ok {
+					t.Error("AuthorizeHere set up access, want it to leave it alone")
+				}
+			})
+		})
+	}
 }

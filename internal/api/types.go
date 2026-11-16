@@ -1702,6 +1702,9 @@ type SSHSetup struct {
 	// HubUser is the user Bield runs as, on the machine Bield runs on,
 	// which POST /api/devices/{id}/ssh/authorize logs in as.
 	HubUser string `json:"hubUser,omitempty"`
+	// HubUserNoShell says HubUser has no login shell, as when install.sh
+	// made it, so sshd runs nothing for it and authorize refuses it.
+	HubUserNoShell bool `json:"hubUserNoShell,omitempty"`
 }
 
 // SetSSH is the body of PUT /api/devices/{id}/ssh, which sets up how Bield

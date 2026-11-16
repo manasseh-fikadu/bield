@@ -2475,6 +2475,11 @@ export interface SSHSetup {
    * which POST /api/devices/{id}/ssh/authorize logs in as.
    */
   hubUser?: string;
+  /**
+   * HubUserNoShell says HubUser has no login shell, as when install.sh
+   * made it, so sshd runs nothing for it and authorize refuses it.
+   */
+  hubUserNoShell?: boolean;
 }
 /**
  * SetSSH is the body of PUT /api/devices/{id}/ssh, which sets up how Bield

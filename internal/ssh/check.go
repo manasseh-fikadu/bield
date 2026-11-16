@@ -52,7 +52,9 @@ func (m *Manager) check(ctx context.Context, t target) (Access, error) {
 	case ctx.Err() != nil:
 		return Access{}, ctx.Err()
 	case err == nil && res.Code != 0:
-		err = errors.New("checking the machine failed: " + strings.TrimSpace(string(res.Stderr)))
+		// The script ends with exit 0, so the login shell didn't run it,
+		// as nologin doesn't, and said why on stdout or stderr.
+		err = shellError(res.Code, append(res.Stderr, res.Stdout...))
 	}
 	found := Access{State: StateOK}
 	if err == nil {
@@ -121,7 +123,7 @@ func (m *Manager) record(id string, gen uint64, client *gossh.Client, err error)
 	}
 	if err == nil {
 		method := methodOf(client)
-		if v.State == StateOK && v.Method == method {
+		if v.State == StateOK && v.Method == method || v.shellFailed {
 			return
 		}
 		v.Method = method
@@ -152,6 +154,7 @@ func (m *Manager) setCheckLocked(id string, found Access, err error) {
 		found.State, found.Error = StateFailing, err.Error()
 		found.Tmux, found.Docker, found.DockerSocket = prev.Tmux, prev.Docker, prev.DockerSocket
 		found.Method = ""
+		found.shellFailed = errors.Is(err, ErrShell)
 		if ce, ok := errors.AsType[*ConnectError](err); ok {
 			found.Refusal = ce.Refusal
 		}
