@@ -38,6 +38,10 @@ type Server struct {
 	// sftp is the folder SFTP starts in, or "" while the server offers none.
 	sftp   string
 	refuse bool
+	// noLogin is what the server's login shell says while it's one that
+	// runs nothing, and whether it is.
+	noLogin    string
+	hasNoLogin bool
 	// tailscale is the policy of a server that answers as Tailscale SSH
 	// does, or nil.
 	tailscale *Policy
@@ -152,11 +156,11 @@ func (s *Server) Authorize(line string) {
 }
 
 // Handle makes h run the commands and shells that clients start from now
-// on.
+// on, in place of NoLogin.
 func (s *Server) Handle(h Handler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.handler = h
+	s.handler, s.hasNoLogin = h, false
 }
 
 // HandleSocket makes h serve each connection a client opens to the Unix
@@ -179,6 +183,25 @@ func (s *Server) ServeSFTP(home string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sftp = home
+}
+
+// NoLogin makes the server answer as sshd does for an account with no login
+// shell, such as /usr/sbin/nologin: it lets clients in, but every command,
+// shell and subsystem, SFTP included, prints say on stdout and exits 1, as
+// nologin does. An empty say is /bin/false, which says nothing. Handle
+// gives it a shell again.
+func (s *Server) NoLogin(say string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.noLogin, s.hasNoLogin = say, true
+}
+
+// noLoginHandler prints say and exits 1.
+func noLoginHandler(say string) Handler {
+	return func(e *Exec) int {
+		_, _ = io.WriteString(e.Stdout, say)
+		return 1
+	}
 }
 
 // Policy is what the tailnet policy says of the client that logs in to a
@@ -494,9 +517,15 @@ func (s *Server) session(user string, ch gossh.Channel, reqs <-chan *gossh.Reque
 		case "subsystem":
 			var msg struct{ Name string }
 			s.mu.Lock()
-			home := s.sftp
+			home, say, noLogin := s.sftp, s.noLogin, s.hasNoLogin
 			s.mu.Unlock()
 			if gossh.Unmarshal(req.Payload, &msg) != nil || msg.Name != "sftp" || home == "" || started {
+				break
+			}
+			if noLogin {
+				// sshd runs the subsystem with the login shell too.
+				started, ok = true, true
+				s.wg.Go(func() { exited <- noLoginHandler(say)(&Exec{User: user, Stdout: ch}) })
 				break
 			}
 			started, ok = true, true
@@ -518,6 +547,9 @@ func (s *Server) session(user string, ch gossh.Channel, reqs <-chan *gossh.Reque
 			started, ok = true, true
 			s.mu.Lock()
 			h := s.handler
+			if s.hasNoLogin {
+				h = noLoginHandler(s.noLogin)
+			}
 			s.mu.Unlock()
 			e := &Exec{User: user, Command: msg.Command, Pty: pty, Stdin: ch, Stdout: ch, Stderr: ch.Stderr(), Resized: resized}
 			if pty != nil {

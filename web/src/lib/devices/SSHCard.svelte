@@ -60,6 +60,8 @@
 	let editing = $state(false);
 	let setup = $state<SSHSetup | null>(null);
 	let setupError = $state<string | null>(null);
+	/** Whether the card offers to authorize the user Bield runs as. */
+	const authorizable = $derived(ssh.hub && !!setup?.hubUser && !setup.hubUserNoShell && !editing);
 	/** What the admin typed in the User field, or null until they do. */
 	let typedUser = $state<string | null>(null);
 	// Until then, the user most machines use is likely the one for this one.
@@ -210,7 +212,7 @@
 		<Skeleton class="h-24" />
 	{:else}
 		<ol class="space-y-4 text-[13px] text-fg-muted">
-			{#if ssh.hub && setup.hubUser && !editing}
+			{#if authorizable}
 				<li class="space-y-2">
 					<p>
 						Bield logs in to this machine on its loopback address. It can add its key to the
@@ -228,6 +230,13 @@
 				</li>
 				<li class="border-t border-line pt-4">To log in as another user, run this as that user:</li>
 			{:else}
+				{#if ssh.hub && setup.hubUser && setup.hubUserNoShell && !editing}
+					<li class="text-[12px] text-fg-subtle">
+						Bield runs as <span class="font-mono text-fg">{setup.hubUser}</span>, an account with no
+						login shell, so sshd won't run its commands as that user. Log in as your own user
+						instead.
+					</li>
+				{/if}
 				<li>
 					<span class="mr-1.5 font-mono text-fg-faint">1</span>
 					Run this on {device.name}, as the user Bield should log in as:
@@ -244,7 +253,7 @@
 			</li>
 			<li class="space-y-2">
 				<p>
-					{#if !(ssh.hub && setup.hubUser) || editing}
+					{#if !authorizable}
 						<span class="mr-1.5 font-mono text-fg-faint">2</span>
 					{/if}
 					Then tell Bield which user that was.

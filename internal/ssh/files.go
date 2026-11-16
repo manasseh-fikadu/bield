@@ -1,10 +1,13 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/pkg/sftp"
 	gossh "golang.org/x/crypto/ssh"
@@ -104,12 +107,45 @@ func newSFTP(client *gossh.Client) (*sftp.Client, error) {
 		}
 		return nil, ErrNoSFTP
 	}
-	c, err := sftp.NewClientPipe(stdout, stdin)
+	// A login shell that doesn't start the SFTP server, such as nologin,
+	// prints in its place, which SFTP reads as a packet.
+	head := &headReader{r: stdout, max: maxSaid + 1}
+	c, err := sftp.NewClientPipe(head, stdin)
 	if err != nil {
-		_ = sess.Close()
-		return nil, err
+		defer func() { _ = sess.Close() }()
+		return nil, explainSFTP(head, err)
 	}
 	return c, nil
+}
+
+// shellWait is how long an SFTP client that couldn't start waits for the
+// rest of what the login shell said.
+const shellWait = 2 * time.Second
+
+// explainSFTP returns err, why an SFTP client couldn't start, with what the
+// login shell said, if it ran in the SFTP server's place. It reads what's
+// left of stdout, through head, for shellWait at most. A session that asked
+// for a subsystem has no exit status to wait for, so a shell that ended
+// without a word, as /bin/false does, is known by stdout ending empty.
+func explainSFTP(head *headReader, err error) error {
+	ended := make(chan bool, 1)
+	go func() {
+		_, cerr := io.Copy(io.Discard, io.LimitReader(head, maxStderr))
+		ended <- cerr == nil
+	}()
+	timer := time.NewTimer(shellWait)
+	defer timer.Stop()
+	select {
+	case eof := <-ended:
+		// Nothing reads through head any more.
+		if eof && len(bytes.TrimSpace(head.head)) == 0 {
+			return fmt.Errorf("%w: SFTP ended before it started, without a word (%w). An account with no login shell, such as /bin/false, does that; give it one, or log in as another user", ErrShell, err)
+		}
+		return sftpShellError(head.head, err)
+	case <-timer.C:
+		// Something still runs, so this isn't a shell that refused.
+		return err
+	}
 }
 
 // A Stream is a command's output as it comes. Read it to the end, then Wait

@@ -182,6 +182,23 @@ func TestFiles_noAccess(t *testing.T) {
 	}
 }
 
+// TestFiles_noLoginShell is a machine where Bield logs in as an account
+// with no login shell, which prints a notice where SFTP should start
+// (#105). The error says so, instead of SFTP's "packet too long".
+func TestFiles_noLoginShell(t *testing.T) {
+	t.Parallel()
+	e := newSSHEnv(t, testStore(t), nil)
+	e.sshd.ServeSFTP(t.TempDir())
+	e.sshd.NoLogin("This account is currently not available.\n")
+	e.setUp(t)
+	rec := serve(e.h, newRequest(t, http.MethodGet, "/api/devices/laptop/files/list", laptopIP))
+	var body api.ErrorBody
+	if rec.Code != http.StatusBadGateway || json.Unmarshal(rec.Body.Bytes(), &body) != nil ||
+		!strings.Contains(body.Error, `printed "This account is currently not available."`) || !strings.Contains(body.Error, "no login shell") {
+		t.Errorf("list = %d %s, want 502 that quotes the login shell", rec.Code, rec.Body)
+	}
+}
+
 func TestFiles_changes(t *testing.T) {
 	t.Parallel()
 	e := newFilesEnv(t)

@@ -4,6 +4,10 @@ What changed in each release of Bield, newest first. The [landing page](https://
 
 ## Unreleased
 
+### Fixed
+
+- On a machine installed with the install script, the SSH card offered to authorize `bield`, an account with no login shell, and then said **Connected** while the terminal and files failed with `packet too long`. The card now explains that you set up access as your own user, Bield refuses to authorize an account with no login shell, and a machine whose account can't run commands shows as failing, with what its shell said, in the card and in the file manager ([#105](https://github.com/manasseh-fikadu/bield/issues/105)).
+
 ## 0.7.1 - 2026-11-13
 
 This release reads more AI tools, counts the ones it read before more exactly, and adds budgets for them. It comes with agent 1.5.0, which the Agents page offers to update to; the new tools and the fixes need it. The agent reads each machine's files again once after the update. There is no database change.

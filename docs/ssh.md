@@ -32,7 +32,9 @@ Bield then checks the login and shows its state, the login it uses, the host key
 
 Bield reaches its own machine on `127.0.0.1`, and falls back to the machine's tailnet address if sshd only listens there. The card offers **Authorize Bield as `<user>`**, which adds the key to the `authorized_keys` of the user Bield runs as, with one click.
 
-- **Install script:** Bield runs as `bield`, an account with no login shell, and sshd doesn't run commands for such an account. Don't authorize `bield`. Run the command the card shows as your own user, and enter that user.
+- **Install script:** Bield runs as `bield`, an account with no login shell, and sshd doesn't run commands for such an account. The card says so instead of offering the button, and Bield refuses to authorize an account whose shell is `nologin` or `false`. Run the command the card shows as your own user, and enter that user.
+
+If Bield logs in to any machine as an account like that, its check fails with what the shell said, such as `This account is currently not available.`, and so does opening its files. Give the account a shell, or set up access as another user.
 - **Docker:** inside a container, `127.0.0.1` is the container itself, which has no SSH server, so the loopback login doesn't reach the host. If the host is on the tailnet, set it up as an ordinary machine.
 
 ### Tailscale SSH

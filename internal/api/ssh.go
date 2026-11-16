@@ -70,9 +70,9 @@ func sshStatus(err error) (int, bool) {
 		return http.StatusServiceUnavailable, true
 	case errors.Is(err, ssh.ErrNotSetUp), errors.Is(err, ssh.ErrOffline), errors.Is(err, ssh.ErrHostKeyChange),
 		errors.Is(err, ssh.ErrNoTmux), errors.Is(err, ssh.ErrNoChangedKey), errors.Is(err, ssh.ErrOfferedKeyChanged),
-		errors.Is(err, ssh.ErrNoSFTP):
+		errors.Is(err, ssh.ErrNoSFTP), errors.Is(err, ssh.ErrNoLoginShell):
 		return http.StatusConflict, true
-	case errors.As(err, &ce), errors.Is(err, ssh.ErrTmux), errors.Is(err, context.DeadlineExceeded):
+	case errors.As(err, &ce), errors.Is(err, ssh.ErrTmux), errors.Is(err, ssh.ErrShell), errors.Is(err, context.DeadlineExceeded):
 		return http.StatusBadGateway, true
 	case errors.Is(err, ssh.ErrUnsupported), errors.Is(err, ssh.ErrNotHub), errors.Is(err, ssh.ErrBadUser),
 		errors.Is(err, ssh.ErrBadPort), errors.Is(err, ssh.ErrBadSession), errors.Is(err, ssh.ErrBadDir), errors.Is(err, ssh.ErrBadArg):
@@ -90,7 +90,7 @@ func (h *handler) sshSetup(w http.ResponseWriter, r *http.Request) {
 	}
 	out := SSHSetup{Command: s.Command, AuthorizedKey: s.AuthorizedKey}
 	if s.Hub {
-		out.HubUser = s.HubUser
+		out.HubUser, out.HubUserNoShell = s.HubUser, s.HubNoShell
 	}
 	h.writeJSON(w, r, http.StatusOK, out)
 }

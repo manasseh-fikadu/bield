@@ -129,6 +129,10 @@ type Access struct {
 	OfferedKey string
 	// offered is that key as in known_hosts, which TrustHostKey pins.
 	offered string
+	// shellFailed marks a check that logged in, but whose login shell
+	// didn't run the check: logging in again says nothing of that, so only
+	// another check clears it.
+	shellFailed bool
 }
 
 // Options configures NewManager.
@@ -146,6 +150,9 @@ type Options struct {
 	// DialLocal connects to an address on the machine Bield runs on, such
 	// as 127.0.0.1:22. If it's nil, it's a net.Dialer's.
 	DialLocal func(ctx context.Context, network, addr string) (net.Conn, error)
+	// Passwd is the file AuthorizeHere reads the login shell of the user
+	// Bield runs as from. It's /etc/passwd if "".
+	Passwd string
 	// HostMode reports whether Bield uses the machine's own Tailscale, so
 	// its node is the machine. Otherwise its node is its own, and the
 	// machine may be a peer marked SameMachine.
@@ -388,9 +395,11 @@ type Setup struct {
 	// runs it.
 	Command string
 	// Hub marks the machine Bield runs on, where AuthorizeHere can add the
-	// key for Bield's own user, called HubUser.
-	Hub     bool
-	HubUser string
+	// key for Bield's own user, called HubUser, unless HubNoShell says that
+	// user has no login shell.
+	Hub        bool
+	HubUser    string
+	HubNoShell bool
 }
 
 // Setup returns how to let Bield log in to a device. The key only works
@@ -414,6 +423,7 @@ func (m *Manager) Setup(deviceID string) (Setup, error) {
 	if t.hub {
 		if u, err := user.Current(); err == nil {
 			s.HubUser = u.Username
+			s.HubNoShell = noLoginShell(m.hubShell(u.Username))
 		}
 	}
 	return s, nil
@@ -469,7 +479,9 @@ func (m *Manager) SetUp(ctx context.Context, deviceID, username string, port int
 // AuthorizeHere lets Bield log in to the machine it runs on as the user it
 // runs as, on port 22: it adds Bield's key to that user's authorized_keys,
 // and sets up access with it. It reports whether it added the key, which
-// may be there already. by is the admin's login.
+// may be there already. by is the admin's login. It returns
+// ErrNoLoginShell if the user has no login shell, as when install.sh made
+// it, since sshd would let Bield in but run nothing.
 func (m *Manager) AuthorizeHere(ctx context.Context, deviceID, by string) (Access, bool, error) {
 	t, err := m.target(deviceID)
 	if err != nil {
@@ -481,6 +493,10 @@ func (m *Manager) AuthorizeHere(ctx context.Context, deviceID, by string) (Acces
 	u, err := user.Current()
 	if err != nil {
 		return Access{}, false, fmt.Errorf("find out which user Bield runs as: %w", err)
+	}
+	if shell := m.hubShell(u.Username); noLoginShell(shell) {
+		return Access{}, false, fmt.Errorf("bield runs as %s, whose login shell is %s: %w. Set up access as your own user instead, or give %s a shell",
+			u.Username, shell, ErrNoLoginShell, u.Username)
 	}
 	key, err := m.Key()
 	if err != nil {
