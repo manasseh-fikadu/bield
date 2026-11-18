@@ -16,8 +16,8 @@ require (
 	github.com/pkg/sftp v1.13.12
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	golang.org/x/crypto v0.58.0
-	golang.org/x/sys v0.49.0
-	modernc.org/sqlite v1.61.0
+	golang.org/x/sys v0.50.0
+	modernc.org/sqlite v1.62.0
 	tailscale.com v1.104.5
 )
 
@@ -82,7 +82,7 @@ require (
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20260915211658-a6f909f08a72 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
