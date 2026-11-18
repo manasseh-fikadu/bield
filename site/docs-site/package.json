@@ -31,5 +31,9 @@
 		"typescript": "^6.0.3",
 		"unified": "^11.0.5",
 		"unist-util-visit": "^5.2.0"
+	},
+	"overrides": {
+		"@emnapi/core": "1.11.3",
+		"@emnapi/runtime": "1.11.3"
 	}
 }
